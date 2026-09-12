@@ -115,3 +115,56 @@ export function getTouchpadZone(
   if (x < centerX && y >= centerY) return 3; // Kiri Bawah
   return 4; // Kanan Bawah
 }
+
+export function touchpadTargetToProtocolId(target: TouchpadZoneTarget): number {
+  switch (target) {
+    case 'triangle': return 1;
+    case 'circle': return 2;
+    case 'cross': return 3;
+    case 'square': return 4;
+    case 'l1': return 5;
+    case 'r1': return 6;
+    case 'l2': return 7;
+    case 'r2': return 8;
+    case 'l3': return 9;
+    case 'r3': return 10;
+    case 'dpad-up': return 11;
+    case 'dpad-right': return 12;
+    case 'dpad-down': return 13;
+    case 'dpad-left': return 14;
+    case 'create': return 15;
+    case 'options': return 16;
+    case 'ps': return 17;
+    case 'touchpad': return 18;
+    case 'none':
+    default:
+      return 0;
+  }
+}
+
+export function protocolIdToTouchpadTarget(id: number): TouchpadZoneTarget {
+  switch (id) {
+    case 1: return 'triangle';
+    case 2: return 'circle';
+    case 3: return 'cross';
+    case 4: return 'square';
+    case 5: return 'l1';
+    case 6: return 'r1';
+    case 7: return 'l2';
+    case 8: return 'r2';
+    case 9: return 'l3';
+    case 10: return 'r3';
+    case 11: return 'dpad-up';
+    case 12: return 'dpad-right';
+    case 13: return 'dpad-down';
+    case 14: return 'dpad-left';
+    case 15: return 'create';
+    case 16: return 'options';
+    case 17: return 'ps';
+    case 18: return 'touchpad';
+    case 0:
+    default:
+      return 'none';
+  }
+}
+

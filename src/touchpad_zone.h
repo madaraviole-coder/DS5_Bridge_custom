@@ -33,6 +33,10 @@ enum TouchpadZoneTargetButton : uint8_t {
     TouchpadTargetTouchpadClick = 18, // Normal physical click passthrough
 };
 
+inline bool touchpad_zone_valid_target(uint8_t target) {
+    return target <= TouchpadTargetTouchpadClick;
+}
+
 struct TouchpadZoneConfig {
     bool enabled;
     uint8_t deadzone_percent; // e.g. 50 (radius = 150px around 960, 540)

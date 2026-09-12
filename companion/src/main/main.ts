@@ -35,6 +35,7 @@ import type {
   UiScalePercent,
   UiThemePreset
 } from '../shared/types';
+import type { TouchpadSettings } from '../shared/touchpad-gestures';
 
 const APP_NAME = 'DS5 Bridge';
 const WINDOWS_APP_USER_MODEL_ID = 'io.github.sundaymoments.ds5bridge';
@@ -1218,6 +1219,9 @@ function registerIpc(service: BridgeService): void {
   });
   ipcMain.handle('bridge:setButtonRemap', (_event, buttonId: RemapButtonId, targetId: RemapButtonId) => (
     service.setButtonRemap(buttonId, targetId)
+  ));
+  ipcMain.handle('bridge:setTouchpadZoneConfig', (_event, settings: TouchpadSettings) => (
+    service.setTouchpadZoneConfig(settings)
   ));
   ipcMain.handle('bridge:selectButtonRemappingProfile', (_event, profileId: string) => (
     service.selectButtonRemappingProfile(profileId)

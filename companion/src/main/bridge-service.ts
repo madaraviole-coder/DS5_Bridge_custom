@@ -37,11 +37,17 @@ import {
   readReportProtocolVersion,
   SHORTCUT_EVENT,
   buildButtonRemapPayload,
+  buildTouchpadZonePayload,
   hostPersonaModeValue,
   normalizeChordControllerSettingStepPercent,
   normalizeBridgePresetId,
   pollingRateModeValue
 } from '../shared/protocol';
+import {
+  DEFAULT_TOUCHPAD_SETTINGS,
+  touchpadTargetToProtocolId,
+  type TouchpadSettings
+} from '../shared/touchpad-gestures';
 import type {
   AdaptiveTriggerPreviewEffect,
   AudioReactiveHapticsAttack,
@@ -3410,6 +3416,39 @@ export class BridgeService extends EventEmitter {
     });
   }
 
+  private async applyTouchpadZoneSettings(
+    settings: CompanionSettings,
+    expectSettingsRevisionChange: boolean
+  ): Promise<void> {
+    const touchpad = settings.touchpadSettings ?? DEFAULT_TOUCHPAD_SETTINGS;
+    const payload = buildTouchpadZonePayload({
+      deadzonePercent: touchpad.deadzonePercent,
+      zoneTargets: [
+        touchpadTargetToProtocolId(touchpad.zoneMappings[1]),
+        touchpadTargetToProtocolId(touchpad.zoneMappings[2]),
+        touchpadTargetToProtocolId(touchpad.zoneMappings[3]),
+        touchpadTargetToProtocolId(touchpad.zoneMappings[4])
+      ]
+    });
+    await this.sendCommand(
+      COMMAND_ID.SET_TOUCHPAD_ZONE_CONFIG,
+      touchpad.enabled ? 1 : 0,
+      {
+        expectSettingsRevisionChange,
+        extraPayload: payload
+      }
+    );
+  }
+
+  async setTouchpadZoneConfig(touchpadSettings: TouchpadSettings): Promise<BridgeSnapshot> {
+    this.snapshot.settings = this.settingsStore.setTouchpadSettings(touchpadSettings);
+    if (this.snapshot.state === 'connected') {
+      await this.applyTouchpadZoneSettings(this.snapshot.settings, true);
+    }
+    this.emitSnapshot();
+    return this.getSnapshot();
+  }
+
   private async applyChordBindings(settings: CompanionSettings): Promise<void> {
     const activeAssignments = settings.chordAssignments.filter((assignment) => (
       isChordBindingAllowed(
@@ -4099,6 +4138,7 @@ export class BridgeService extends EventEmitter {
       { expectSettingsRevisionChange }
     );
     await this.applyButtonRemapping(settings, expectSettingsRevisionChange);
+    await this.applyTouchpadZoneSettings(settings, expectSettingsRevisionChange);
     if (settings.edgeProfileSwitchingBlocked) {
       await this.sendCommand(
         COMMAND_ID.SET_EDGE_PROFILE_SWITCHING_BLOCKED,

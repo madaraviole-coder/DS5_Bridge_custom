@@ -98,8 +98,22 @@ export const COMMAND_ID = {
   SET_WAKE_ON_CONNECT: 0x35,
   SET_LIGHTBAR_RESTORE_ENABLED: 0x36,
   SET_RADIAL_DEADZONES: 0x37,
-  SET_EDGE_PROFILE_SWITCHING_BLOCKED: 0x45
+  SET_EDGE_PROFILE_SWITCHING_BLOCKED: 0x45,
+  SET_TOUCHPAD_ZONE_CONFIG: 0x46
 } as const;
+
+export function buildTouchpadZonePayload(settings: {
+  deadzonePercent: number;
+  zoneTargets: [number, number, number, number];
+}): number[] {
+  return [
+    Math.max(0, Math.min(100, Math.round(Number.isFinite(settings.deadzonePercent) ? settings.deadzonePercent : 50))),
+    settings.zoneTargets[0] & 0xff,
+    settings.zoneTargets[1] & 0xff,
+    settings.zoneTargets[2] & 0xff,
+    settings.zoneTargets[3] & 0xff
+  ];
+}
 
 export const RADIAL_DEADZONE_MAX_PERCENT = 50;
 

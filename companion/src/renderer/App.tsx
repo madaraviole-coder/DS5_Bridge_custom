@@ -3549,6 +3549,10 @@ export function App() {
   function applySnapshot(next: BridgeSnapshot) {
     setSnapshot(next);
     setRemapDraft(next.settings.buttonRemappingDraft);
+    if (next.settings.touchpadSettings) {
+      setTouchpadSettings(next.settings.touchpadSettings);
+      saveTouchpadSettings(window.localStorage, next.settings.touchpadSettings);
+    }
     if (!hapticsEditingRef.current) {
       setHapticsValue(displayHapticsValue(next));
     }
@@ -5542,6 +5546,9 @@ export function App() {
     setTouchpadSettings((prev) => {
       const next = updater(prev);
       saveTouchpadSettings(window.localStorage, next);
+      if (typeof window !== 'undefined' && window.bridge?.setTouchpadZoneConfig) {
+        void runAction('touchpad-config', () => window.bridge.setTouchpadZoneConfig(next));
+      }
       return next;
     });
   }

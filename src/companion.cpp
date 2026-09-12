@@ -164,6 +164,7 @@ enum CommandId : uint8_t {
     CommandSetLightbarRestoreEnabled = 0x36,
     CommandSetRadialDeadzones = 0x37,
     CommandSetEdgeProfileSwitchingBlocked = 0x45,
+    CommandSetTouchpadZoneConfig = 0x46,
 };
 
 enum AckResult : uint8_t {
@@ -2456,6 +2457,33 @@ void handle_command(uint8_t const *buffer, uint16_t bufsize) {
             }
             left_stick_radial_deadzone_percent = buffer[10];
             right_stick_radial_deadzone_percent = buffer[11];
+            settings_revision++;
+            set_ack(command_id, sequence, AckOk);
+            return;
+
+        case CommandSetTouchpadZoneConfig:
+            if (
+                value > 1
+                || bufsize < 15
+                || buffer[10] > 100
+                || !touchpad_zone_valid_target(buffer[11])
+                || !touchpad_zone_valid_target(buffer[12])
+                || !touchpad_zone_valid_target(buffer[13])
+                || !touchpad_zone_valid_target(buffer[14])
+            ) {
+                set_ack(command_id, sequence, AckInvalidValue);
+                return;
+            }
+            {
+                TouchpadZoneConfig config;
+                config.enabled = value == 1;
+                config.deadzone_percent = buffer[10];
+                config.zone_targets[0] = static_cast<TouchpadZoneTargetButton>(buffer[11]);
+                config.zone_targets[1] = static_cast<TouchpadZoneTargetButton>(buffer[12]);
+                config.zone_targets[2] = static_cast<TouchpadZoneTargetButton>(buffer[13]);
+                config.zone_targets[3] = static_cast<TouchpadZoneTargetButton>(buffer[14]);
+                touchpad_zone_set_config(config);
+            }
             settings_revision++;
             set_ack(command_id, sequence, AckOk);
             return;

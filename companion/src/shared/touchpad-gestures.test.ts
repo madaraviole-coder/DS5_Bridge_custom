@@ -82,4 +82,23 @@ describe('touchpad-gestures', () => {
     const fallback = loadTouchpadSettings(mockStorage);
     expect(fallback).toEqual(DEFAULT_TOUCHPAD_SETTINGS);
   });
+
+  it('converts between TouchpadZoneTarget and protocol IDs', async () => {
+    const { touchpadTargetToProtocolId, protocolIdToTouchpadTarget } = await import('./touchpad-gestures');
+    expect(touchpadTargetToProtocolId('triangle')).toBe(1);
+    expect(touchpadTargetToProtocolId('circle')).toBe(2);
+    expect(touchpadTargetToProtocolId('cross')).toBe(3);
+    expect(touchpadTargetToProtocolId('square')).toBe(4);
+    expect(touchpadTargetToProtocolId('l1')).toBe(5);
+    expect(touchpadTargetToProtocolId('touchpad')).toBe(18);
+    expect(touchpadTargetToProtocolId('none')).toBe(0);
+
+    expect(protocolIdToTouchpadTarget(1)).toBe('triangle');
+    expect(protocolIdToTouchpadTarget(2)).toBe('circle');
+    expect(protocolIdToTouchpadTarget(3)).toBe('cross');
+    expect(protocolIdToTouchpadTarget(4)).toBe('square');
+    expect(protocolIdToTouchpadTarget(5)).toBe('l1');
+    expect(protocolIdToTouchpadTarget(18)).toBe('touchpad');
+    expect(protocolIdToTouchpadTarget(0)).toBe('none');
+  });
 });

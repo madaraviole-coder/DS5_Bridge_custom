@@ -41,6 +41,7 @@ import type {
   RemapButtonId
 } from '../shared/protocol';
 import type { CompanionSettings, UiScalePercent, UiThemePreset } from '../shared/types';
+import { DEFAULT_TOUCHPAD_SETTINGS, type TouchpadSettings } from '../shared/touchpad-gestures';
 
 const DEFAULT_CONTROLLER_PROFILE_SETTINGS: ControllerProfileSettings = {
   leftStickRadialDeadzonePercent: 0,
@@ -214,7 +215,8 @@ export const DEFAULT_SETTINGS: CompanionSettings = {
   buttonRemappingProfiles: [DEFAULT_BUTTON_REMAP_PROFILE],
   buttonRemappingDraft: { ...DEFAULT_BUTTON_REMAP_PROFILE.mappings },
   chordFunctions: [],
-  chordAssignments: []
+  chordAssignments: [],
+  touchpadSettings: { ...DEFAULT_TOUCHPAD_SETTINGS }
 };
 
 function normalizeColor(value: unknown): string {
@@ -1065,7 +1067,8 @@ function normalizeSettings(value: Partial<CompanionSettings> | null | undefined)
     buttonRemappingProfiles,
     buttonRemappingDraft: normalizeRemapMap(value?.buttonRemappingDraft),
     chordFunctions,
-    chordAssignments: normalizeChordAssignments(value?.chordAssignments, chordFunctions)
+    chordAssignments: normalizeChordAssignments(value?.chordAssignments, chordFunctions),
+    touchpadSettings: value?.touchpadSettings ?? DEFAULT_SETTINGS.touchpadSettings
   };
 }
 
@@ -1321,6 +1324,12 @@ export class SettingsStore {
   setChordAssignments(assignments: ChordAssignment[]): CompanionSettings {
     return this.update({
       chordAssignments: assignments
+    });
+  }
+
+  setTouchpadSettings(touchpadSettings: TouchpadSettings): CompanionSettings {
+    return this.update({
+      touchpadSettings
     });
   }
 

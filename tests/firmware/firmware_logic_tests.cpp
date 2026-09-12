@@ -1685,6 +1685,31 @@ void touchpad_zone_center_deadzone_preserves_touchpad_click() {
     EXPECT_EQ(report[7] & 0xF0, 0);
 }
 
+void touchpad_zone_set_config_updates_zone_targets_and_deadzone() {
+    touchpad_zone_init();
+    TouchpadZoneConfig custom{};
+    custom.enabled = true;
+    custom.deadzone_percent = 20;
+    custom.zone_targets[0] = TouchpadTargetL1;
+    custom.zone_targets[1] = TouchpadTargetR1;
+    custom.zone_targets[2] = TouchpadTargetL2;
+    custom.zone_targets[3] = TouchpadTargetR2;
+    touchpad_zone_set_config(custom);
+
+    std::array<uint8_t, 64> report{};
+    report[9] = 0x02; // physical touchpad click
+    // Touch in Zone 1 (Top-Left: 200, 200)
+    report[32] = 0x00; // contact active
+    report[33] = static_cast<uint8_t>(200 & 0xFF);
+    report[34] = static_cast<uint8_t>(((200 >> 8) & 0x0F) | ((200 & 0x0F) << 4));
+    report[35] = static_cast<uint8_t>((200 >> 4) & 0xFF);
+
+    touchpad_zone_process_report(report.data(), static_cast<uint16_t>(report.size()));
+
+    EXPECT_EQ(report[9] & 0x02, 0); // suppressed touchpad click
+    EXPECT_EQ(report[8] & 0x01, 0x01); // L1 injected
+}
+
 struct TestCase {
     char const *name;
     void (*run)();
@@ -1694,6 +1719,7 @@ std::vector<TestCase> tests{
     {"touchpad zone detect identifies quadrants and deadzone", touchpad_zone_detect_identifies_quadrants_and_deadzone},
     {"touchpad zone process report remaps clicks", touchpad_zone_process_report_remaps_clicks},
     {"touchpad zone center deadzone preserves touchpad click", touchpad_zone_center_deadzone_preserves_touchpad_click},
+    {"touchpad zone set config updates zone targets and deadzone", touchpad_zone_set_config_updates_zone_targets_and_deadzone},
     {"scheduler prioritizes due audio over old state", scheduler_prioritizes_due_audio_over_old_state},
     {"scheduler sends coalesced state when audio is absent", scheduler_sends_coalesced_state_when_audio_is_absent},
     {"scheduler due audio stays ahead of coalesced state", scheduler_due_audio_stays_ahead_of_coalesced_state},

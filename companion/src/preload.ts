@@ -21,6 +21,7 @@ import type {
   UiThemePreset,
   WindowsDeviceCleanupResult
 } from './shared/types';
+import type { TouchpadSettings } from './shared/touchpad-gestures';
 
 const api = {
   getStatus: (): Promise<BridgeSnapshot> => ipcRenderer.invoke('bridge:getStatus'),
@@ -206,6 +207,9 @@ const api = {
   restoreDefaults: (): Promise<BridgeSnapshot> => ipcRenderer.invoke('bridge:restoreDefaults'),
   setButtonRemap: (buttonId: RemapButtonId, targetId: RemapButtonId): Promise<BridgeSnapshot> => (
     ipcRenderer.invoke('bridge:setButtonRemap', buttonId, targetId)
+  ),
+  setTouchpadZoneConfig: (settings: TouchpadSettings): Promise<BridgeSnapshot> => (
+    ipcRenderer.invoke('bridge:setTouchpadZoneConfig', settings)
   ),
   selectButtonRemappingProfile: (profileId: string): Promise<BridgeSnapshot> => (
     ipcRenderer.invoke('bridge:selectButtonRemappingProfile', profileId)
