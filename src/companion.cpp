@@ -19,10 +19,10 @@
 #include "pico/bootrom.h"
 #include "pico/unique_id.h"
 #include "pico/time.h"
+#include "usb.h"
 #include "touchpad_mouse.h"
 #include "turbo_controller.h"
 #include "touchpad_zone.h"
-#include "bt.h"
 
 namespace {
 
