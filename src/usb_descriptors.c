@@ -61,7 +61,7 @@ extern void host_bridge_set_report(uint8_t const *report, uint16_t len);
 #define VENDOR_MS_OS_20_DESC_LEN 0x00B2
 #define VENDOR_MS_OS_20_DESC_LEN_XUSB (VENDOR_MS_OS_20_DESC_LEN + MS_OS_20_XUSB_FUNCTION_DESC_LEN)
 #define BOS_TOTAL_LEN (TUD_BOS_DESC_LEN + TUD_BOS_MICROSOFT_OS_DESC_LEN)
-#define KEYBOARD_HID_REPORT_DESC_LEN 0x002D
+#define KEYBOARD_HID_REPORT_DESC_LEN 0x007E
 #define DUALSENSE_HID_REPORT_DESC_LEN 0x0121
 #define DUALSENSE_HID_REPORT_DESC_FNV1A32 0x98EE8A4Au
 #define DUALSENSE_EDGE_HID_REPORT_DESC_LEN 0x01B5
@@ -587,9 +587,9 @@ uint8_t descriptor_configuration[] = {
     0x00, // bAlternateSetting: 0
     0x01, // bNumEndpoints: 1 (IN)
     0x03, // bInterfaceClass: HID
-    0x01, // bInterfaceSubClass: Boot
-    0x01, // bInterfaceProtocol: Keyboard
-    0x06, // iInterface: DS5 Bridge Keyboard
+    0x00, // bInterfaceSubClass: None
+    0x00, // bInterfaceProtocol: None
+    0x06, // iInterface: DS5 Bridge Keyboard/Mouse
 
     // HID Descriptor
     0x09, // bLength
@@ -600,12 +600,12 @@ uint8_t descriptor_configuration[] = {
     0x22, // bDescriptorType: Report
     KEYBOARD_HID_REPORT_DESC_LEN & 0xFF, (KEYBOARD_HID_REPORT_DESC_LEN >> 8) & 0xFF,
 
-    // Endpoint Descriptor (Keyboard HID IN: EP6)
+    // Endpoint Descriptor (Keyboard/Mouse HID IN: EP6)
     0x07, // bLength
     0x05, // bDescriptorType (ENDPOINT)
     0x86, // bEndpointAddress: IN EP6
     0x03, // bmAttributes: Interrupt
-    0x08, 0x00, // wMaxPacketSize: 8
+    0x10, 0x00, // wMaxPacketSize: 16
     0x01, // bInterval: 1
 
     // --- INTERFACE DESCRIPTOR (5.0): Vendor Bulk OUT (companion/control bridge) ---
@@ -669,14 +669,14 @@ static uint8_t const descriptor_configuration_bridge_only[] = {
     0x09, TUSB_DESC_INTERFACE,
     BRIDGE_ONLY_WAKE_KEYBOARD_INTERFACE_NUMBER,
     0x00, 0x01,
-    0x03, 0x01, 0x01,
+    0x03, 0x00, 0x00,
     STRID_KEYBOARD,
     0x09, 0x21,
     0x11, 0x01, 0x00, 0x01, 0x22,
     KEYBOARD_HID_REPORT_DESC_LEN & 0xFF, (KEYBOARD_HID_REPORT_DESC_LEN >> 8) & 0xFF,
     0x07, TUSB_DESC_ENDPOINT,
     0x86, 0x03,
-    0x08, 0x00, 0x01,
+    0x10, 0x00, 0x01,
 };
 
 TU_VERIFY_STATIC(
@@ -1362,9 +1362,11 @@ TU_VERIFY_STATIC(
 );
 
 uint8_t const desc_hid_report_keyboard[] = {
+    // Keyboard (Report ID 1)
     0x05, 0x01, // Usage Page (Generic Desktop)
     0x09, 0x06, // Usage (Keyboard)
     0xA1, 0x01, // Collection (Application)
+    0x85, 0x01, //   Report ID (1)
     0x05, 0x07, //   Usage Page (Keyboard/Keypad)
     0x19, 0xE0, //   Usage Minimum (Left Control)
     0x29, 0xE7, //   Usage Maximum (Right GUI)
@@ -1384,8 +1386,55 @@ uint8_t const desc_hid_report_keyboard[] = {
     0x19, 0x00, //   Usage Minimum (Reserved)
     0x29, 0x73, //   Usage Maximum (F24)
     0x81, 0x00, //   Input (Data,Array,Abs)
-    0xC0, // End Collection
+    0xC0,       // End Collection
+
+    // Mouse (Report ID 2)
+    0x05, 0x01, // Usage Page (Generic Desktop)
+    0x09, 0x02, // Usage (Mouse)
+    0xA1, 0x01, // Collection (Application)
+    0x85, 0x02, //   Report ID (2)
+    0x09, 0x01, //   Usage (Pointer)
+    0xA1, 0x00, //   Collection (Physical)
+    0x05, 0x09, //     Usage Page (Button)
+    0x19, 0x01, //     Usage Minimum (Button 1)
+    0x29, 0x05, //     Usage Maximum (Button 5)
+    0x15, 0x00, //     Logical Minimum (0)
+    0x25, 0x01, //     Logical Maximum (1)
+    0x95, 0x05, //     Report Count (5)
+    0x75, 0x01, //     Report Size (1)
+    0x81, 0x02, //     Input (Data,Var,Abs)
+    0x95, 0x01, //     Report Count (1)
+    0x75, 0x03, //     Report Size (3)
+    0x81, 0x01, //     Input (Const,Array,Abs)
+    0x05, 0x01, //     Usage Page (Generic Desktop)
+    0x09, 0x30, //     Usage (X)
+    0x09, 0x31, //     Usage (Y)
+    0x15, 0x81, //     Logical Minimum (-127)
+    0x25, 0x7F, //     Logical Maximum (127)
+    0x75, 0x08, //     Report Size (8)
+    0x95, 0x02, //     Report Count (2)
+    0x81, 0x06, //     Input (Data,Var,Rel)
+    0x09, 0x38, //     Usage (Wheel)
+    0x15, 0x81, //     Logical Minimum (-127)
+    0x25, 0x7F, //     Logical Maximum (127)
+    0x75, 0x08, //     Report Size (8)
+    0x95, 0x01, //     Report Count (1)
+    0x81, 0x06, //     Input (Data,Var,Rel)
+    0x05, 0x0C, //     Usage Page (Consumer)
+    0x0A, 0x38, 0x02, //   Usage (AC Pan)
+    0x15, 0x81, //     Logical Minimum (-127)
+    0x25, 0x7F, //     Logical Maximum (127)
+    0x75, 0x08, //     Report Size (8)
+    0x95, 0x01, //     Report Count (1)
+    0x81, 0x06, //     Input (Data,Var,Rel)
+    0xC0,       //   End Collection
+    0xC0        // End Collection
 };
+
+TU_VERIFY_STATIC(
+    sizeof(desc_hid_report_keyboard) == KEYBOARD_HID_REPORT_DESC_LEN,
+    "Incorrect composite keyboard/mouse report descriptor size"
+);
 #endif
 
 uint8_t const desc_hid_report_dse[] = {

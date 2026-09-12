@@ -20,6 +20,8 @@
 #include "pico/unique_id.h"
 #include "pico/time.h"
 #include "usb.h"
+#include "touchpad_mouse.h"
+#include "turbo_controller.h"
 
 namespace {
 
@@ -1632,7 +1634,7 @@ void mute_keyboard_loop() {
         uint8_t keyboard_report[8]{};
         keyboard_report[0] = mute_keyboard_modifiers & kMuteKeyboardModifierMask;
         keyboard_report[2] = mute_keyboard_usage;
-        if (tud_hid_n_report(keyboard_hid_instance, 0, keyboard_report, sizeof(keyboard_report))) {
+        if (tud_hid_n_report(keyboard_hid_instance, 1, keyboard_report, sizeof(keyboard_report))) {
             mute_keyboard_pending = false;
             mute_keyboard_pressed = true;
             mute_keyboard_release_at_us = mute_keyboard_hold_enabled() ? 0 : now + kKeyboardPressDurationUs;
@@ -1646,7 +1648,7 @@ void mute_keyboard_loop() {
         && static_cast<int32_t>(now - mute_keyboard_release_at_us) >= 0
     ) {
         uint8_t keyboard_report[8]{};
-        if (tud_hid_n_report(keyboard_hid_instance, 0, keyboard_report, sizeof(keyboard_report))) {
+        if (tud_hid_n_report(keyboard_hid_instance, 1, keyboard_report, sizeof(keyboard_report))) {
             mute_keyboard_pressed = false;
         }
     }
@@ -3108,6 +3110,8 @@ void apply_button_remap(uint8_t *report, uint16_t len) {
 void companion_init() {
     critical_section_init(&companion_report_cs);
     restore_defaults();
+    touchpad_mouse_init();
+    turbo_controller_init();
     set_ack(0, 0, AckOk);
 #if DS5_FEEDBACK_TRACE_ENABLED && DS5_DEBUG_LOGS_ENABLED
     firmware_log_printf(
@@ -3130,6 +3134,8 @@ void companion_loop() {
     classic_rumble_test_loop();
     mute_keyboard_chord_window_loop();
     mute_keyboard_loop();
+    touchpad_mouse_loop();
+    turbo_controller_loop();
     adaptive_trigger_test_loop();
     apply_persistent_trigger_effect();
 }
@@ -3200,6 +3206,49 @@ void companion_process_controller_report(uint8_t *report, uint16_t len) {
     report[1] = left_stick.y;
     report[2] = right_stick.x;
     report[3] = right_stick.y;
+
+    // Toggle chord: PS + Touchpad Click
+    const bool home_chord = (report[9] & kHomeButtonBit) != 0;
+    const bool touchpad_chord = (report[9] & 0x02) != 0;
+    static bool s_laptop_mode_chord_latched = false;
+    if (home_chord && touchpad_chord) {
+        if (!s_laptop_mode_chord_latched) {
+            s_laptop_mode_chord_latched = true;
+            touchpad_mouse_toggle();
+        }
+        report[9] &= static_cast<uint8_t>(~kHomeButtonBit);
+        report[9] &= static_cast<uint8_t>(~0x02);
+    } else {
+        s_laptop_mode_chord_latched = false;
+    }
+
+    // Process Turbo rapid-fire
+    turbo_controller_process_report(report, len, now);
+
+    // Process Laptop Touchpad mode
+    if (touchpad_mouse_is_active() && len >= 40) {
+        BridgeTouchPoint points[2];
+        for (uint8_t i = 0; i < 2; i++) {
+            uint8_t const *pdata = report + 32 + i * 4;
+            points[i].active = (pdata[0] & 0x80) == 0;
+            points[i].contact_id = static_cast<uint8_t>(pdata[0] & 0x7f);
+            points[i].x = static_cast<uint16_t>(
+                static_cast<uint16_t>(pdata[1])
+                | (static_cast<uint16_t>(pdata[2] & 0x0f) << 8)
+            );
+            points[i].y = static_cast<uint16_t>(
+                static_cast<uint16_t>((pdata[2] >> 4) & 0x0f)
+                | (static_cast<uint16_t>(pdata[3]) << 4)
+            );
+        }
+        const bool physical_click = (report[9] & 0x02) != 0;
+        touchpad_mouse_process_touch(points, 2, physical_click, now);
+
+        // Suppress touchpad from game report when in laptop mode
+        report[9] &= static_cast<uint8_t>(~0x02);
+        report[32] = 0x80;
+        report[36] = 0x80;
+    }
 }
 
 void companion_update_controller_report(uint8_t const *report, uint16_t len) {
