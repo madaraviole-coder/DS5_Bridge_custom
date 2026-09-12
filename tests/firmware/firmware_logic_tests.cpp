@@ -1776,6 +1776,27 @@ void touchpad_zone_click_latches_across_dropped_contact_frames() {
     EXPECT_EQ(report3[7] & 0x40, 0);
 }
 
+void touchpad_zone_ignores_residual_coordinates_when_contact_bit_is_set() {
+    touchpad_zone_init();
+
+    // Send a frame where contact bit is 1 (0x80 = inactive), but residual coordinates exist
+    std::array<uint8_t, 64> report{};
+    report[32] = 0x80; // bit 7 set -> NO active touch
+    report[33] = 0x50; // residual x
+    report[34] = 0x05;
+    report[35] = 0x20; // residual y
+    report[36] = 0x80; // finger 1 inactive
+    report[9] = 0x02;  // physical click without prior touch history
+
+    touchpad_zone_process_report(report.data(), static_cast<uint16_t>(report.size()));
+
+    // Because bit 7 was 1, residual coordinates must NOT be treated as active contact.
+    // Latched zone remains None, so physical click passes through standard touchpad click!
+    EXPECT_EQ(report[9] & 0x02, 0x02);
+    EXPECT_EQ(report[7] & 0x80, 0); // No Triangle
+    EXPECT_EQ(report[7] & 0x40, 0); // No Circle
+}
+
 struct TestCase {
     char const *name;
     void (*run)();
@@ -1788,6 +1809,7 @@ std::vector<TestCase> tests{
     {"touchpad zone set config updates zone targets and deadzone", touchpad_zone_set_config_updates_zone_targets_and_deadzone},
     {"touchpad zone edge click with dropped contact is remapped", touchpad_zone_edge_click_with_dropped_contact_is_remapped},
     {"touchpad zone click latches across dropped contact frames", touchpad_zone_click_latches_across_dropped_contact_frames},
+    {"touchpad zone ignores residual coordinates when contact bit is set", touchpad_zone_ignores_residual_coordinates_when_contact_bit_is_set},
     {"scheduler prioritizes due audio over old state", scheduler_prioritizes_due_audio_over_old_state},
     {"scheduler sends coalesced state when audio is absent", scheduler_sends_coalesced_state_when_audio_is_absent},
     {"scheduler due audio stays ahead of coalesced state", scheduler_due_audio_stays_ahead_of_coalesced_state},

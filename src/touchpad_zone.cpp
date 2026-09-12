@@ -198,21 +198,6 @@ void touchpad_zone_process_report(uint8_t *report, uint16_t len) {
             static_cast<uint16_t>((pdata1[2] >> 4) & 0x0f)
             | (static_cast<uint16_t>(pdata1[3]) << 4)
         );
-    } else {
-        // Even when bit 7 is 1 (e.g. edge contact threshold dropped), check residual coordinates
-        const uint16_t res_x0 = static_cast<uint16_t>(
-            static_cast<uint16_t>(pdata0[1])
-            | (static_cast<uint16_t>(pdata0[2] & 0x0f) << 8)
-        );
-        const uint16_t res_y0 = static_cast<uint16_t>(
-            static_cast<uint16_t>((pdata0[2] >> 4) & 0x0f)
-            | (static_cast<uint16_t>(pdata0[3]) << 4)
-        );
-        if (res_x0 > 0 || res_y0 > 0) {
-            current_x = res_x0;
-            current_y = res_y0;
-            contact_active = true;
-        }
     }
 
     // Step 2: Continuously update touch history whenever contact is detected

@@ -47,6 +47,7 @@ int16_t s_pending_dx = 0;
 int16_t s_pending_dy = 0;
 int16_t s_pending_wheel = 0;
 uint8_t s_last_buttons = 0;
+bool s_need_release_report = false;
 
 // Timed haptic rumble stop for toggle feedback
 uint32_t s_rumble_stop_us = 0;
@@ -67,6 +68,9 @@ void touchpad_mouse_init() {
     s_pending_dy = 0;
     s_pending_wheel = 0;
     s_last_buttons = 0;
+    s_need_release_report = false;
+    s_physical_left = false;
+    s_physical_right = false;
     s_right_click_until_us = 0;
     s_rumble_stop_us = 0;
 }
@@ -87,14 +91,16 @@ void touchpad_mouse_set_active(bool active) {
         bt_set_temporary_lightbar_color(0x00, 0xE5, 0xFF, 100, 800);
         bt_set_classic_rumble_output(140, 0);
         s_rumble_stop_us = now + 120000;
+        s_need_release_report = false;
     } else {
         // Blue restore: Normal Gamepad mode
         bt_set_temporary_lightbar_color(0x00, 0x00, 0xFF, 100, 500);
         bt_set_classic_rumble_output(200, 0);
         s_rumble_stop_us = now + 180000;
+        s_need_release_report = true;
     }
 
-    // Reset tracking state on mode switch
+    // Reset tracking and click states on mode switch
     s_prev_p0_active = false;
     s_prev_p1_active = false;
     s_pending_dx = 0;
@@ -102,6 +108,24 @@ void touchpad_mouse_set_active(bool active) {
     s_pending_wheel = 0;
     s_physical_left = false;
     s_physical_right = false;
+    s_right_click_until_us = 0;
+
+    // If disabling mouse mode, immediately try to send clean zero release report to host
+    if (!active) {
+        const uint8_t keyboard_hid_instance = host_persona_keyboard_hid_instance();
+        if (keyboard_hid_instance != 0xff && tud_hid_n_ready(keyboard_hid_instance)) {
+            TouchpadMouseReport report{};
+            report.buttons = 0;
+            report.x = 0;
+            report.y = 0;
+            report.wheel = 0;
+            report.pan = 0;
+            if (tud_hid_n_report(keyboard_hid_instance, 2, &report, sizeof(report))) {
+                s_last_buttons = 0;
+                s_need_release_report = false;
+            }
+        }
+    }
 }
 
 bool touchpad_mouse_toggle() {
@@ -214,6 +238,21 @@ void touchpad_mouse_loop() {
     }
 
     if (!s_touchpad_mouse_active) {
+        if (s_need_release_report || s_last_buttons != 0) {
+            const uint8_t keyboard_hid_instance = host_persona_keyboard_hid_instance();
+            if (keyboard_hid_instance != 0xff && tud_hid_n_ready(keyboard_hid_instance)) {
+                TouchpadMouseReport report{};
+                report.buttons = 0;
+                report.x = 0;
+                report.y = 0;
+                report.wheel = 0;
+                report.pan = 0;
+                if (tud_hid_n_report(keyboard_hid_instance, 2, &report, sizeof(report))) {
+                    s_last_buttons = 0;
+                    s_need_release_report = false;
+                }
+            }
+        }
         return;
     }
 
