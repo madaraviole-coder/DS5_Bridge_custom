@@ -582,7 +582,8 @@ describe('companion protocol', () => {
       ...DEFAULT_BUTTON_REMAP_PROFILE.mappings,
       cross: 'circle',
       lb: 'square',
-      rfn: 'ps'
+      rfn: 'ps',
+      l1: 'touchpad'
     });
     const report = buildCommandReport(COMMAND_ID.SET_BUTTON_REMAP, 7, 0, payload);
     expect(payload).toHaveLength(REMAP_BUTTON_IDS.length);
@@ -590,6 +591,7 @@ describe('companion protocol', () => {
     expect(report[11 + remapButtonIdValue('cross')]).toBe(remapButtonIdValue('circle'));
     expect(report[11 + remapButtonIdValue('lb')]).toBe(remapButtonIdValue('square'));
     expect(report[11 + remapButtonIdValue('rfn')]).toBe(remapButtonIdValue('ps'));
+    expect(report[11 + remapButtonIdValue('l1')]).toBe(remapButtonIdValue('touchpad'));
   });
 
   it('builds chord binding command payloads', () => {

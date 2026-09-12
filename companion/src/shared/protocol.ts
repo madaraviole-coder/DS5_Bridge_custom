@@ -235,17 +235,18 @@ export const REMAP_BUTTON_IDS = [
   'rb',
   'lfn',
   'rfn',
-  'ps'
+  'ps',
+  'touchpad'
 ] as const;
 export type RemapButtonId = typeof REMAP_BUTTON_IDS[number];
 export const CHORD_MUTE_STARTER_ID = 'mute' as const;
 export const CHORD_STARTER_IDS = ['ps', 'lfn', 'rfn', CHORD_MUTE_STARTER_ID] as const;
 export type ChordStarterId = typeof CHORD_STARTER_IDS[number];
-export type ChordRemapButtonId = Exclude<RemapButtonId, 'lfn' | 'rfn' | 'ps'>;
+export type ChordRemapButtonId = Exclude<RemapButtonId, 'lfn' | 'rfn' | 'ps' | 'touchpad'>;
 export type ChordAssignableButtonId = ChordRemapButtonId;
 export const CHORD_ASSIGNABLE_BUTTON_IDS = REMAP_BUTTON_IDS.filter((
   id
-): id is ChordRemapButtonId => id !== 'lfn' && id !== 'rfn' && id !== 'ps');
+): id is ChordRemapButtonId => id !== 'lfn' && id !== 'rfn' && id !== 'ps' && id !== 'touchpad');
 export const CHORD_EDGE_RESERVED_FACE_BUTTON_IDS = ['triangle', 'circle', 'cross', 'square'] as const;
 export type ChordFunctionId = string;
 export type ChordFunctionType = 'keyboard' | 'media' | 'controller-setting';

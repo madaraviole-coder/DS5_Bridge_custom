@@ -232,6 +232,7 @@ enum RemapButton : uint8_t {
     RemapLfn,
     RemapRfn,
     RemapHome,
+    RemapTouchpad,
     RemapButtonCount,
 };
 
@@ -1337,7 +1338,8 @@ bool valid_chord_button(uint8_t button) {
     return button < RemapButtonCount
         && button != RemapLfn
         && button != RemapRfn
-        && button != RemapHome;
+        && button != RemapHome
+        && button != RemapTouchpad;
 }
 
 bool edge_profile_switching_chord_combo(uint8_t starter, uint8_t button) {
@@ -2880,6 +2882,8 @@ bool remap_button_pressed(uint8_t const *report, uint16_t len, RemapButton butto
             return len > 9 && (report[9] & kRightFunctionButtonBit) != 0;
         case RemapHome:
             return len > 9 && (report[9] & kHomeButtonBit) != 0;
+        case RemapTouchpad:
+            return len > 9 && (report[9] & 0x02) != 0;
         default:
             return false;
     }
@@ -2964,6 +2968,9 @@ void suppress_remap_button(uint8_t *report, uint16_t len, RemapButton button) {
             break;
         case RemapHome:
             if (len > 9) report[9] &= static_cast<uint8_t>(~kHomeButtonBit);
+            break;
+        case RemapTouchpad:
+            if (len > 9) report[9] &= static_cast<uint8_t>(~0x02);
             break;
         default:
             break;
@@ -3079,6 +3086,7 @@ void apply_button_remap(uint8_t *report, uint16_t len) {
         source_pressed[RemapLfn] = (report[9] & kLeftFunctionButtonBit) != 0;
         source_pressed[RemapRfn] = (report[9] & kRightFunctionButtonBit) != 0;
         source_pressed[RemapHome] = (report[9] & kHomeButtonBit) != 0;
+        source_pressed[RemapTouchpad] = (report[9] & 0x02) != 0;
     }
 
     for (uint8_t i = 0; i < RemapButtonCount; i++) {
@@ -3131,6 +3139,8 @@ void apply_button_remap(uint8_t *report, uint16_t len) {
     if (len > 9) {
         report[9] &= static_cast<uint8_t>(~kHomeButtonBit);
         if (target_pressed[RemapHome]) report[9] |= kHomeButtonBit;
+        report[9] &= static_cast<uint8_t>(~0x02);
+        if (target_pressed[RemapTouchpad]) report[9] |= 0x02;
     }
 }
 

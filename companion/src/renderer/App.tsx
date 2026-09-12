@@ -83,6 +83,7 @@ import l2GlyphUrl from '../../../assets/glyphs/ps5-buttons-outline-white/svg/L2.
 import leftStickClickGlyphUrl from '../../../assets/glyphs/ps5-buttons-outline-white/svg/Left Stick Click.svg';
 import optionsGlyphUrl from '../../../assets/glyphs/ps5-buttons-outline-white/svg/Options.svg';
 import psHomeGlyphUrl from '../../../assets/glyphs/ps5-buttons-outline-white/svg/Home.svg';
+import touchpadPressGlyphUrl from '../../../assets/glyphs/ps5-buttons-outline-white/svg/Touch Pad Press.svg';
 import r1GlyphUrl from '../../../assets/glyphs/ps5-buttons-outline-white/svg/R1.svg';
 import r2GlyphUrl from '../../../assets/glyphs/ps5-buttons-outline-white/svg/R2.svg';
 import rightStickClickGlyphUrl from '../../../assets/glyphs/ps5-buttons-outline-white/svg/Right Stick Click.svg';
@@ -196,7 +197,7 @@ type ChordStarterDefinition = {
   textGlyph?: string;
   Icon?: TablerIcon;
 };
-type TargetOnlyRemapButtonId = Extract<RemapButtonId, 'ps'>;
+type TargetOnlyRemapButtonId = Extract<RemapButtonId, 'ps' | 'touchpad'>;
 type SourceRemapButtonId = Exclude<RemapButtonId, TargetOnlyRemapButtonId>;
 type DualSenseEdgeRemapButtonId = Extract<SourceRemapButtonId, 'lb' | 'rb' | 'lfn' | 'rfn'>;
 type StandardRemapButtonId = Exclude<SourceRemapButtonId, DualSenseEdgeRemapButtonId>;
@@ -528,7 +529,8 @@ const REMAP_BUTTONS: Record<RemapButtonId, RemapButtonDefinition> = {
   rb: { id: 'rb', label: 'Right Back Button', textGlyph: 'RB' },
   lfn: { id: 'lfn', label: 'Left Function Button', textGlyph: 'LFN' },
   rfn: { id: 'rfn', label: 'Right Function Button', textGlyph: 'RFN' },
-  ps: { id: 'ps', label: 'PS Button', glyphUrl: psHomeGlyphUrl }
+  ps: { id: 'ps', label: 'PS Button', glyphUrl: psHomeGlyphUrl },
+  touchpad: { id: 'touchpad', label: 'Touchpad', glyphUrl: touchpadPressGlyphUrl, textGlyph: 'TOUCH' }
 };
 const REMAP_LEFT_BUTTON_IDS: StandardRemapButtonId[] = ['l2', 'l1', 'create', 'dpad-up', 'dpad-right', 'dpad-down', 'dpad-left', 'l3'];
 const REMAP_RIGHT_BUTTON_IDS: StandardRemapButtonId[] = ['r2', 'r1', 'options', 'triangle', 'circle', 'cross', 'r3', 'square'];
@@ -562,7 +564,8 @@ const REMAP_STANDARD_TARGET_BUTTON_IDS: StandardRemapButtonId[] = [
 ];
 const REMAP_TARGET_BUTTON_IDS: RemapButtonId[] = [
   ...REMAP_STANDARD_TARGET_BUTTON_IDS,
-  'ps'
+  'ps',
+  'touchpad'
 ];
 const CHORD_BUTTON_MENU_IDS: ChordAssignableButtonId[] = [
   ...REMAP_STANDARD_TARGET_BUTTON_IDS,
@@ -574,7 +577,7 @@ const REMAP_TARGET_OPTIONS: Array<[string, RemapButtonId]> = [
   ...REMAP_TARGET_BUTTON_IDS
 ].map((id) => [REMAP_BUTTONS[id].label, id]);
 const TOUCHPAD_TARGET_OPTIONS: Array<[string, TouchpadZoneTarget]> = [
-  ...REMAP_TARGET_BUTTON_IDS.map((id) => [REMAP_BUTTONS[id].label, id as TouchpadZoneTarget] as [string, TouchpadZoneTarget]),
+  ...REMAP_TARGET_BUTTON_IDS.filter((id) => id !== 'touchpad').map((id) => [REMAP_BUTTONS[id].label, id as TouchpadZoneTarget] as [string, TouchpadZoneTarget]),
   ['Touchpad Click', 'touchpad'],
   ['Disabled (None)', 'none']
 ];
