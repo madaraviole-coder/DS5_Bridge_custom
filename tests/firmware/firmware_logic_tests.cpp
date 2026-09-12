@@ -1710,6 +1710,72 @@ void touchpad_zone_set_config_updates_zone_targets_and_deadzone() {
     EXPECT_EQ(report[8] & 0x01, 0x01); // L1 injected
 }
 
+void touchpad_zone_edge_click_with_dropped_contact_is_remapped() {
+    touchpad_zone_init();
+
+    // Report 1: User finger touches the top-left edge (Zone 1: x = 50, y = 50) before clicking
+    std::array<uint8_t, 64> touch_report{};
+    touch_report[32] = 0x00; // contact active
+    touch_report[33] = static_cast<uint8_t>(50 & 0xFF);
+    touch_report[34] = static_cast<uint8_t>(((50 >> 8) & 0x0F) | ((50 & 0x0F) << 4));
+    touch_report[35] = static_cast<uint8_t>((50 >> 4) & 0xFF);
+    touch_report[9] = 0x00; // no physical click yet
+
+    touchpad_zone_process_report(touch_report.data(), static_cast<uint16_t>(touch_report.size()));
+
+    // Report 2: Mechanical click actuates, but capacitive contact drops (0x80) on edge press
+    std::array<uint8_t, 64> click_report{};
+    click_report[32] = 0x80; // no contact at instant of hard edge click!
+    click_report[36] = 0x80; // no point 1 contact
+    click_report[9] = 0x02;  // physical touchpad click actuated!
+
+    touchpad_zone_process_report(click_report.data(), static_cast<uint16_t>(click_report.size()));
+
+    // Physical touchpad click MUST be suppressed via recent touch history fallback
+    EXPECT_EQ(click_report[9] & 0x02, 0);
+    // Zone 1 default target is Triangle (0x80 on report[7])
+    EXPECT_EQ(click_report[7] & 0x80, 0x80);
+    // Touch coordinates must be masked from host
+    EXPECT_EQ(click_report[32], 0x80);
+    EXPECT_EQ(click_report[36], 0x80);
+}
+
+void touchpad_zone_click_latches_across_dropped_contact_frames() {
+    touchpad_zone_init();
+
+    // Frame 1: Click initiates in Zone 2 (Top-Right: 1500, 200)
+    std::array<uint8_t, 64> report1{};
+    report1[32] = 0x00;
+    report1[33] = static_cast<uint8_t>(1500 & 0xFF);
+    report1[34] = static_cast<uint8_t>(((1500 >> 8) & 0x0F) | ((200 & 0x0F) << 4));
+    report1[35] = static_cast<uint8_t>((200 >> 4) & 0xFF);
+    report1[9] = 0x02; // physical click
+
+    touchpad_zone_process_report(report1.data(), static_cast<uint16_t>(report1.size()));
+    EXPECT_EQ(report1[9] & 0x02, 0);
+    EXPECT_EQ(report1[7] & 0x40, 0x40); // Circle injected
+
+    // Frame 2: Physical click still held, but finger slips/contact completely dropped
+    std::array<uint8_t, 64> report2{};
+    report2[32] = 0x80; // no contact
+    report2[36] = 0x80;
+    report2[9] = 0x02; // physical click still held
+
+    touchpad_zone_process_report(report2.data(), static_cast<uint16_t>(report2.size()));
+    // Latch must hold: physical click STILL suppressed and Circle STILL injected
+    EXPECT_EQ(report2[9] & 0x02, 0);
+    EXPECT_EQ(report2[7] & 0x40, 0x40); // Circle preserved
+
+    // Frame 3: Physical click released
+    std::array<uint8_t, 64> report3{};
+    report3[32] = 0x80;
+    report3[9] = 0x00; // released
+
+    touchpad_zone_process_report(report3.data(), static_cast<uint16_t>(report3.size()));
+    // Circle released
+    EXPECT_EQ(report3[7] & 0x40, 0);
+}
+
 struct TestCase {
     char const *name;
     void (*run)();
@@ -1720,6 +1786,8 @@ std::vector<TestCase> tests{
     {"touchpad zone process report remaps clicks", touchpad_zone_process_report_remaps_clicks},
     {"touchpad zone center deadzone preserves touchpad click", touchpad_zone_center_deadzone_preserves_touchpad_click},
     {"touchpad zone set config updates zone targets and deadzone", touchpad_zone_set_config_updates_zone_targets_and_deadzone},
+    {"touchpad zone edge click with dropped contact is remapped", touchpad_zone_edge_click_with_dropped_contact_is_remapped},
+    {"touchpad zone click latches across dropped contact frames", touchpad_zone_click_latches_across_dropped_contact_frames},
     {"scheduler prioritizes due audio over old state", scheduler_prioritizes_due_audio_over_old_state},
     {"scheduler sends coalesced state when audio is absent", scheduler_sends_coalesced_state_when_audio_is_absent},
     {"scheduler due audio stays ahead of coalesced state", scheduler_due_audio_stays_ahead_of_coalesced_state},

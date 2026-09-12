@@ -30,13 +30,6 @@ uint8_t s_prev_p1_id = 0;
 uint16_t s_prev_p1_x = 0;
 uint16_t s_prev_p1_y = 0;
 
-// Tap detection: 1-finger (Left Click)
-uint32_t s_tap1_start_us = 0;
-uint16_t s_tap1_start_x = 0;
-uint16_t s_tap1_start_y = 0;
-bool s_tap1_moved = false;
-uint32_t s_left_click_until_us = 0;
-
 // Tap detection: 2-finger (Right Click)
 uint32_t s_tap2_start_us = 0;
 bool s_tap2_moved = false;
@@ -74,7 +67,6 @@ void touchpad_mouse_init() {
     s_pending_dy = 0;
     s_pending_wheel = 0;
     s_last_buttons = 0;
-    s_left_click_until_us = 0;
     s_right_click_until_us = 0;
     s_rumble_stop_us = 0;
 }
@@ -177,24 +169,12 @@ void touchpad_mouse_process_touch(
         }
     }
 
-    // 3. Gesture handling: Single finger active (Cursor movement & Left-tap)
+    // 3. Gesture handling: Single finger active (Cursor movement)
     if (p0.active && !p1.active) {
-        if (!s_prev_p0_active) {
-            // Finger down
-            s_tap1_start_us = now_us;
-            s_tap1_start_x = p0.x;
-            s_tap1_start_y = p0.y;
-            s_tap1_moved = false;
-        } else if (s_prev_p0_id == p0.contact_id) {
+        if (s_prev_p0_active && s_prev_p0_id == p0.contact_id) {
             // Finger moving
             const int16_t raw_dx = static_cast<int16_t>(p0.x) - static_cast<int16_t>(s_prev_p0_x);
             const int16_t raw_dy = static_cast<int16_t>(p0.y) - static_cast<int16_t>(s_prev_p0_y);
-
-            // Motion threshold for tap detection
-            if (std::abs(static_cast<int32_t>(p0.x) - static_cast<int32_t>(s_tap1_start_x)) > 30 ||
-                std::abs(static_cast<int32_t>(p0.y) - static_cast<int32_t>(s_tap1_start_y)) > 30) {
-                s_tap1_moved = true;
-            }
 
             // Deadzone to prevent jitter when resting finger
             if (std::abs(raw_dx) > 1 || std::abs(raw_dy) > 1) {
@@ -209,11 +189,6 @@ void touchpad_mouse_process_touch(
                 s_pending_dx += clamp_i8(static_cast<int16_t>(dx));
                 s_pending_dy += clamp_i8(static_cast<int16_t>(dy));
             }
-        }
-    } else if (s_prev_p0_active && !p0.active && !p1.active && !s_prev_p1_active) {
-        // Finger lifted: Check for single-finger tap (Left Click)
-        if (!s_tap1_moved && (now_us - s_tap1_start_us) < 220000) {
-            s_left_click_until_us = now_us + 40000; // 40ms click
         }
     }
 
@@ -249,7 +224,7 @@ void touchpad_mouse_loop() {
 
     // Determine current button states
     uint8_t buttons = 0;
-    if (s_physical_left || static_cast<int32_t>(s_left_click_until_us - now) > 0) {
+    if (s_physical_left) {
         buttons |= 0x01; // Left Button
     }
     if (s_physical_right || static_cast<int32_t>(s_right_click_until_us - now) > 0) {

@@ -13,6 +13,84 @@ TouchpadZoneConfig s_config = {
     }
 };
 
+// Continuous touch tracking state
+uint32_t s_report_ticks = 0;
+uint32_t s_last_touch_tick = 0;
+uint16_t s_last_touch_x = 0;
+uint16_t s_last_touch_y = 0;
+TouchpadZoneId s_last_touch_zone = TouchpadZoneNone;
+bool s_has_recent_touch = false;
+
+// Click latching state to prevent contact flicker / loss on mechanical edge click
+bool s_click_latched = false;
+TouchpadZoneId s_latched_zone = TouchpadZoneNone;
+
+constexpr uint32_t kTouchHistoryTimeoutTicks = 1500; // ~1.5 seconds retention
+
+void inject_target_button(uint8_t *report, uint16_t len, TouchpadZoneTargetButton target) {
+    switch (target) {
+        case TouchpadTargetTriangle:
+            report[7] |= 0x80;
+            break;
+        case TouchpadTargetCircle:
+            report[7] |= 0x40;
+            break;
+        case TouchpadTargetCross:
+            report[7] |= 0x20;
+            break;
+        case TouchpadTargetSquare:
+            report[7] |= 0x10;
+            break;
+        case TouchpadTargetL1:
+            report[8] |= 0x01;
+            break;
+        case TouchpadTargetR1:
+            report[8] |= 0x02;
+            break;
+        case TouchpadTargetL2:
+            report[8] |= 0x04;
+            report[4] = 0xFF;
+            break;
+        case TouchpadTargetR2:
+            report[8] |= 0x08;
+            report[5] = 0xFF;
+            break;
+        case TouchpadTargetCreate:
+            report[8] |= 0x10;
+            break;
+        case TouchpadTargetOptions:
+            report[8] |= 0x20;
+            break;
+        case TouchpadTargetL3:
+            report[8] |= 0x40;
+            break;
+        case TouchpadTargetR3:
+            report[8] |= 0x80;
+            break;
+        case TouchpadTargetHome:
+            if (len > 9) {
+                report[9] |= 0x01;
+            }
+            break;
+        case TouchpadTargetDpadUp:
+            report[7] = static_cast<uint8_t>((report[7] & ~0x0F) | 0x00);
+            break;
+        case TouchpadTargetDpadRight:
+            report[7] = static_cast<uint8_t>((report[7] & ~0x0F) | 0x02);
+            break;
+        case TouchpadTargetDpadDown:
+            report[7] = static_cast<uint8_t>((report[7] & ~0x0F) | 0x04);
+            break;
+        case TouchpadTargetDpadLeft:
+            report[7] = static_cast<uint8_t>((report[7] & ~0x0F) | 0x06);
+            break;
+        case TouchpadTargetDisabled:
+        case TouchpadTargetTouchpadClick:
+        default:
+            break;
+    }
+}
+
 } // namespace
 
 void touchpad_zone_init() {
@@ -22,6 +100,15 @@ void touchpad_zone_init() {
     s_config.zone_targets[1] = TouchpadTargetCircle;
     s_config.zone_targets[2] = TouchpadTargetSquare;
     s_config.zone_targets[3] = TouchpadTargetCross;
+
+    s_report_ticks = 0;
+    s_last_touch_tick = 0;
+    s_last_touch_x = 0;
+    s_last_touch_y = 0;
+    s_last_touch_zone = TouchpadZoneNone;
+    s_has_recent_touch = false;
+    s_click_latched = false;
+    s_latched_zone = TouchpadZoneNone;
 }
 
 bool touchpad_zone_is_enabled() {
@@ -81,118 +168,106 @@ void touchpad_zone_process_report(uint8_t *report, uint16_t len) {
         return;
     }
 
-    const bool physical_click = (report[9] & 0x02) != 0;
-    if (!physical_click) {
-        return;
-    }
+    s_report_ticks++;
 
-    // Extract touch point 0
-    uint8_t const *pdata = report + 32;
-    bool contact = (pdata[0] & 0x80) == 0;
-    uint16_t x = static_cast<uint16_t>(
-        static_cast<uint16_t>(pdata[1])
-        | (static_cast<uint16_t>(pdata[2] & 0x0f) << 8)
-    );
-    uint16_t y = static_cast<uint16_t>(
-        static_cast<uint16_t>((pdata[2] >> 4) & 0x0f)
-        | (static_cast<uint16_t>(pdata[3]) << 4)
-    );
+    // Step 1: Extract touch information from point 0 and point 1
+    bool contact_active = false;
+    uint16_t current_x = 0;
+    uint16_t current_y = 0;
 
-    // Fallback to touch point 1 if point 0 is not active
-    if (!contact) {
-        uint8_t const *pdata1 = report + 36;
-        if ((pdata1[0] & 0x80) == 0) {
-            contact = true;
-            x = static_cast<uint16_t>(
-                static_cast<uint16_t>(pdata1[1])
-                | (static_cast<uint16_t>(pdata1[2] & 0x0f) << 8)
-            );
-            y = static_cast<uint16_t>(
-                static_cast<uint16_t>((pdata1[2] >> 4) & 0x0f)
-                | (static_cast<uint16_t>(pdata1[3]) << 4)
-            );
+    uint8_t const *pdata0 = report + 32;
+    uint8_t const *pdata1 = report + 36;
+
+    if ((pdata0[0] & 0x80) == 0) {
+        contact_active = true;
+        current_x = static_cast<uint16_t>(
+            static_cast<uint16_t>(pdata0[1])
+            | (static_cast<uint16_t>(pdata0[2] & 0x0f) << 8)
+        );
+        current_y = static_cast<uint16_t>(
+            static_cast<uint16_t>((pdata0[2] >> 4) & 0x0f)
+            | (static_cast<uint16_t>(pdata0[3]) << 4)
+        );
+    } else if ((pdata1[0] & 0x80) == 0) {
+        contact_active = true;
+        current_x = static_cast<uint16_t>(
+            static_cast<uint16_t>(pdata1[1])
+            | (static_cast<uint16_t>(pdata1[2] & 0x0f) << 8)
+        );
+        current_y = static_cast<uint16_t>(
+            static_cast<uint16_t>((pdata1[2] >> 4) & 0x0f)
+            | (static_cast<uint16_t>(pdata1[3]) << 4)
+        );
+    } else {
+        // Even when bit 7 is 1 (e.g. edge contact threshold dropped), check residual coordinates
+        const uint16_t res_x0 = static_cast<uint16_t>(
+            static_cast<uint16_t>(pdata0[1])
+            | (static_cast<uint16_t>(pdata0[2] & 0x0f) << 8)
+        );
+        const uint16_t res_y0 = static_cast<uint16_t>(
+            static_cast<uint16_t>((pdata0[2] >> 4) & 0x0f)
+            | (static_cast<uint16_t>(pdata0[3]) << 4)
+        );
+        if (res_x0 > 0 || res_y0 > 0) {
+            current_x = res_x0;
+            current_y = res_y0;
+            contact_active = true;
         }
     }
 
-    if (!contact) {
-        // Physical click with no detected finger touch -> leave as normal touchpad click
+    // Step 2: Continuously update touch history whenever contact is detected
+    if (contact_active) {
+        s_last_touch_x = current_x;
+        s_last_touch_y = current_y;
+        s_last_touch_tick = s_report_ticks;
+        s_last_touch_zone = touchpad_zone_detect(current_x, current_y, s_config.deadzone_percent);
+        s_has_recent_touch = true;
+    }
+
+    // Step 3: Check physical click
+    const bool physical_click = (report[9] & 0x02) != 0;
+    if (!physical_click) {
+        // Physical click released -> clear latch
+        s_click_latched = false;
+        s_latched_zone = TouchpadZoneNone;
         return;
     }
 
-    const TouchpadZoneId zone = touchpad_zone_detect(x, y, s_config.deadzone_percent);
-    if (zone == TouchpadZoneNone) {
-        // In center deadzone -> standard touchpad click passthrough
+    // If click was not yet latched on previous frame, resolve the zone now
+    if (!s_click_latched) {
+        TouchpadZoneId resolved_zone = TouchpadZoneNone;
+
+        if (contact_active) {
+            resolved_zone = touchpad_zone_detect(current_x, current_y, s_config.deadzone_percent);
+        } else if (s_has_recent_touch && (s_report_ticks - s_last_touch_tick <= kTouchHistoryTimeoutTicks)) {
+            // Edge/corner fallback: capacitive contact dropped at instant of click, use recent touch zone!
+            resolved_zone = s_last_touch_zone;
+        }
+
+        s_latched_zone = resolved_zone;
+        s_click_latched = true;
+    }
+
+    // If latched zone is inside center deadzone (or no zone detected):
+    // Pass through as standard Touchpad Click
+    if (s_latched_zone == TouchpadZoneNone) {
         return;
     }
 
-    const TouchpadZoneTargetButton target = s_config.zone_targets[zone - 1];
+    // Remap the zone to target button
+    const TouchpadZoneTargetButton target = s_config.zone_targets[s_latched_zone - 1];
     if (target == TouchpadTargetTouchpadClick) {
-        // Configured explicitly as normal touchpad click
+        // Explicitly configured as normal Touchpad Click passthrough
         return;
     }
 
-    // Suppress raw touchpad click from host report
+    // Suppress physical touchpad click from host report
     report[9] &= static_cast<uint8_t>(~0x02);
 
+    // Suppress raw touch packets so host game/OS does not register touchpad touch/gesture on remapped click
+    report[32] = 0x80;
+    report[36] = 0x80;
+
     // Inject remapped button
-    switch (target) {
-        case TouchpadTargetTriangle:
-            report[7] |= 0x80;
-            break;
-        case TouchpadTargetCircle:
-            report[7] |= 0x40;
-            break;
-        case TouchpadTargetCross:
-            report[7] |= 0x20;
-            break;
-        case TouchpadTargetSquare:
-            report[7] |= 0x10;
-            break;
-        case TouchpadTargetL1:
-            report[8] |= 0x01;
-            break;
-        case TouchpadTargetR1:
-            report[8] |= 0x02;
-            break;
-        case TouchpadTargetL2:
-            report[8] |= 0x04;
-            report[4] = 0xFF;
-            break;
-        case TouchpadTargetR2:
-            report[8] |= 0x08;
-            report[5] = 0xFF;
-            break;
-        case TouchpadTargetCreate:
-            report[8] |= 0x10;
-            break;
-        case TouchpadTargetOptions:
-            report[8] |= 0x20;
-            break;
-        case TouchpadTargetL3:
-            report[8] |= 0x40;
-            break;
-        case TouchpadTargetR3:
-            report[8] |= 0x80;
-            break;
-        case TouchpadTargetHome:
-            if (len > 9) {
-                report[9] |= 0x01;
-            }
-            break;
-        case TouchpadTargetDpadUp:
-            report[7] = static_cast<uint8_t>((report[7] & ~0x0F) | 0x00);
-            break;
-        case TouchpadTargetDpadRight:
-            report[7] = static_cast<uint8_t>((report[7] & ~0x0F) | 0x02);
-            break;
-        case TouchpadTargetDpadDown:
-            report[7] = static_cast<uint8_t>((report[7] & ~0x0F) | 0x04);
-            break;
-        case TouchpadTargetDpadLeft:
-            report[7] = static_cast<uint8_t>((report[7] & ~0x0F) | 0x06);
-            break;
-        case TouchpadTargetDisabled:
-        default:
-            break;
-    }
+    inject_target_button(report, len, target);
 }
