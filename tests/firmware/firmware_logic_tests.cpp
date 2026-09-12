@@ -20,6 +20,7 @@
 #include "kitsune_button_gesture.h"
 #include "output_scheduler.h"
 #include "radial_deadzone.h"
+#include "touchpad_zone.h"
 #include "usb_audio_render_gain.h"
 #include "persona/ds4_persona.h"
 #include "persona/dualsense_persona.h"
@@ -1637,12 +1638,62 @@ void radial_deadzone_preserves_direction_and_rescales_remaining_travel() {
     EXPECT_TRUE(diagonal.x < 192);
 }
 
+void touchpad_zone_detect_identifies_quadrants_and_deadzone() {
+    EXPECT_EQ(touchpad_zone_detect(200, 200, 50), TouchpadZone1);
+    EXPECT_EQ(touchpad_zone_detect(1500, 200, 50), TouchpadZone2);
+    EXPECT_EQ(touchpad_zone_detect(200, 900, 50), TouchpadZone3);
+    EXPECT_EQ(touchpad_zone_detect(1500, 900, 50), TouchpadZone4);
+    EXPECT_EQ(touchpad_zone_detect(960, 540, 50), TouchpadZoneNone);
+    EXPECT_EQ(touchpad_zone_detect(970, 545, 50), TouchpadZoneNone);
+}
+
+void touchpad_zone_process_report_remaps_clicks() {
+    touchpad_zone_init();
+    std::array<uint8_t, 64> report{};
+    // Set touch point 0 at Zone 1 (x = 200, y = 200, active contact)
+    report[32] = 0x00;
+    report[33] = 200 & 0xFF;
+    report[34] = static_cast<uint8_t>(((200 >> 8) & 0x0F) | ((200 & 0x0F) << 4));
+    report[35] = static_cast<uint8_t>((200 >> 4) & 0xFF);
+    // Set physical click
+    report[9] = 0x02;
+
+    touchpad_zone_process_report(report.data(), static_cast<uint16_t>(report.size()));
+
+    // Physical click suppressed
+    EXPECT_EQ(report[9] & 0x02, 0);
+    // Zone 1 default target is Triangle (0x80 on report[7])
+    EXPECT_EQ(report[7] & 0x80, 0x80);
+}
+
+void touchpad_zone_center_deadzone_preserves_touchpad_click() {
+    touchpad_zone_init();
+    std::array<uint8_t, 64> report{};
+    // Set touch point 0 at deadzone center (x = 960, y = 540, active contact)
+    report[32] = 0x00;
+    report[33] = 960 & 0xFF;
+    report[34] = static_cast<uint8_t>(((960 >> 8) & 0x0F) | ((540 & 0x0F) << 4));
+    report[35] = static_cast<uint8_t>((540 >> 4) & 0xFF);
+    // Set physical click
+    report[9] = 0x02;
+
+    touchpad_zone_process_report(report.data(), static_cast<uint16_t>(report.size()));
+
+    // Physical click preserved
+    EXPECT_EQ(report[9] & 0x02, 0x02);
+    // No face buttons injected
+    EXPECT_EQ(report[7] & 0xF0, 0);
+}
+
 struct TestCase {
     char const *name;
     void (*run)();
 };
 
 std::vector<TestCase> tests{
+    {"touchpad zone detect identifies quadrants and deadzone", touchpad_zone_detect_identifies_quadrants_and_deadzone},
+    {"touchpad zone process report remaps clicks", touchpad_zone_process_report_remaps_clicks},
+    {"touchpad zone center deadzone preserves touchpad click", touchpad_zone_center_deadzone_preserves_touchpad_click},
     {"scheduler prioritizes due audio over old state", scheduler_prioritizes_due_audio_over_old_state},
     {"scheduler sends coalesced state when audio is absent", scheduler_sends_coalesced_state_when_audio_is_absent},
     {"scheduler due audio stays ahead of coalesced state", scheduler_due_audio_stays_ahead_of_coalesced_state},

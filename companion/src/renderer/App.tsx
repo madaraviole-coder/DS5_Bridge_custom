@@ -145,6 +145,16 @@ import type {
 } from '../shared/protocol';
 import type { AudioHapticsSession, BridgeSnapshot, UiScalePercent, UiThemePreset } from '../shared/types';
 import {
+  DEFAULT_TOUCHPAD_SETTINGS,
+  DEFAULT_TOUCHPAD_ZONE_MAPPINGS,
+  TouchpadMode,
+  TouchpadSettings,
+  TouchpadZoneId,
+  TouchpadZoneTarget,
+  loadTouchpadSettings,
+  saveTouchpadSettings
+} from '../shared/touchpad-gestures';
+import {
   buildDevicesModel,
   controllerDeviceCachesEqual,
   loadControllerDeviceCache,
@@ -563,6 +573,15 @@ const REMAP_ALL_BUTTON_IDS = [...REMAP_BUTTON_IDS] as RemapButtonId[];
 const REMAP_TARGET_OPTIONS: Array<[string, RemapButtonId]> = [
   ...REMAP_TARGET_BUTTON_IDS
 ].map((id) => [REMAP_BUTTONS[id].label, id]);
+const TOUCHPAD_TARGET_OPTIONS: Array<[string, TouchpadZoneTarget]> = [
+  ...REMAP_TARGET_BUTTON_IDS.map((id) => [REMAP_BUTTONS[id].label, id as TouchpadZoneTarget] as [string, TouchpadZoneTarget]),
+  ['Touchpad Click', 'touchpad'],
+  ['Disabled (None)', 'none']
+];
+const TOUCHPAD_MODE_OPTIONS: Array<[string, TouchpadMode]> = [
+  ['Swipe Sequence', 'swipe'],
+  ['4-Zone Button Mapping', 'zones']
+];
 const CHORD_STARTERS: Record<ChordStarterId, ChordStarterDefinition> = {
   ps: { id: 'ps', label: 'PS Button', glyphUrl: psHomeGlyphUrl },
   lfn: { id: 'lfn', label: 'LFN', textGlyph: 'LFN' },
@@ -2634,6 +2653,61 @@ function RemapGlyphOption({ label, value }: { label: string; value: RemapButtonI
   );
 }
 
+function TouchpadZoneTargetOption({ label, value }: { label: string; value: TouchpadZoneTarget }) {
+  if (value === 'touchpad') {
+    return (
+      <span className="remap-glyph-option" title={label} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        <span className="remap-text-glyph" aria-hidden="true">CLICK</span>
+        <span>{label}</span>
+      </span>
+    );
+  }
+  if (value === 'none') {
+    return (
+      <span className="remap-glyph-option" title={label} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        <span className="remap-text-glyph" aria-hidden="true">—</span>
+        <span>{label}</span>
+      </span>
+    );
+  }
+
+  const button = REMAP_BUTTONS[value];
+  if (!button) return <span>{label}</span>;
+
+  return (
+    <span className="remap-glyph-option" title={label} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+      {button.glyphUrl ? (
+        <img src={button.glyphUrl} alt={label} />
+      ) : (
+        <span className="remap-text-glyph" aria-hidden="true">{button.textGlyph ?? button.label}</span>
+      )}
+      <span>{button.label}</span>
+    </span>
+  );
+}
+
+function IconTouchpadHand({ size = 20, className = '' }: { size?: number; className?: string }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M8 13V4.5a1.5 1.5 0 0 1 3 0V12" />
+      <path d="M11 11.5v-2a1.5 1.5 0 0 1 3 0V12" />
+      <path d="M14 10.5a1.5 1.5 0 0 1 3 0V12" />
+      <path d="M17 11.5a1.5 1.5 0 0 1 3 0V16a6 6 0 0 1-6 6h-2a6 6 0 0 1-4.24-1.76l-3.8-3.8a1.5 1.5 0 0 1 2.12-2.12L8 16" />
+    </svg>
+  );
+}
+
 function RemapSourceGlyph({ button }: { button: RemapButtonDefinition }) {
   return button.glyphUrl ? (
     <img src={button.glyphUrl} alt={button.label} title={button.label} />
@@ -3018,6 +3092,18 @@ export function App() {
   const [triggerLabProfileDialog, setTriggerLabProfileDialog] = useState<TriggerLabProfileDialogState | null>(null);
   const [triggerLabProfileNameDraft, setTriggerLabProfileNameDraft] = useState('');
   const [remapDraft, setRemapDraft] = useState<Record<RemapButtonId, RemapButtonId>>(DEFAULT_REMAP_DRAFT);
+  const [remappingSubTab, setRemappingSubTab] = useState<'buttons' | 'sticks' | 'triggers' | 'touchpad'>('buttons');
+  const [touchpadSettings, setTouchpadSettings] = useState<TouchpadSettings>(() => loadTouchpadSettings(window.localStorage));
+  const [selectedTouchpadZone, setSelectedTouchpadZone] = useState<TouchpadZoneId>(2);
+  const [gesturePreviewActive, setGesturePreviewActive] = useState<boolean>(false);
+  const [gestureSequence, setGestureSequence] = useState<number[]>(() => {
+    try {
+      const saved = loadTouchpadSettings(window.localStorage);
+      return saved.gestures[0]?.sequence ?? [1, 2];
+    } catch {
+      return [1, 2];
+    }
+  });
   const [remapProfileDialogMode, setRemapProfileDialogMode] = useState<RemapProfileDialogMode | null>(null);
   const [remapProfileNameDraft, setRemapProfileNameDraft] = useState('');
   const [selectedChordFunctionId, setSelectedChordFunctionId] = useState('');
@@ -5450,6 +5536,71 @@ export function App() {
 
   function restoreButtonRemappingDefaults() {
     void runAction('remap-restore', () => window.bridge.restoreButtonRemappingDefaults());
+  }
+
+  function updateTouchpadSettings(updater: (prev: TouchpadSettings) => TouchpadSettings) {
+    setTouchpadSettings((prev) => {
+      const next = updater(prev);
+      saveTouchpadSettings(window.localStorage, next);
+      return next;
+    });
+  }
+
+  function handleTouchpadZoneClick(zone: TouchpadZoneId) {
+    setSelectedTouchpadZone(zone);
+    if (touchpadSettings.mode === 'swipe') {
+      setGestureSequence((prev) => {
+        if (prev.length >= 6) return [zone];
+        const next = [...prev, zone];
+        updateTouchpadSettings((s) => ({
+          ...s,
+          gestures: s.gestures.map((g, idx) => (idx === 0 ? { ...g, sequence: next } : g))
+        }));
+        return next;
+      });
+    }
+  }
+
+  function handleSetTouchpadZoneMapping(zone: TouchpadZoneId, target: TouchpadZoneTarget) {
+    updateTouchpadSettings((prev) => ({
+      ...prev,
+      zoneMappings: {
+        ...prev.zoneMappings,
+        [zone]: target
+      }
+    }));
+  }
+
+  function handleApplyTouchpadPreset(preset: 'face' | 'dpad' | 'shoulders' | 'default') {
+    let mappings;
+    if (preset === 'face') {
+      mappings = { 1: 'triangle' as TouchpadZoneTarget, 2: 'circle' as TouchpadZoneTarget, 3: 'square' as TouchpadZoneTarget, 4: 'cross' as TouchpadZoneTarget };
+    } else if (preset === 'dpad') {
+      mappings = { 1: 'dpad-up' as TouchpadZoneTarget, 2: 'dpad-right' as TouchpadZoneTarget, 3: 'dpad-left' as TouchpadZoneTarget, 4: 'dpad-down' as TouchpadZoneTarget };
+    } else if (preset === 'shoulders') {
+      mappings = { 1: 'l1' as TouchpadZoneTarget, 2: 'r1' as TouchpadZoneTarget, 3: 'l2' as TouchpadZoneTarget, 4: 'r2' as TouchpadZoneTarget };
+    } else {
+      mappings = { ...DEFAULT_TOUCHPAD_ZONE_MAPPINGS };
+    }
+    updateTouchpadSettings((prev) => ({
+      ...prev,
+      zoneMappings: mappings
+    }));
+  }
+
+  function handlePlayGesturePreview() {
+    setGesturePreviewActive(true);
+    window.setTimeout(() => {
+      setGesturePreviewActive(false);
+    }, 1200);
+  }
+
+  function handleClearGestureSequence() {
+    setGestureSequence([]);
+    updateTouchpadSettings((s) => ({
+      ...s,
+      gestures: s.gestures.map((g, idx) => (idx === 0 ? { ...g, sequence: [] } : g))
+    }));
   }
 
   function renameButtonRemappingProfile() {
@@ -8923,9 +9074,62 @@ export function App() {
                   </button>
                 </div>
               </div>
-              <section className="feature-card remapping-card">
-                <div className="remapping-profile-strip">
-                  <ProfileSaveStatus />
+
+              <div className="remapping-subtabs-bar">
+                <div className="remapping-subtabs" role="tablist" aria-label="Remapping Categories">
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={remappingSubTab === 'buttons'}
+                    className={`remapping-subtab ${remappingSubTab === 'buttons' ? 'active' : ''}`}
+                    onClick={() => setRemappingSubTab('buttons')}
+                  >
+                    <IconDeviceGamepad3 />
+                    <span>Buttons</span>
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={remappingSubTab === 'sticks'}
+                    className={`remapping-subtab ${remappingSubTab === 'sticks' ? 'active' : ''}`}
+                    onClick={() => {
+                      setRemappingSubTab('sticks');
+                      setActiveControlTab('deadzones');
+                    }}
+                  >
+                    <IconViewfinder />
+                    <span>Sticks</span>
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={remappingSubTab === 'triggers'}
+                    className={`remapping-subtab ${remappingSubTab === 'triggers' ? 'active' : ''}`}
+                    onClick={() => {
+                      setRemappingSubTab('triggers');
+                      setActiveControlTab('triggers');
+                    }}
+                  >
+                    <IconDeviceGamepad2 />
+                    <span>Triggers</span>
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={remappingSubTab === 'touchpad'}
+                    className={`remapping-subtab touchpad-subtab ${remappingSubTab === 'touchpad' ? 'active' : ''}`}
+                    onClick={() => setRemappingSubTab('touchpad')}
+                  >
+                    <IconTouchpadHand size={16} />
+                    <span>Touchpad</span>
+                  </button>
+                </div>
+              </div>
+
+              {remappingSubTab === 'buttons' && (
+                <section className="feature-card remapping-card">
+                  <div className="remapping-profile-strip">
+                    <ProfileSaveStatus />
                   <div className="remapping-profile-actions">
                     <button
                       type="button"
@@ -9125,6 +9329,285 @@ export function App() {
                   </div>
                 </div>
               </section>
+              )}
+
+              {remappingSubTab === 'touchpad' && (
+                <section className="feature-card touchpad-remapping-card" aria-label="Touchpad gesture and zone configuration">
+                  {/* Touchpad Card Header */}
+                  <div className="touchpad-card-header">
+                    <div className="touchpad-header-badge">
+                      <IconTouchpadHand size={24} />
+                    </div>
+                    <div className="touchpad-header-text">
+                      <h3>Touchpad</h3>
+                      <p>Define touch gestures and assign actions.</p>
+                    </div>
+                  </div>
+
+                  {/* TOUCHPAD CANVAS */}
+                  <div className="touchpad-canvas-section">
+                    <div className="touchpad-canvas-header">
+                      <h4>TOUCHPAD CANVAS</h4>
+                      <div className="touchpad-mode-selector">
+                        <CustomSelect
+                          value={touchpadSettings.mode}
+                          options={TOUCHPAD_MODE_OPTIONS}
+                          ariaLabel="Touchpad operating mode"
+                          onChange={(mode) => updateTouchpadSettings((prev) => ({ ...prev, mode }))}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="touchpad-canvas-wrapper" role="region" aria-label="Touchpad Zone Canvas">
+                      <svg className="touchpad-canvas-svg" viewBox="0 0 400 220" aria-hidden="true">
+                        {/* Zone 1 (Top Left) */}
+                        <path
+                          className={`touchpad-zone-path ${selectedTouchpadZone === 1 ? 'active' : ''}`}
+                          d="M 12 6 H 194 V 76 A 34 34 0 0 1 166 104 H 12 A 6 6 0 0 1 6 98 V 12 A 6 6 0 0 1 12 6 Z"
+                          onClick={() => handleTouchpadZoneClick(1)}
+                        />
+                        <text
+                          x="96"
+                          y="48"
+                          textAnchor="middle"
+                          className={`touchpad-zone-text ${selectedTouchpadZone === 1 ? 'active' : ''}`}
+                        >
+                          ZONE 1
+                        </text>
+                        <text x="96" y="66" textAnchor="middle" className="touchpad-zone-binding-text">
+                          {touchpadSettings.zoneMappings[1] === 'none' ? '—' : (REMAP_BUTTONS[touchpadSettings.zoneMappings[1] as RemapButtonId]?.label ?? touchpadSettings.zoneMappings[1])}
+                        </text>
+
+                        {/* Zone 2 (Top Right) */}
+                        <path
+                          className={`touchpad-zone-path ${selectedTouchpadZone === 2 ? 'active' : ''}`}
+                          d="M 206 6 H 388 A 6 6 0 0 1 394 12 V 98 A 6 6 0 0 1 388 104 H 234 A 34 34 0 0 1 206 76 V 6 Z"
+                          onClick={() => handleTouchpadZoneClick(2)}
+                        />
+                        <text
+                          x="304"
+                          y="48"
+                          textAnchor="middle"
+                          className={`touchpad-zone-text ${selectedTouchpadZone === 2 ? 'active' : ''}`}
+                        >
+                          ZONE 2
+                        </text>
+                        <text x="304" y="66" textAnchor="middle" className="touchpad-zone-binding-text">
+                          {touchpadSettings.zoneMappings[2] === 'none' ? '—' : (REMAP_BUTTONS[touchpadSettings.zoneMappings[2] as RemapButtonId]?.label ?? touchpadSettings.zoneMappings[2])}
+                        </text>
+
+                        {/* Zone 3 (Bottom Left) */}
+                        <path
+                          className={`touchpad-zone-path ${selectedTouchpadZone === 3 ? 'active' : ''}`}
+                          d="M 6 122 A 6 6 0 0 1 12 116 H 166 A 34 34 0 0 1 194 144 V 208 A 6 6 0 0 1 188 214 H 12 A 6 6 0 0 1 6 208 Z"
+                          onClick={() => handleTouchpadZoneClick(3)}
+                        />
+                        <text
+                          x="96"
+                          y="158"
+                          textAnchor="middle"
+                          className={`touchpad-zone-text ${selectedTouchpadZone === 3 ? 'active' : ''}`}
+                        >
+                          ZONE 3
+                        </text>
+                        <text x="96" y="176" textAnchor="middle" className="touchpad-zone-binding-text">
+                          {touchpadSettings.zoneMappings[3] === 'none' ? '—' : (REMAP_BUTTONS[touchpadSettings.zoneMappings[3] as RemapButtonId]?.label ?? touchpadSettings.zoneMappings[3])}
+                        </text>
+
+                        {/* Zone 4 (Bottom Right) */}
+                        <path
+                          className={`touchpad-zone-path ${selectedTouchpadZone === 4 ? 'active' : ''}`}
+                          d="M 206 144 A 34 34 0 0 1 234 116 H 388 A 6 6 0 0 1 394 122 V 208 A 6 6 0 0 1 388 214 H 212 A 6 6 0 0 1 206 208 Z"
+                          onClick={() => handleTouchpadZoneClick(4)}
+                        />
+                        <text
+                          x="304"
+                          y="158"
+                          textAnchor="middle"
+                          className={`touchpad-zone-text ${selectedTouchpadZone === 4 ? 'active' : ''}`}
+                        >
+                          ZONE 4
+                        </text>
+                        <text x="304" y="176" textAnchor="middle" className="touchpad-zone-binding-text">
+                          {touchpadSettings.zoneMappings[4] === 'none' ? '—' : (REMAP_BUTTONS[touchpadSettings.zoneMappings[4] as RemapButtonId]?.label ?? touchpadSettings.zoneMappings[4])}
+                        </text>
+
+                        {/* Center Circular Deadzone Cutout */}
+                        <circle cx="200" cy="110" r="32" className="touchpad-center-circle" />
+
+                        {/* Active Indicator in selected zone */}
+                        {selectedTouchpadZone === 1 && (
+                          <g transform="translate(96, 48)">
+                            <circle r="9" stroke="#ff7a00" strokeWidth="2.4" fill="none" />
+                            <circle r="3.5" fill="#ffffff" />
+                          </g>
+                        )}
+                        {selectedTouchpadZone === 2 && (
+                          <g transform="translate(304, 48)">
+                            <circle r="9" stroke="#ff7a00" strokeWidth="2.4" fill="none" />
+                            <circle r="3.5" fill="#ffffff" />
+                          </g>
+                        )}
+                        {selectedTouchpadZone === 3 && (
+                          <g transform="translate(96, 158)">
+                            <circle r="9" stroke="#ff7a00" strokeWidth="2.4" fill="none" />
+                            <circle r="3.5" fill="#ffffff" />
+                          </g>
+                        )}
+                        {selectedTouchpadZone === 4 && (
+                          <g transform="translate(304, 158)">
+                            <circle r="9" stroke="#ff7a00" strokeWidth="2.4" fill="none" />
+                            <circle r="3.5" fill="#ffffff" />
+                          </g>
+                        )}
+
+                        {/* Swipe arc visualization (from Zone 1 to Zone 2 or custom sequence) */}
+                        {touchpadSettings.mode === 'swipe' && (
+                          <g>
+                            <path
+                              className="touchpad-swipe-arc"
+                              d="M 115 54 Q 200 38 290 48"
+                            />
+                            {gesturePreviewActive && (
+                              <circle r="5" fill="#ff9933">
+                                <animateMotion
+                                  path="M 115 54 Q 200 38 290 48"
+                                  dur="0.9s"
+                                  repeatCount="1"
+                                />
+                              </circle>
+                            )}
+                          </g>
+                        )}
+                      </svg>
+                    </div>
+
+                    {/* GESTURE BUILDER Section */}
+                    {touchpadSettings.mode === 'swipe' && (
+                      <div className="gesture-builder-section">
+                        <div className="gesture-builder-header">
+                          <div className="gesture-builder-titles">
+                            <h5>GESTURE BUILDER</h5>
+                            <p>Click zones in the order the gesture should follow.</p>
+                          </div>
+                          <div className="gesture-builder-actions">
+                            <button
+                              type="button"
+                              className="gesture-builder-btn play-btn"
+                              title="Preview Gesture"
+                              onClick={handlePlayGesturePreview}
+                            >
+                              <Play size={16} />
+                            </button>
+                            <button
+                              type="button"
+                              className="gesture-builder-btn"
+                              title="Clear Sequence"
+                              onClick={handleClearGestureSequence}
+                            >
+                              <X size={15} />
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="gesture-slots-row">
+                          {[0, 1, 2, 3, 4, 5].map((index) => {
+                            const val = gestureSequence[index];
+                            return (
+                              <div
+                                key={index}
+                                className={`gesture-slot ${val !== undefined ? 'filled' : ''}`}
+                              >
+                                {val !== undefined ? val : '—'}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 4-ZONE BUTTON CUSTOMIZATION */}
+                  <div className="touchpad-zone-customization-section">
+                    <div className="touchpad-zone-customization-header">
+                      <h4>4-Zone Button Mapping</h4>
+                      <span className="touchpad-subname">Assign a controller button to each touchpad quadrant</span>
+                    </div>
+
+                    <div className="touchpad-presets-bar">
+                      <span className="touchpad-preset-label">Presets:</span>
+                      <button
+                        type="button"
+                        className="touchpad-preset-chip"
+                        onClick={() => handleApplyTouchpadPreset('face')}
+                      >
+                        Face Buttons (△ ○ ✕ □)
+                      </button>
+                      <button
+                        type="button"
+                        className="touchpad-preset-chip"
+                        onClick={() => handleApplyTouchpadPreset('dpad')}
+                      >
+                        D-Pad (↑ → ↓ ←)
+                      </button>
+                      <button
+                        type="button"
+                        className="touchpad-preset-chip"
+                        onClick={() => handleApplyTouchpadPreset('shoulders')}
+                      >
+                        Shoulders &amp; Triggers (L1 R1 L2 R2)
+                      </button>
+                      <button
+                        type="button"
+                        className="touchpad-preset-chip"
+                        onClick={() => handleApplyTouchpadPreset('default')}
+                      >
+                        Reset Defaults
+                      </button>
+                    </div>
+
+                    <div className="touchpad-zone-grid">
+                      {([1, 2, 3, 4] as TouchpadZoneId[]).map((zoneId) => {
+                        const zoneTitles: Record<TouchpadZoneId, { title: string; sub: string }> = {
+                          1: { title: 'Zone 1', sub: 'Top-Left Quadrant' },
+                          2: { title: 'Zone 2', sub: 'Top-Right Quadrant' },
+                          3: { title: 'Zone 3', sub: 'Bottom-Left Quadrant' },
+                          4: { title: 'Zone 4', sub: 'Bottom-Right Quadrant' },
+                        };
+                        const currentVal = touchpadSettings.zoneMappings[zoneId];
+                        return (
+                          <div
+                            key={zoneId}
+                            className={`touchpad-zone-card ${selectedTouchpadZone === zoneId ? 'selected' : ''}`}
+                            onClick={() => setSelectedTouchpadZone(zoneId)}
+                          >
+                            <div className="touchpad-zone-card-top">
+                              <div className="touchpad-zone-card-title">
+                                <span className="touchpad-zone-badge">{zoneId}</span>
+                                <div>
+                                  <div className="touchpad-zone-name">{zoneTitles[zoneId].title}</div>
+                                  <div className="touchpad-zone-subname">{zoneTitles[zoneId].sub}</div>
+                                </div>
+                              </div>
+                            </div>
+
+                            <CustomSelect
+                              value={currentVal}
+                              options={TOUCHPAD_TARGET_OPTIONS}
+                              className="remapping-select"
+                              showSelectedCheck={false}
+                              ariaLabel={`${zoneTitles[zoneId].title} mapping`}
+                              renderValue={(label, value) => <TouchpadZoneTargetOption label={label} value={value} />}
+                              renderOption={(label, value) => <TouchpadZoneTargetOption label={label} value={value} />}
+                              onChange={(value) => handleSetTouchpadZoneMapping(zoneId, value)}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </section>
+              )}
           </div>
 
           <div

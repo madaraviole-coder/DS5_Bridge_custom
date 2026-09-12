@@ -479,4 +479,22 @@ describe('renderer behavior guards', () => {
     expect(appSource).toContain('|| !triggerLabEnabled');
     expect(appSource).toContain('triggerLabRestoreAppliedRef.current = false;');
   });
+
+  it('integrates Touchpad 4-zone remapping and gesture builder', () => {
+    expect(appSource).toContain("const [remappingSubTab, setRemappingSubTab] = useState<'buttons' | 'sticks' | 'triggers' | 'touchpad'>('buttons');");
+    expect(appSource).toContain("className={`remapping-subtab touchpad-subtab ${remappingSubTab === 'touchpad' ? 'active' : ''}`}");
+    expect(appSource).toContain('TOUCHPAD CANVAS');
+    expect(appSource).toContain('GESTURE BUILDER');
+    expect(appSource).toContain('4-Zone Button Mapping');
+    expect(appSource).toContain('ZONE 1');
+    expect(appSource).toContain('ZONE 2');
+    expect(appSource).toContain('ZONE 3');
+    expect(appSource).toContain('ZONE 4');
+    expect(stylesSource).toContain('.remapping-subtabs');
+    expect(stylesSource).toContain('.touchpad-remapping-card');
+    expect(stylesSource).toContain('.touchpad-canvas-svg');
+    expect(stylesSource).toContain('.gesture-builder-section');
+    expect(stylesSource).toContain('.touchpad-zone-grid');
+  });
 });
+

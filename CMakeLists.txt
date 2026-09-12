@@ -90,6 +90,7 @@ add_executable(ds5-bridge
         src/audio.cpp
         src/bt.cpp
         src/touchpad_mouse.cpp
+        src/touchpad_zone.cpp
         src/turbo_controller.cpp
         src/firmware_log.cpp
         src/watchdog_telemetry.cpp

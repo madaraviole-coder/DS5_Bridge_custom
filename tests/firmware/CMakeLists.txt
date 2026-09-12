@@ -20,6 +20,7 @@ add_executable(firmware_logic_tests
     ../../src/haptics_test_signal.cpp
     ../../src/kitsune_button_gesture.cpp
     ../../src/output_scheduler.cpp
+    ../../src/touchpad_zone.cpp
 )
 
 target_include_directories(firmware_logic_tests PRIVATE

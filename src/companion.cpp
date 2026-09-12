@@ -19,9 +19,10 @@
 #include "pico/bootrom.h"
 #include "pico/unique_id.h"
 #include "pico/time.h"
-#include "usb.h"
 #include "touchpad_mouse.h"
 #include "turbo_controller.h"
+#include "touchpad_zone.h"
+#include "bt.h"
 
 namespace {
 
@@ -3112,6 +3113,7 @@ void companion_init() {
     restore_defaults();
     touchpad_mouse_init();
     turbo_controller_init();
+    touchpad_zone_init();
     set_ack(0, 0, AckOk);
 #if DS5_FEEDBACK_TRACE_ENABLED && DS5_DEBUG_LOGS_ENABLED
     firmware_log_printf(
@@ -3207,7 +3209,7 @@ void companion_process_controller_report(uint8_t *report, uint16_t len) {
     report[2] = right_stick.x;
     report[3] = right_stick.y;
 
-    // Toggle chord: PS + Touchpad Click
+    // Toggle chord: PS + Touchpad Click for Laptop Mouse mode
     const bool home_chord = (report[9] & kHomeButtonBit) != 0;
     const bool touchpad_chord = (report[9] & 0x02) != 0;
     static bool s_laptop_mode_chord_latched = false;
@@ -3222,11 +3224,32 @@ void companion_process_controller_report(uint8_t *report, uint16_t len) {
         s_laptop_mode_chord_latched = false;
     }
 
+    // Toggle chord: Create + Touchpad Click for 4-Zone Touchpad Remap mode
+    const bool create_chord = (report[8] & kCreateButtonBit) != 0;
+    static bool s_zone_mode_chord_latched = false;
+    if (create_chord && touchpad_chord && !home_chord) {
+        if (!s_zone_mode_chord_latched) {
+            s_zone_mode_chord_latched = true;
+            const bool active = touchpad_zone_toggle();
+            if (active) {
+                // Green flash: 4-Zone Touchpad active
+                bt_set_temporary_lightbar_color(0x00, 0xFF, 0x80, 100, 1200);
+            } else {
+                // Orange flash: 4-Zone Touchpad disabled
+                bt_set_temporary_lightbar_color(0xFF, 0x80, 0x00, 100, 1200);
+            }
+        }
+        report[8] &= static_cast<uint8_t>(~kCreateButtonBit);
+        report[9] &= static_cast<uint8_t>(~0x02);
+    } else {
+        s_zone_mode_chord_latched = false;
+    }
+
     // Process Turbo rapid-fire
     const bool home_raw_for_turbo = (report[9] & kHomeButtonBit) != 0;
     turbo_controller_process_report(report, len, now, home_raw_for_turbo);
 
-    // Process Laptop Touchpad mode
+    // Process Touchpad modes (Laptop Touchpad vs 4-Zone Remapping)
     if (touchpad_mouse_is_active() && len >= 40) {
         BridgeTouchPoint points[2];
         for (uint8_t i = 0; i < 2; i++) {
@@ -3249,6 +3272,8 @@ void companion_process_controller_report(uint8_t *report, uint16_t len) {
         report[9] &= static_cast<uint8_t>(~0x02);
         report[32] = 0x80;
         report[36] = 0x80;
+    } else if (len >= 40) {
+        touchpad_zone_process_report(report, len);
     }
 }
 
