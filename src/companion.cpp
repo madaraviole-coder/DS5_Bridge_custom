@@ -3221,9 +3221,10 @@ void companion_process_controller_report(uint8_t *report, uint16_t len) {
     } else {
         s_laptop_mode_chord_latched = false;
     }
-
-    // Process Turbo rapid-fire
-    turbo_controller_process_report(report, len, now);
+    
+    // Process Turbo rapid-fire dengan sinyal PS murni
+    const bool home_raw_for_turbo = (report[9] & kHomeButtonBit) != 0;
+    turbo_controller_process_report(report, len, now, home_raw_for_turbo);
 
     // Process Laptop Touchpad mode
     if (touchpad_mouse_is_active() && len >= 40) {
