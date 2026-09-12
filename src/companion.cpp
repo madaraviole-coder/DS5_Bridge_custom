@@ -3249,10 +3249,13 @@ void companion_process_controller_report(uint8_t *report, uint16_t len) {
     report[2] = right_stick.x;
     report[3] = right_stick.y;
 
+    // Toggle chords state
+    static bool s_laptop_mode_chord_latched = false;
+    static bool s_zone_mode_chord_latched = false;
+
     // Toggle chord: PS + Touchpad Click for Laptop Mouse mode
     const bool home_chord = home_pressed;
     const bool touchpad_chord = raw_touchpad_click;
-    static bool s_laptop_mode_chord_latched = false;
     if (s_laptop_mode_chord_latched) {
         if (home_chord || touchpad_chord) {
             report[9] &= static_cast<uint8_t>(~kHomeButtonBit);
@@ -3269,7 +3272,6 @@ void companion_process_controller_report(uint8_t *report, uint16_t len) {
 
     // Toggle chord: Create + Touchpad Click for 4-Zone Touchpad Remap mode
     const bool create_chord = raw_create_pressed;
-    static bool s_zone_mode_chord_latched = false;
     if (s_zone_mode_chord_latched) {
         if (create_chord || touchpad_chord) {
             report[8] &= static_cast<uint8_t>(~kCreateButtonBit);
