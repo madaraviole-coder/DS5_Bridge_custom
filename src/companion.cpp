@@ -3221,8 +3221,8 @@ void companion_process_controller_report(uint8_t *report, uint16_t len) {
     } else {
         s_laptop_mode_chord_latched = false;
     }
-    
-    // Process Turbo rapid-fire dengan sinyal PS murni
+
+    // Process Turbo rapid-fire
     const bool home_raw_for_turbo = (report[9] & kHomeButtonBit) != 0;
     turbo_controller_process_report(report, len, now, home_raw_for_turbo);
 
@@ -3505,3 +3505,4 @@ void companion_set_report(uint8_t report_id, hid_report_type_t report_type, uint
 
     handle_command(buffer, bufsize);
 }
+
