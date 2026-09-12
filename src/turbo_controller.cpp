@@ -15,7 +15,13 @@ namespace {
 uint8_t s_turbo_mask = 0;
 uint8_t s_prev_candidate_pressed = 0;
 
-// State machine for timed rumble feedback
+// State deteksi double-tap tombol PS
+bool s_prev_home_raw = false;
+uint32_t s_last_home_press_us = 0;
+bool s_turbo_armed = false;
+uint32_t s_turbo_armed_until_us = 0;
+
+// State machine getaran (rumble) konfirmasi
 enum class RumbleFeedbackState : uint8_t {
     Idle,
     SinglePulse,
@@ -30,16 +36,29 @@ uint32_t s_rumble_step_until_us = 0;
 void start_rumble_feedback(bool enabled) {
     const uint32_t now = time_us_32();
     if (enabled) {
-        // Single pulse: 120ms
+        // 1 getaran: tanda Turbo ON
         bt_set_classic_rumble_output(160, 0);
         s_rumble_state = RumbleFeedbackState::SinglePulse;
-        s_rumble_step_until_us = now + 120000;
+        s_rumble_step_until_us = now + 130000;
     } else {
-        // Double pulse: 70ms ON, 60ms OFF, 70ms ON
+        // 2 getaran: tanda Turbo OFF
         bt_set_classic_rumble_output(180, 0);
         s_rumble_state = RumbleFeedbackState::DoublePulse1;
         s_rumble_step_until_us = now + 70000;
     }
+}
+
+uint8_t get_candidate_mask(uint8_t const *report) {
+    uint8_t mask = 0;
+    if (report[7] & 0x20) mask |= TurboCross;
+    if (report[7] & 0x40) mask |= TurboCircle;
+    if (report[7] & 0x10) mask |= TurboSquare;
+    if (report[7] & 0x80) mask |= TurboTriangle;
+    if (report[8] & 0x01) mask |= TurboL1;
+    if (report[8] & 0x02) mask |= TurboR1;
+    if ((report[8] & 0x04) || report[4] > 40) mask |= TurboL2;
+    if ((report[8] & 0x08) || report[5] > 40) mask |= TurboR2;
+    return mask;
 }
 
 } // namespace
@@ -47,6 +66,10 @@ void start_rumble_feedback(bool enabled) {
 void turbo_controller_init() {
     s_turbo_mask = 0;
     s_prev_candidate_pressed = 0;
+    s_prev_home_raw = false;
+    s_last_home_press_us = 0;
+    s_turbo_armed = false;
+    s_turbo_armed_until_us = 0;
     s_rumble_state = RumbleFeedbackState::Idle;
     s_rumble_step_until_us = 0;
 }
@@ -64,50 +87,82 @@ void turbo_controller_toggle_button(uint8_t turbo_button_bit) {
     start_rumble_feedback((s_turbo_mask & turbo_button_bit) != 0);
 }
 
-void turbo_controller_process_report(uint8_t *report, uint16_t len, uint32_t now_us) {
+void turbo_controller_process_report(uint8_t *report, uint16_t len, uint32_t now_us, bool home_raw) {
     if (report == nullptr || len <= 9) {
         return;
     }
 
-    // Identify which candidate buttons are physically pressed in this report
-    uint8_t candidate_pressed = 0;
-    if (report[7] & 0x20) candidate_pressed |= TurboCross;
-    if (report[7] & 0x40) candidate_pressed |= TurboCircle;
-    if (report[7] & 0x10) candidate_pressed |= TurboSquare;
-    if (report[7] & 0x80) candidate_pressed |= TurboTriangle;
-    if (report[8] & 0x01) candidate_pressed |= TurboL1;
-    if (report[8] & 0x02) candidate_pressed |= TurboR1;
-    if ((report[8] & 0x04) || report[4] > 40) candidate_pressed |= TurboL2;
-    if ((report[8] & 0x08) || report[5] > 40) candidate_pressed |= TurboR2;
+    // 1. Deteksi Double-Tap tombol PS (<450ms)
+    const bool home_rising = home_raw && !s_prev_home_raw;
+    s_prev_home_raw = home_raw;
 
-    const bool mute_held = (report[9] & 0x04) != 0;
+    if (home_rising) {
+        if (s_last_home_press_us != 0 && static_cast<int32_t>(now_us - s_last_home_press_us) < 450000) {
+            // Berhasil double tap! Masuk ke mode menunggu tombol target (3 detik)
+            s_turbo_armed = true;
+            s_turbo_armed_until_us = now_us + 3000000;
+            s_last_home_press_us = 0;
 
-    // Toggle check: Holding Mute + Pressing candidate button
-    if (mute_held) {
+            // Indikator Oranye/Kuning + getaran pendek
+            bt_set_lightbar_color(0xFF, 0x90, 0x00, 100);
+            bt_schedule_lightbar_restore(3000);
+            start_rumble_feedback(true);
+        } else {
+            s_last_home_press_us = now_us;
+        }
+    }
+
+    // Blokir sinyal tombol PS ke Windows saat double tap agar tidak memicu Steam
+    if (s_turbo_armed || (s_last_home_press_us != 0 && static_cast<int32_t>(now_us - s_last_home_press_us) < 450000)) {
+        report[9] &= ~0x01;
+    }
+
+    // Timeout jika tidak ada tombol target yang ditekan
+    if (s_turbo_armed && static_cast<int32_t>(now_us - s_turbo_armed_until_us) >= 0) {
+        s_turbo_armed = false;
+    }
+
+    const uint8_t candidate_pressed = get_candidate_mask(report);
+
+    // 2. Jika dalam mode Siap Turbo (Armed) dan ada tombol target ditekan
+    if (s_turbo_armed) {
         const uint8_t newly_pressed = candidate_pressed & ~s_prev_candidate_pressed;
         if (newly_pressed != 0) {
             for (uint8_t bit = 1; bit != 0; bit <<= 1) {
                 if (newly_pressed & bit) {
-                    turbo_controller_toggle_button(bit);
+                    s_turbo_mask ^= bit;
+                    const bool is_on = (s_turbo_mask & bit) != 0;
+                    s_turbo_armed = false; // Selesai setting
+
+                    if (is_on) {
+                        // Turbo AKTIF: Hijau + 1x getaran mantap
+                        bt_set_lightbar_color(0x00, 0xFF, 0x00, 100);
+                        bt_schedule_lightbar_restore(1200);
+                        start_rumble_feedback(true);
+                    } else {
+                        // Turbo NONAKTIF: Merah + 2x getaran
+                        bt_set_lightbar_color(0xFF, 0x00, 0x00, 100);
+                        bt_schedule_lightbar_restore(1200);
+                        start_rumble_feedback(false);
+                    }
                     break;
                 }
             }
         }
 
-        // Suppress mute button and candidate buttons during shortcut configuration
+        // Tahan tombol agar tidak teregister di game saat sedang men-setting
         if (candidate_pressed != 0) {
-            report[9] &= ~0x04;
             report[7] &= ~0xF0;
             report[8] &= ~0x0F;
-            if (candidate_pressed & TurboL2) report[4] = 0;
-            if (candidate_pressed & TurboR2) report[5] = 0;
+            report[4] = 0;
+            report[5] = 0;
         }
     }
 
     s_prev_candidate_pressed = candidate_pressed;
 
-    // If any turbo button is active and physically held, oscillate at 15 Hz (~33ms period)
-    if (s_turbo_mask != 0) {
+    // 3. Efek Autofire 15 Hz saat tombol turbo ditahan
+    if (s_turbo_mask != 0 && !s_turbo_armed) {
         const bool release_phase = ((now_us / 33333) % 2) == 1;
         if (release_phase) {
             if ((s_turbo_mask & TurboSquare) && (report[7] & 0x10)) report[7] &= ~0x10;
