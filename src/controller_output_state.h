@@ -24,6 +24,16 @@ void controller_output_state_set_speaker_gain(uint8_t gain);
 uint8_t controller_output_state_speaker_gain();
 bool controller_output_state_copy_player_led_report(uint8_t *destination, uint16_t len);
 void controller_output_state_copy_audio_snapshot(uint8_t *destination, bool headset_plugged);
+void controller_output_state_record_host_lightbar(uint8_t const *payload, uint16_t len);
+bool controller_output_state_has_host_lightbar();
+bool controller_output_state_get_host_lightbar(
+    uint8_t &red,
+    uint8_t &green,
+    uint8_t &blue,
+    uint8_t &brightness
+);
+void controller_output_state_clear_host_lightbar();
+void controller_output_state_set_raw_lightbar(uint8_t red, uint8_t green, uint8_t blue, uint8_t brightness);
 void controller_output_state_clear_triggers(uint8_t *payload);
 
 #endif // DS5_BRIDGE_CONTROLLER_OUTPUT_STATE_H

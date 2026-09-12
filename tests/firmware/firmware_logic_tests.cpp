@@ -720,6 +720,71 @@ void output_state_player_led_release_invalidates_cached_indicator() {
     EXPECT_FALSE(controller_output_state_copy_player_led_report(report.data(), static_cast<uint16_t>(report.size())));
 }
 
+void output_state_host_lightbar_is_recorded_and_retrieved() {
+    reset_output_state();
+    EXPECT_FALSE(controller_output_state_has_host_lightbar());
+
+    auto payload = empty_payload();
+    payload[kValidFlag1Offset] = kFlag1LightbarControlEnable;
+    payload[kValidFlag2Offset] = 0x01;
+    payload[kLedBrightnessOffset] = 0x02;
+    payload[kLightbarRedOffset] = 0x12;
+    payload[kLightbarGreenOffset] = 0x34;
+    payload[kLightbarBlueOffset] = 0x56;
+
+    controller_output_state_record_host_lightbar(payload.data(), static_cast<uint16_t>(payload.size()));
+
+    EXPECT_TRUE(controller_output_state_has_host_lightbar());
+    uint8_t r = 0, g = 0, b = 0, brightness = 0;
+    EXPECT_TRUE(controller_output_state_get_host_lightbar(r, g, b, brightness));
+    EXPECT_EQ(r, 0x12);
+    EXPECT_EQ(g, 0x34);
+    EXPECT_EQ(b, 0x56);
+    EXPECT_EQ(brightness, 0x02);
+}
+
+void output_state_host_lightbar_release_and_clear_invalidates_cache() {
+    reset_output_state();
+    auto payload = empty_payload();
+    payload[kValidFlag1Offset] = kFlag1LightbarControlEnable;
+    payload[kLightbarRedOffset] = 0xaa;
+    payload[kLightbarGreenOffset] = 0xbb;
+    payload[kLightbarBlueOffset] = 0xcc;
+    controller_output_state_record_host_lightbar(payload.data(), static_cast<uint16_t>(payload.size()));
+    EXPECT_TRUE(controller_output_state_has_host_lightbar());
+
+    // Cleared by all zeros
+    payload[kLightbarRedOffset] = 0;
+    payload[kLightbarGreenOffset] = 0;
+    payload[kLightbarBlueOffset] = 0;
+    controller_output_state_record_host_lightbar(payload.data(), static_cast<uint16_t>(payload.size()));
+    EXPECT_FALSE(controller_output_state_has_host_lightbar());
+
+    // Re-set then release
+    payload[kLightbarRedOffset] = 0x10;
+    controller_output_state_record_host_lightbar(payload.data(), static_cast<uint16_t>(payload.size()));
+    EXPECT_TRUE(controller_output_state_has_host_lightbar());
+
+    auto release_payload = empty_payload();
+    release_payload[kValidFlag1Offset] = kFlag1ReleaseLeds;
+    controller_output_state_record_host_lightbar(release_payload.data(), static_cast<uint16_t>(release_payload.size()));
+    EXPECT_FALSE(controller_output_state_has_host_lightbar());
+}
+
+void output_state_set_raw_lightbar_updates_audio_snapshot() {
+    reset_output_state();
+    controller_output_state_set_raw_lightbar(0x40, 0x80, 0xc0, 0x01);
+
+    AudioSnapshot snapshot{};
+    controller_output_state_copy_audio_snapshot(snapshot.data(), false);
+
+    EXPECT_TRUE((snapshot[kValidFlag1Offset] & kFlag1LightbarControlEnable) != 0);
+    EXPECT_EQ(snapshot[kLedBrightnessOffset], 0x01);
+    EXPECT_EQ(snapshot[kLightbarRedOffset], 0x40);
+    EXPECT_EQ(snapshot[kLightbarGreenOffset], 0x80);
+    EXPECT_EQ(snapshot[kLightbarBlueOffset], 0xc0);
+}
+
 void output_state_preserves_selector_zero_and_ignores_motor_only_rumble() {
     reset_output_state();
 
@@ -1603,6 +1668,9 @@ std::vector<TestCase> tests{
     {"output state player led disabled suppresses host indicator", output_state_player_led_disabled_suppresses_host_indicator},
     {"output state player led reenabled restores host indicator", output_state_player_led_reenabled_restores_host_indicator},
     {"output state player led release invalidates cached indicator", output_state_player_led_release_invalidates_cached_indicator},
+    {"output state host lightbar is recorded and retrieved", output_state_host_lightbar_is_recorded_and_retrieved},
+    {"output state host lightbar release and clear invalidates cache", output_state_host_lightbar_release_and_clear_invalidates_cache},
+    {"output state set raw lightbar updates audio snapshot", output_state_set_raw_lightbar_updates_audio_snapshot},
     {"output state preserves selector zero and ignores motor only rumble", output_state_preserves_selector_zero_and_ignores_motor_only_rumble},
     {"output state strip zero classic rumble only removes idle selector", output_state_strip_zero_classic_rumble_only_removes_idle_selector},
     {"output state clear classic rumble clears cached selector state", output_state_clear_classic_rumble_clears_cached_selector_state},

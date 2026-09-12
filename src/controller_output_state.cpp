@@ -35,6 +35,11 @@ bool cached_trigger_power_valid = false;
 bool player_led_enabled = true;
 uint8_t cached_player_leds = 0;
 bool cached_player_leds_valid = false;
+uint8_t cached_host_lightbar_red = 0;
+uint8_t cached_host_lightbar_green = 0;
+uint8_t cached_host_lightbar_blue = 0;
+uint8_t cached_host_lightbar_brightness = 1;
+bool cached_host_lightbar_valid = false;
 
 uint8_t normalize_speaker_gain(uint8_t gain) {
     return std::min<uint8_t>(7, std::max<uint8_t>(1, gain));
@@ -218,6 +223,7 @@ void controller_output_state_reset() {
     std::memcpy(state_data, defaults, sizeof(state_data));
     controller_output_state_reset_cached_triggers();
     controller_output_state_reset_cached_player_leds();
+    controller_output_state_clear_host_lightbar();
     player_led_enabled = true;
 }
 
@@ -273,6 +279,7 @@ void controller_output_state_apply_host_payload(uint8_t const *data, uint8_t len
     const uint8_t copy_len = len > sizeof(state_data) ? sizeof(state_data) : len;
     uint8_t update[kAudioStateSnapshotSize]{};
     std::memcpy(update, data, copy_len);
+    controller_output_state_record_host_lightbar(update, copy_len);
 
     if (payload_uses_classic_rumble(update, copy_len)) {
         const uint8_t rumble_flags = static_cast<uint8_t>(
@@ -470,6 +477,82 @@ void controller_output_state_set_lightbar(uint8_t red, uint8_t green, uint8_t bl
     state_data[kLightbarRedOffset] = scale_lightbar_channel(red, brightness);
     state_data[kLightbarGreenOffset] = scale_lightbar_channel(green, brightness);
     state_data[kLightbarBlueOffset] = scale_lightbar_channel(blue, brightness);
+}
+
+void controller_output_state_record_host_lightbar(uint8_t const *payload, uint16_t len) {
+    if (payload == nullptr || len <= kValidFlag1Offset) {
+        return;
+    }
+
+    if ((payload[kValidFlag1Offset] & kFlag1ReleaseLeds) != 0) {
+        cached_host_lightbar_valid = false;
+        return;
+    }
+
+    if ((payload[kValidFlag1Offset] & kFlag1LightbarControlEnable) != 0 && len > kLightbarBlueOffset) {
+        if (payload[kLightbarRedOffset] == 0
+            && payload[kLightbarGreenOffset] == 0
+            && payload[kLightbarBlueOffset] == 0) {
+            cached_host_lightbar_valid = false;
+            return;
+        }
+
+        cached_host_lightbar_red = payload[kLightbarRedOffset];
+        cached_host_lightbar_green = payload[kLightbarGreenOffset];
+        cached_host_lightbar_blue = payload[kLightbarBlueOffset];
+        if (len > kLedBrightnessOffset && (payload[kValidFlag2Offset] & 0x01) != 0) {
+            cached_host_lightbar_brightness = payload[kLedBrightnessOffset];
+        } else {
+            cached_host_lightbar_brightness = 1;
+        }
+        cached_host_lightbar_valid = true;
+    }
+}
+
+bool controller_output_state_has_host_lightbar() {
+    return cached_host_lightbar_valid;
+}
+
+bool controller_output_state_get_host_lightbar(
+    uint8_t &red,
+    uint8_t &green,
+    uint8_t &blue,
+    uint8_t &brightness
+) {
+    if (!cached_host_lightbar_valid) {
+        return false;
+    }
+    red = cached_host_lightbar_red;
+    green = cached_host_lightbar_green;
+    blue = cached_host_lightbar_blue;
+    brightness = cached_host_lightbar_brightness;
+    return true;
+}
+
+void controller_output_state_clear_host_lightbar() {
+    cached_host_lightbar_valid = false;
+    cached_host_lightbar_red = 0;
+    cached_host_lightbar_green = 0;
+    cached_host_lightbar_blue = 0;
+    cached_host_lightbar_brightness = 1;
+}
+
+void controller_output_state_set_raw_lightbar(uint8_t red, uint8_t green, uint8_t blue, uint8_t brightness) {
+    state_data[kValidFlag1Offset] = static_cast<uint8_t>(
+        (
+            state_data[kValidFlag1Offset]
+            & static_cast<uint8_t>(~kFlag1ReleaseLeds)
+        )
+        | kFlag1LightbarControlEnable
+    );
+    apply_current_player_led_policy(state_data);
+    state_data[kValidFlag2Offset] = static_cast<uint8_t>(
+        state_data[kValidFlag2Offset] & static_cast<uint8_t>(~kLightbarSetupControlMask)
+    );
+    state_data[kLedBrightnessOffset] = brightness;
+    state_data[kLightbarRedOffset] = red;
+    state_data[kLightbarGreenOffset] = green;
+    state_data[kLightbarBlueOffset] = blue;
 }
 
 void controller_output_state_set_player_led_enabled(bool enabled) {

@@ -127,6 +127,8 @@ void bt_replay_adaptive_trigger_effect(
 void bt_reset_adaptive_triggers();
 void bt_set_lightbar_restore_enabled(bool enabled);
 void bt_schedule_lightbar_restore(uint32_t delay_ms);
+void bt_set_temporary_lightbar_color(uint8_t red, uint8_t green, uint8_t blue, uint8_t brightness_percent, uint32_t delay_ms);
+bool bt_is_temporary_lightbar_active();
 void bt_lightbar_loop();
 void bt_signal_strength_loop();
 void bt_inquiry_loop();

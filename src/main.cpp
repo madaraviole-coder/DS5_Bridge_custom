@@ -10,6 +10,7 @@
 #include "bt.h"
 #include "controller_packet_compositor.h"
 #include "controller_output_policy.h"
+#include "controller_output_state.h"
 #include "controller_output_submit.h"
 #include "utils.h"
 #include "resample.h"
@@ -218,10 +219,11 @@ void controller_output_submit_usb_payload(uint8_t const *payload, uint16_t paylo
             payloadLen = 0;
         } else {
             memcpy(outputData + 3, payload, payloadLen);
+            controller_output_state_record_host_lightbar(payload, payloadLen);
         }
     }
 
-    const bool lightbarOverride = companion_lightbar_override_active();
+    const bool lightbarOverride = companion_lightbar_override_active() || bt_is_temporary_lightbar_active();
     const bool hostClearsLeds = controller_output_policy_host_output_clears_leds(outputData + 3, payloadLen);
 #ifdef ENABLE_COMPANION
     const bool triggerIntensityChanged = companion_apply_trigger_effect_intensity(outputData + 3, payloadLen);

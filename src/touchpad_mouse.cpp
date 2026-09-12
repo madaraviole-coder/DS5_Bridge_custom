@@ -92,14 +92,12 @@ void touchpad_mouse_set_active(bool active) {
     const uint32_t now = time_us_32();
     if (active) {
         // Cyan flash: Laptop Touchpad mode active
-        bt_set_lightbar_color(0x00, 0xE5, 0xFF, 100);
-        bt_schedule_lightbar_restore(800);
+        bt_set_temporary_lightbar_color(0x00, 0xE5, 0xFF, 100, 800);
         bt_set_classic_rumble_output(140, 0);
         s_rumble_stop_us = now + 120000;
     } else {
         // Blue restore: Normal Gamepad mode
-        bt_set_lightbar_color(0x00, 0x00, 0xFF, 100);
-        bt_schedule_lightbar_restore(500);
+        bt_set_temporary_lightbar_color(0x00, 0x00, 0xFF, 100, 500);
         bt_set_classic_rumble_output(200, 0);
         s_rumble_stop_us = now + 180000;
     }

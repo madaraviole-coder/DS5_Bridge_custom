@@ -132,16 +132,6 @@ jobs:
           mkdir -p artifacts
           cp build/companion/ds5-bridge.uf2 "artifacts/DS5-Bridge-Firmware-v${RELEASE_ASSET_VERSION}.uf2"
 
-      - name: Build companion firmware (Waveshare RP2350B-Plus-W)
-        run: |
-          cmake -S . -B build/waveshare -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DPICO_SDK_PATH="$PICO_SDK_PATH" \
-            -DENABLE_COMPANION=ON \
-            -DWAVESHARE_RP2350B_PLUS_W_BUILD=ON
-          cmake --build build/waveshare --target ds5-bridge
-          cp build/waveshare/ds5-bridge.uf2 "artifacts/DS5-Bridge-Firmware-Waveshare-v${RELEASE_ASSET_VERSION}.uf2"
-
       - name: Upload firmware to release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -331,7 +321,6 @@ jobs:
             companionVersion = $companionVersion
             artifacts = @(
               "DS5-Bridge-Firmware-v$assetVersion.uf2",
-              "DS5-Bridge-Firmware-Waveshare-v$assetVersion.uf2",
               "DS5-Bridge-Companion-Setup-v$companionVersion.exe",
               "DS5-Bridge-Companion-Portable-v$companionVersion-win32-x64.zip"
             )

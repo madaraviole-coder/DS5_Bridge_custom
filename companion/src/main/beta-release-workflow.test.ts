@@ -35,7 +35,6 @@ describe('beta release workflow', () => {
     expect(releaseWorkflow).toContain("$buildVersion = $env:BUILD_VERSION -replace '^v', ''");
     expect(releaseWorkflow).toContain('npm version $buildVersion --no-git-tag-version --allow-same-version');
     expect(releaseWorkflow).toContain('DS5-Bridge-Firmware-v${RELEASE_ASSET_VERSION}.uf2');
-    expect(releaseWorkflow).toContain('DS5-Bridge-Firmware-Waveshare-v${RELEASE_ASSET_VERSION}.uf2');
     expect(releaseWorkflow).toContain('"DS5-Bridge-Companion-Setup-v$companionVersion.exe"');
     expect(releaseWorkflow).toContain('"DS5-Bridge-Companion-Portable-v$companionVersion-win32-x64.zip"');
   });

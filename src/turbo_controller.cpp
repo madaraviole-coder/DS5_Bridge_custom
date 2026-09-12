@@ -87,8 +87,7 @@ void turbo_controller_process_report(uint8_t *report, uint16_t len, uint32_t now
             s_turbo_armed_until_us = now_us + 3000000;
             s_last_home_press_us = 0;
 
-            bt_set_lightbar_color(0xFF, 0x90, 0x00, 100);
-            bt_schedule_lightbar_restore(3000);
+            bt_set_temporary_lightbar_color(0xFF, 0x90, 0x00, 100, 3000);
             start_rumble_feedback(true);
         } else {
             s_last_home_press_us = now_us;
@@ -115,12 +114,10 @@ void turbo_controller_process_report(uint8_t *report, uint16_t len, uint32_t now
                     s_turbo_armed = false;
 
                     if (is_on) {
-                        bt_set_lightbar_color(0x00, 0xFF, 0x00, 100);
-                        bt_schedule_lightbar_restore(1200);
+                        bt_set_temporary_lightbar_color(0x00, 0xFF, 0x00, 100, 1500);
                         start_rumble_feedback(true);
                     } else {
-                        bt_set_lightbar_color(0xFF, 0x00, 0x00, 100);
-                        bt_schedule_lightbar_restore(1200);
+                        bt_set_temporary_lightbar_color(0xFF, 0x00, 0x00, 100, 1500);
                         start_rumble_feedback(false);
                     }
                     break;

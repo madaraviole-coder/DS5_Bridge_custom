@@ -2261,6 +2261,37 @@ void bt_schedule_lightbar_restore(uint32_t delay_ms) {
     lightbar_restore_at_us = time_us_32() + delay_ms * 1000;
 }
 
+void bt_set_temporary_lightbar_color(uint8_t red, uint8_t green, uint8_t blue, uint8_t brightness_percent, uint32_t delay_ms) {
+    const uint8_t brightness = brightness_percent > 100 ? 100 : brightness_percent;
+    audio_set_lightbar_state(red, green, blue, brightness);
+
+    if (lightbar_restore_enabled && hid_interrupt_cid != 0) {
+        lightbar_restore_pending = true;
+        lightbar_restore_at_us = time_us_32() + delay_ms * 1000;
+    }
+
+    if (hid_interrupt_cid == 0) {
+        return;
+    }
+
+    uint8_t report[DS_OUTPUT_REPORT_BT_SIZE];
+    init_state_report(report);
+    report[3 + 1] = DS_OUTPUT_VALID_FLAG1_LIGHTBAR_CONTROL_ENABLE;
+    if (!player_led_enabled) {
+        report[3 + 1] |= DS_OUTPUT_VALID_FLAG1_PLAYER_INDICATOR_CONTROL_ENABLE;
+        report[3 + 43] = 0;
+    }
+    report[3 + OUTPUT_PAYLOAD_LED_BRIGHTNESS_OFFSET] = 0x01;
+    report[3 + 44] = scale_lightbar_channel(red, brightness);
+    report[3 + 45] = scale_lightbar_channel(green, brightness);
+    report[3 + 46] = scale_lightbar_channel(blue, brightness);
+    bt_write(report, sizeof(report));
+}
+
+bool bt_is_temporary_lightbar_active() {
+    return lightbar_restore_enabled && lightbar_restore_pending;
+}
+
 void bt_lightbar_loop() {
     if (!lightbar_restore_enabled || !lightbar_restore_pending || hid_interrupt_cid == 0) {
         return;
@@ -2270,12 +2301,57 @@ void bt_lightbar_loop() {
         return;
     }
 
-    bt_set_lightbar_color(
-        saved_lightbar_red,
-        saved_lightbar_green,
-        saved_lightbar_blue,
-        saved_lightbar_brightness
-    );
+    lightbar_restore_pending = false;
+
+    uint8_t host_red = 0;
+    uint8_t host_green = 0;
+    uint8_t host_blue = 0;
+    uint8_t host_brightness = 1;
+    bool has_host_lightbar = false;
+
+#ifdef ENABLE_COMPANION
+    const bool override_active = companion_lightbar_override_enabled();
+#else
+    const bool override_active = false;
+#endif
+
+    if (!override_active) {
+        has_host_lightbar = controller_output_state_get_host_lightbar(
+            host_red,
+            host_green,
+            host_blue,
+            host_brightness
+        );
+    }
+
+    uint8_t report[DS_OUTPUT_REPORT_BT_SIZE];
+    init_state_report(report);
+    report[3 + 1] = DS_OUTPUT_VALID_FLAG1_LIGHTBAR_CONTROL_ENABLE;
+    if (!player_led_enabled) {
+        report[3 + 1] |= DS_OUTPUT_VALID_FLAG1_PLAYER_INDICATOR_CONTROL_ENABLE;
+        report[3 + 43] = 0;
+    }
+
+    if (has_host_lightbar) {
+        controller_output_state_set_raw_lightbar(host_red, host_green, host_blue, host_brightness);
+        report[3 + OUTPUT_PAYLOAD_LED_BRIGHTNESS_OFFSET] = host_brightness;
+        report[3 + 44] = host_red;
+        report[3 + 45] = host_green;
+        report[3 + 46] = host_blue;
+    } else {
+        audio_set_lightbar_state(
+            saved_lightbar_red,
+            saved_lightbar_green,
+            saved_lightbar_blue,
+            saved_lightbar_brightness
+        );
+        report[3 + OUTPUT_PAYLOAD_LED_BRIGHTNESS_OFFSET] = 0x01;
+        report[3 + 44] = scale_lightbar_channel(saved_lightbar_red, saved_lightbar_brightness);
+        report[3 + 45] = scale_lightbar_channel(saved_lightbar_green, saved_lightbar_brightness);
+        report[3 + 46] = scale_lightbar_channel(saved_lightbar_blue, saved_lightbar_brightness);
+    }
+
+    bt_write(report, sizeof(report));
 }
 
 void bt_signal_strength_loop() {
