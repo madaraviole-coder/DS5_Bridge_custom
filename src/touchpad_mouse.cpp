@@ -216,6 +216,11 @@ void touchpad_mouse_process_touch(
         }
     }
 
+    // Bound pending accumulators to prevent overflow or erratic jumps
+    s_pending_dx = std::clamp<int16_t>(s_pending_dx, -255, 255);
+    s_pending_dy = std::clamp<int16_t>(s_pending_dy, -255, 255);
+    s_pending_wheel = std::clamp<int16_t>(s_pending_wheel, -20, 20);
+
     // Save previous state for next frame
     s_prev_p0_active = p0.active;
     s_prev_p0_id = p0.contact_id;
@@ -235,6 +240,18 @@ void touchpad_mouse_loop() {
     if (s_rumble_stop_us != 0 && static_cast<int32_t>(now - s_rumble_stop_us) >= 0) {
         s_rumble_stop_us = 0;
         bt_set_classic_rumble_output(0, 0);
+    }
+
+    // Safety: if controller wireless connection drops, release all physical clicks and motions
+    if (!bt_is_controller_connected()) {
+        s_physical_left = false;
+        s_physical_right = false;
+        s_right_click_until_us = 0;
+        s_prev_p0_active = false;
+        s_prev_p1_active = false;
+        s_pending_dx = 0;
+        s_pending_dy = 0;
+        s_pending_wheel = 0;
     }
 
     if (!s_touchpad_mouse_active) {
@@ -257,7 +274,7 @@ void touchpad_mouse_loop() {
     }
 
     const uint8_t keyboard_hid_instance = host_persona_keyboard_hid_instance();
-    if (!tud_hid_n_ready(keyboard_hid_instance)) {
+    if (keyboard_hid_instance == 0xff || !tud_hid_n_ready(keyboard_hid_instance)) {
         return;
     }
 

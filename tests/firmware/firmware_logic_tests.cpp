@@ -1797,6 +1797,38 @@ void touchpad_zone_ignores_residual_coordinates_when_contact_bit_is_set() {
     EXPECT_EQ(report[7] & 0x40, 0); // No Circle
 }
 
+void touchpad_zone_disabling_clears_latch_and_resets_click() {
+    touchpad_zone_init();
+
+    // Frame 1: Touch and click in Zone 1 (Top-Left)
+    std::array<uint8_t, 64> report1{};
+    report1[32] = 0x00; // active touch
+    report1[33] = static_cast<uint8_t>(200 & 0xFF);
+    report1[34] = static_cast<uint8_t>(((200 >> 8) & 0x0F) | ((200 & 0x0F) << 4));
+    report1[35] = static_cast<uint8_t>((200 >> 4) & 0xFF);
+    report1[9] = 0x02; // physical click
+
+    touchpad_zone_process_report(report1.data(), static_cast<uint16_t>(report1.size()));
+    EXPECT_EQ(report1[9] & 0x02, 0); // suppressed
+    EXPECT_EQ(report1[7] & 0x80, 0x80); // Triangle injected
+
+    // Disable 4-zone mode while click is still held
+    touchpad_zone_set_enabled(false);
+    EXPECT_FALSE(touchpad_zone_is_enabled());
+
+    // Re-enable 4-zone mode
+    touchpad_zone_set_enabled(true);
+
+    // Frame 2: Physical click released without touch
+    std::array<uint8_t, 64> report2{};
+    report2[32] = 0x80;
+    report2[36] = 0x80;
+    report2[9] = 0x00;
+
+    touchpad_zone_process_report(report2.data(), static_cast<uint16_t>(report2.size()));
+    EXPECT_EQ(report2[7] & 0x80, 0); // No lingering injection
+}
+
 struct TestCase {
     char const *name;
     void (*run)();
@@ -1810,6 +1842,7 @@ std::vector<TestCase> tests{
     {"touchpad zone edge click with dropped contact is remapped", touchpad_zone_edge_click_with_dropped_contact_is_remapped},
     {"touchpad zone click latches across dropped contact frames", touchpad_zone_click_latches_across_dropped_contact_frames},
     {"touchpad zone ignores residual coordinates when contact bit is set", touchpad_zone_ignores_residual_coordinates_when_contact_bit_is_set},
+    {"touchpad zone disabling clears latch and resets click", touchpad_zone_disabling_clears_latch_and_resets_click},
     {"scheduler prioritizes due audio over old state", scheduler_prioritizes_due_audio_over_old_state},
     {"scheduler sends coalesced state when audio is absent", scheduler_sends_coalesced_state_when_audio_is_absent},
     {"scheduler due audio stays ahead of coalesced state", scheduler_due_audio_stays_ahead_of_coalesced_state},

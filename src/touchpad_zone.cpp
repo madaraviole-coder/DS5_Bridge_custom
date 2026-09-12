@@ -117,10 +117,14 @@ bool touchpad_zone_is_enabled() {
 
 void touchpad_zone_set_enabled(bool enabled) {
     s_config.enabled = enabled;
+    if (!enabled) {
+        s_click_latched = false;
+        s_latched_zone = TouchpadZoneNone;
+    }
 }
 
 bool touchpad_zone_toggle() {
-    s_config.enabled = !s_config.enabled;
+    touchpad_zone_set_enabled(!s_config.enabled);
     return s_config.enabled;
 }
 

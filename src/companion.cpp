@@ -3195,6 +3195,8 @@ void companion_process_controller_report(uint8_t *report, uint16_t len) {
     const uint8_t dpad_direction = report[7] & kDpadMask;
     const bool dpad_pressed = dpad_direction <= 0x07;
     const bool mute_pressed = (report[9] & kMuteButtonBit) != 0;
+    const bool raw_touchpad_click = (len > 9) && ((report[9] & 0x02) != 0);
+    const bool raw_create_pressed = (report[8] & kCreateButtonBit) != 0;
     const uint32_t now = time_us_32();
     if (mute_pressed && !mute_button_last_pressed && mute_keyboard_chord_starter_enabled()) {
         begin_mute_keyboard_chord_window(now);
@@ -3248,8 +3250,8 @@ void companion_process_controller_report(uint8_t *report, uint16_t len) {
     report[3] = right_stick.y;
 
     // Toggle chord: PS + Touchpad Click for Laptop Mouse mode
-    const bool home_chord = (report[9] & kHomeButtonBit) != 0;
-    const bool touchpad_chord = (report[9] & 0x02) != 0;
+    const bool home_chord = home_pressed;
+    const bool touchpad_chord = raw_touchpad_click;
     static bool s_laptop_mode_chord_latched = false;
     if (s_laptop_mode_chord_latched) {
         if (home_chord || touchpad_chord) {
@@ -3258,7 +3260,7 @@ void companion_process_controller_report(uint8_t *report, uint16_t len) {
         } else {
             s_laptop_mode_chord_latched = false;
         }
-    } else if (home_chord && touchpad_chord) {
+    } else if (home_chord && touchpad_chord && !s_zone_mode_chord_latched) {
         s_laptop_mode_chord_latched = true;
         touchpad_mouse_toggle();
         report[9] &= static_cast<uint8_t>(~kHomeButtonBit);
@@ -3266,7 +3268,7 @@ void companion_process_controller_report(uint8_t *report, uint16_t len) {
     }
 
     // Toggle chord: Create + Touchpad Click for 4-Zone Touchpad Remap mode
-    const bool create_chord = (report[8] & kCreateButtonBit) != 0;
+    const bool create_chord = raw_create_pressed;
     static bool s_zone_mode_chord_latched = false;
     if (s_zone_mode_chord_latched) {
         if (create_chord || touchpad_chord) {
@@ -3275,7 +3277,7 @@ void companion_process_controller_report(uint8_t *report, uint16_t len) {
         } else {
             s_zone_mode_chord_latched = false;
         }
-    } else if (create_chord && touchpad_chord && !home_chord) {
+    } else if (create_chord && touchpad_chord && !home_chord && !s_laptop_mode_chord_latched) {
         s_zone_mode_chord_latched = true;
         const bool active = touchpad_zone_toggle();
         if (active) {
@@ -3309,7 +3311,7 @@ void companion_process_controller_report(uint8_t *report, uint16_t len) {
                 | (static_cast<uint16_t>(pdata[3]) << 4)
             );
         }
-        const bool physical_click = !s_laptop_mode_chord_latched && !s_zone_mode_chord_latched && ((report[9] & 0x02) != 0);
+        const bool physical_click = !s_laptop_mode_chord_latched && !s_zone_mode_chord_latched && raw_touchpad_click;
         touchpad_mouse_process_touch(points, 2, physical_click, now);
 
         // Suppress touchpad from game report when in laptop mode
