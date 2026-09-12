@@ -19,10 +19,10 @@ uint8_t turbo_controller_get_mask();
 void turbo_controller_set_mask(uint8_t mask);
 void turbo_controller_toggle_button(uint8_t turbo_button_bit);
 
-// Process and apply rapid fire oscillation to active buttons in the DualSense controller report
-void turbo_controller_process_report(uint8_t *report, uint16_t len, uint32_t now_us);
+// Memproses double-tap PS dan autofire 15Hz
+void turbo_controller_process_report(uint8_t *report, uint16_t len, uint32_t now_us, bool home_raw);
 
-// Service loop for timed haptic confirmation
+// Service loop untuk getaran feedback
 void turbo_controller_loop();
 
 #endif // DS5_BRIDGE_TURBO_CONTROLLER_H
