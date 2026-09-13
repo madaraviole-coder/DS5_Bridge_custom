@@ -103,28 +103,60 @@ export const COMMAND_ID = {
   SET_TURBO_CONFIG: 0x47
 } as const;
 
-export function buildTurboConfigPayload(settings: {
-  speedCps: number;
-  humanize: boolean;
-  buttonsMask: number;
-}): number[] {
+export function buildTurboConfigPayload(
+  settings: { speedCps: number; humanize: boolean; buttonsMask: number }
+): number[];
+export function buildTurboConfigPayload(
+  speedCps: number,
+  humanize?: boolean,
+  buttonsMask?: number
+): number[];
+export function buildTurboConfigPayload(
+  settingsOrCps: { speedCps: number; humanize: boolean; buttonsMask: number } | number,
+  maybeHumanize?: boolean,
+  maybeButtonsMask?: number
+): number[] {
+  if (typeof settingsOrCps === 'number') {
+    return [
+      Math.max(2, Math.min(30, Math.round(Number.isFinite(settingsOrCps) ? settingsOrCps : 8))),
+      maybeHumanize ? 1 : 0,
+      (maybeButtonsMask ?? 0) & 0xff
+    ];
+  }
   return [
-    Math.max(2, Math.min(30, Math.round(Number.isFinite(settings.speedCps) ? settings.speedCps : 8))),
-    settings.humanize ? 1 : 0,
-    (settings.buttonsMask ?? 0) & 0xff
+    Math.max(2, Math.min(30, Math.round(Number.isFinite(settingsOrCps.speedCps) ? settingsOrCps.speedCps : 8))),
+    settingsOrCps.humanize ? 1 : 0,
+    (settingsOrCps.buttonsMask ?? 0) & 0xff
   ];
 }
 
-export function buildTouchpadZonePayload(settings: {
-  deadzonePercent: number;
-  zoneTargets: [number, number, number, number];
-}): number[] {
+export function buildTouchpadZonePayload(
+  settings: { deadzonePercent: number; zoneTargets: [number, number, number, number] }
+): number[];
+export function buildTouchpadZonePayload(
+  deadzonePercent: number,
+  zoneTargets: [number, number, number, number]
+): number[];
+export function buildTouchpadZonePayload(
+  settingsOrDeadzone: { deadzonePercent: number; zoneTargets: [number, number, number, number] } | number,
+  maybeZoneTargets?: [number, number, number, number]
+): number[] {
+  if (typeof settingsOrDeadzone === 'number') {
+    const targets = maybeZoneTargets ?? [0, 0, 0, 0];
+    return [
+      Math.max(0, Math.min(100, Math.round(Number.isFinite(settingsOrDeadzone) ? settingsOrDeadzone : 50))),
+      targets[0] & 0xff,
+      targets[1] & 0xff,
+      targets[2] & 0xff,
+      targets[3] & 0xff
+    ];
+  }
   return [
-    Math.max(0, Math.min(100, Math.round(Number.isFinite(settings.deadzonePercent) ? settings.deadzonePercent : 50))),
-    settings.zoneTargets[0] & 0xff,
-    settings.zoneTargets[1] & 0xff,
-    settings.zoneTargets[2] & 0xff,
-    settings.zoneTargets[3] & 0xff
+    Math.max(0, Math.min(100, Math.round(Number.isFinite(settingsOrDeadzone.deadzonePercent) ? settingsOrDeadzone.deadzonePercent : 50))),
+    settingsOrDeadzone.zoneTargets[0] & 0xff,
+    settingsOrDeadzone.zoneTargets[1] & 0xff,
+    settingsOrDeadzone.zoneTargets[2] & 0xff,
+    settingsOrDeadzone.zoneTargets[3] & 0xff
   ];
 }
 

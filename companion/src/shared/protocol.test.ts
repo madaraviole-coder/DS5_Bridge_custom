@@ -897,7 +897,10 @@ describe('companion protocol', () => {
   });
 
   it('builds a turbo config command report and payload', () => {
-    const payload = buildTurboConfigPayload(12, true, 0x05);
+    const payloadFromArgs = buildTurboConfigPayload(12, true, 0x05);
+    expect(payloadFromArgs).toEqual([12, 1, 0x05]);
+
+    const payload = buildTurboConfigPayload({ speedCps: 12, humanize: true, buttonsMask: 0x05 });
     expect(payload).toEqual([12, 1, 0x05]);
 
     const report = buildCommandReport(COMMAND_ID.SET_TURBO_CONFIG, 8, 1, payload);
