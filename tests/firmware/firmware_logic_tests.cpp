@@ -9,8 +9,9 @@
 #include <utility>
 #include <vector>
 
-#include "controller_output_policy.h"
+#include "bt.h"
 #include "classic_rumble_delivery_policy.h"
+#include "controller_output_policy.h"
 #include "controller_output_rumble_state.h"
 #include "controller_output_state.h"
 #include "controller_packet_compositor.h"
@@ -42,19 +43,17 @@ extern "C" bool host_persona_descriptors_verified(HostPersonaMode mode) {
     }
 }
 
-bool bt_set_classic_rumble_output(uint8_t left, uint8_t right) {
-    (void)left;
+void bt_set_classic_rumble_output(uint8_t right, uint8_t left) {
     (void)right;
-    return true;
+    (void)left;
 }
 
-bool bt_set_temporary_lightbar_color(uint8_t r, uint8_t g, uint8_t b, uint8_t brightness, uint16_t duration_ms) {
-    (void)r;
-    (void)g;
-    (void)b;
-    (void)brightness;
-    (void)duration_ms;
-    return true;
+void bt_set_temporary_lightbar_color(uint8_t red, uint8_t green, uint8_t blue, uint8_t brightness_percent, uint32_t delay_ms) {
+    (void)red;
+    (void)green;
+    (void)blue;
+    (void)brightness_percent;
+    (void)delay_ms;
 }
 
 namespace {
