@@ -6,6 +6,7 @@
 
 #include "audio.h"
 #include "bt.h"
+#include "btstack_tlv.h"
 #include "controller_output_policy.h"
 #include "controller_output_submit.h"
 #include "dualsense_output.h"
@@ -257,11 +258,15 @@ constexpr uint8_t kChordStarterHome = 1;
 constexpr uint8_t kChordStarterLfn = 2;
 constexpr uint8_t kChordStarterRfn = 3;
 constexpr uint8_t kChordStarterMute = 4;
+#define BT_CHORD_CONFIG_TLV_TAG 0x43485244u // ASCII 'CHRD'
 
 struct DynamicChordBinding {
     uint8_t event;
     uint8_t starter;
     RemapButton button;
+    uint8_t action_type;
+    uint8_t action_code;
+    uint8_t action_param;
     bool last_pressed;
 };
 
@@ -810,9 +815,14 @@ void set_player_led_enabled(bool enabled) {
     bt_set_player_led_enabled(enabled);
 }
 
-void clear_dynamic_chord_bindings() {
+void delete_dynamic_chord_bindings_from_flash();
+
+void clear_dynamic_chord_bindings(bool delete_from_flash = true) {
     dynamic_chord_binding_count = 0;
     memset(dynamic_chord_bindings, 0, sizeof(dynamic_chord_bindings));
+    if (delete_from_flash) {
+        delete_dynamic_chord_bindings_from_flash();
+    }
 }
 
 uint8_t take_shortcut_event() {
@@ -868,7 +878,7 @@ void restore_defaults() {
     home_chord_gate_active = false;
     home_chord_gate_until_us = 0;
     home_chord_replay_until_us = 0;
-    clear_dynamic_chord_bindings();
+    clear_dynamic_chord_bindings(false);
     bt_set_edge_profile_switching_blocked(false);
     clear_shortcut_events();
     mute_keyboard_pending = false;
@@ -1365,13 +1375,15 @@ bool valid_chord_bindings_payload(uint8_t const *payload, uint16_t len, uint16_t
     if (count > 0 && payload == nullptr) {
         return false;
     }
-    if (len < count * 3) {
+    const bool is_extended = (len >= count * 6);
+    if (!is_extended && len < count * 3) {
         return false;
     }
+    const uint8_t stride = is_extended ? 6 : 3;
     for (uint8_t i = 0; i < count; i++) {
-        const uint8_t event = payload[i * 3];
-        const uint8_t starter = payload[i * 3 + 1];
-        const uint8_t button = payload[i * 3 + 2];
+        const uint8_t event = payload[i * stride];
+        const uint8_t starter = payload[i * stride + 1];
+        const uint8_t button = payload[i * stride + 2];
         if (
             event < kDynamicShortcutEventBase
             || event >= kDynamicShortcutEventBase + kDynamicChordBindingMax
@@ -1382,7 +1394,7 @@ bool valid_chord_bindings_payload(uint8_t const *payload, uint16_t len, uint16_t
             return false;
         }
         for (uint8_t previous = 0; previous < i; previous++) {
-            if (payload[previous * 3 + 1] == starter && payload[previous * 3 + 2] == button) {
+            if (payload[previous * stride + 1] == starter && payload[previous * stride + 2] == button) {
                 return false;
             }
         }
@@ -1390,17 +1402,25 @@ bool valid_chord_bindings_payload(uint8_t const *payload, uint16_t len, uint16_t
     return true;
 }
 
-void set_dynamic_chord_bindings(uint8_t const *payload, uint16_t count) {
-    clear_dynamic_chord_bindings();
+void save_dynamic_chord_bindings_to_flash();
+
+void set_dynamic_chord_bindings(uint8_t const *payload, uint16_t count, uint16_t len = 0) {
+    clear_dynamic_chord_bindings(false);
     dynamic_chord_binding_count = static_cast<uint8_t>(count);
+    const bool is_extended = (len >= count * 6);
+    const uint8_t stride = is_extended ? 6 : 3;
     for (uint8_t i = 0; i < dynamic_chord_binding_count; i++) {
         dynamic_chord_bindings[i] = {
-            payload[i * 3],
-            payload[i * 3 + 1],
-            static_cast<RemapButton>(payload[i * 3 + 2]),
+            payload[i * stride],
+            payload[i * stride + 1],
+            static_cast<RemapButton>(payload[i * stride + 2]),
+            is_extended ? payload[i * stride + 3] : static_cast<uint8_t>(ChordActionNone),
+            is_extended ? payload[i * stride + 4] : static_cast<uint8_t>(0),
+            is_extended ? payload[i * stride + 5] : static_cast<uint8_t>(0),
             false
         };
     }
+    save_dynamic_chord_bindings_to_flash();
 }
 
 bool has_edge_profile_switching_chord() {
@@ -1656,6 +1676,250 @@ void mute_keyboard_loop() {
         if (tud_hid_n_report(keyboard_hid_instance, 1, keyboard_report, sizeof(keyboard_report))) {
             mute_keyboard_pressed = false;
         }
+    }
+}
+
+bool chord_keyboard_pending = false;
+bool chord_keyboard_pressed = false;
+uint8_t chord_keyboard_modifiers = 0;
+uint8_t chord_keyboard_usage = 0;
+uint32_t chord_keyboard_release_at_us = 0;
+
+void queue_chord_keyboard_press(uint8_t modifiers, uint8_t usage) {
+    if (usage == 0) {
+        return;
+    }
+    chord_keyboard_modifiers = modifiers;
+    chord_keyboard_usage = usage;
+    chord_keyboard_pending = true;
+}
+
+void chord_keyboard_loop() {
+    const uint32_t now = time_us_32();
+    const uint8_t keyboard_hid_instance = host_persona_keyboard_hid_instance();
+    if (!tud_hid_n_ready(keyboard_hid_instance)) {
+        return;
+    }
+
+    if (chord_keyboard_pending) {
+        uint8_t keyboard_report[8]{};
+        keyboard_report[0] = chord_keyboard_modifiers;
+        keyboard_report[2] = chord_keyboard_usage;
+        if (tud_hid_n_report(keyboard_hid_instance, 1, keyboard_report, sizeof(keyboard_report))) {
+            chord_keyboard_pending = false;
+            chord_keyboard_pressed = true;
+            chord_keyboard_release_at_us = now + kKeyboardPressDurationUs;
+        }
+        return;
+    }
+
+    if (
+        chord_keyboard_pressed
+        && chord_keyboard_release_at_us != 0
+        && static_cast<int32_t>(now - chord_keyboard_release_at_us) >= 0
+    ) {
+        uint8_t keyboard_report[8]{};
+        if (tud_hid_n_report(keyboard_hid_instance, 1, keyboard_report, sizeof(keyboard_report))) {
+            chord_keyboard_pressed = false;
+        }
+    }
+}
+
+void save_dynamic_chord_bindings_to_flash() {
+    const btstack_tlv_t *tlv = nullptr;
+    void *tlv_context = nullptr;
+    btstack_tlv_get_instance(&tlv, &tlv_context);
+    if (tlv == nullptr) {
+        return;
+    }
+    if (dynamic_chord_binding_count == 0) {
+        tlv->delete_tag(tlv_context, BT_CHORD_CONFIG_TLV_TAG);
+        return;
+    }
+    uint8_t buffer[2 + kDynamicChordBindingMax * 6]{};
+    buffer[0] = 0x01;
+    buffer[1] = dynamic_chord_binding_count;
+    for (uint8_t i = 0; i < dynamic_chord_binding_count; i++) {
+        const DynamicChordBinding &b = dynamic_chord_bindings[i];
+        buffer[2 + i * 6 + 0] = b.event;
+        buffer[2 + i * 6 + 1] = b.starter;
+        buffer[2 + i * 6 + 2] = static_cast<uint8_t>(b.button);
+        buffer[2 + i * 6 + 3] = b.action_type;
+        buffer[2 + i * 6 + 4] = b.action_code;
+        buffer[2 + i * 6 + 5] = b.action_param;
+    }
+    const int total_size = 2 + dynamic_chord_binding_count * 6;
+    tlv->store_tag(tlv_context, BT_CHORD_CONFIG_TLV_TAG, buffer, total_size);
+}
+
+void load_dynamic_chord_bindings_from_flash() {
+    const btstack_tlv_t *tlv = nullptr;
+    void *tlv_context = nullptr;
+    btstack_tlv_get_instance(&tlv, &tlv_context);
+    if (tlv == nullptr) {
+        return;
+    }
+    uint8_t buffer[2 + kDynamicChordBindingMax * 6]{};
+    const int len = tlv->get_tag(tlv_context, BT_CHORD_CONFIG_TLV_TAG, buffer, sizeof(buffer));
+    if (len < 2 || buffer[0] != 0x01) {
+        return;
+    }
+    const uint8_t count = buffer[1];
+    if (count == 0 || count > kDynamicChordBindingMax) {
+        return;
+    }
+    if (len < 2 + count * 6) {
+        return;
+    }
+    dynamic_chord_binding_count = count;
+    for (uint8_t i = 0; i < count; i++) {
+        dynamic_chord_bindings[i] = {
+            buffer[2 + i * 6 + 0],
+            buffer[2 + i * 6 + 1],
+            static_cast<RemapButton>(buffer[2 + i * 6 + 2]),
+            buffer[2 + i * 6 + 3],
+            buffer[2 + i * 6 + 4],
+            buffer[2 + i * 6 + 5],
+            false
+        };
+    }
+}
+
+void delete_dynamic_chord_bindings_from_flash() {
+    const btstack_tlv_t *tlv = nullptr;
+    void *tlv_context = nullptr;
+    btstack_tlv_get_instance(&tlv, &tlv_context);
+    if (tlv == nullptr) {
+        return;
+    }
+    tlv->delete_tag(tlv_context, BT_CHORD_CONFIG_TLV_TAG);
+}
+
+void execute_dynamic_chord_standalone(const DynamicChordBinding &binding) {
+    if (binding.action_type == ChordActionControllerSetting) {
+        switch (binding.action_code) {
+            case ChordCtrlSleepController:
+                (void)bt_disconnect_with_intent(BtControllerDisconnectIntentSleep);
+                break;
+            case ChordCtrlToggleMicMute:
+                set_companion_mic_muted(!companion_mic_muted);
+                break;
+            case ChordCtrlSpeakerUp: {
+                const float step = (binding.action_param > 0) ? (static_cast<float>(binding.action_param) / 100.0f) : 0.05f;
+                volume[0] = std::min<float>(1.0f, volume[0] + step);
+                bt_refresh_speaker_output();
+                break;
+            }
+            case ChordCtrlSpeakerDown: {
+                const float step = (binding.action_param > 0) ? (static_cast<float>(binding.action_param) / 100.0f) : 0.05f;
+                volume[0] = std::max<float>(0.0f, volume[0] - step);
+                bt_refresh_speaker_output();
+                break;
+            }
+            case ChordCtrlMicUp: {
+                const uint8_t step = (binding.action_param > 0) ? binding.action_param : 5;
+                companion_mic_volume_percent = std::min<uint8_t>(100, companion_mic_volume_percent + step);
+                audio_set_mic_output_state(companion_mic_volume_percent, companion_mic_muted);
+                break;
+            }
+            case ChordCtrlMicDown: {
+                const uint8_t step = (binding.action_param > 0) ? binding.action_param : 5;
+                companion_mic_volume_percent = (companion_mic_volume_percent >= step) ? (companion_mic_volume_percent - step) : 0;
+                audio_set_mic_output_state(companion_mic_volume_percent, companion_mic_muted);
+                break;
+            }
+            case ChordCtrlHapticsUp: {
+                const float step = (binding.action_param > 0) ? (static_cast<float>(binding.action_param) / 100.0f) : 0.10f;
+                volume[1] = std::min<float>(kMaxHapticsGain, volume[1] + step);
+                break;
+            }
+            case ChordCtrlHapticsDown: {
+                const float step = (binding.action_param > 0) ? (static_cast<float>(binding.action_param) / 100.0f) : 0.10f;
+                volume[1] = std::max<float>(0.0f, volume[1] - step);
+                break;
+            }
+            case ChordCtrlRumbleUp: {
+                const uint16_t step = (binding.action_param > 0) ? binding.action_param : 10;
+                bt_set_classic_rumble_gain(std::min<uint16_t>(kMaxFeedbackGainPercent, bt_classic_rumble_gain() + step));
+                break;
+            }
+            case ChordCtrlRumbleDown: {
+                const uint16_t step = (binding.action_param > 0) ? binding.action_param : 10;
+                const uint16_t cur = bt_classic_rumble_gain();
+                bt_set_classic_rumble_gain(cur >= step ? cur - step : 0);
+                break;
+            }
+            case ChordCtrlTriggersUp: {
+                const uint8_t step = (binding.action_param > 0) ? binding.action_param : 10;
+                trigger_effect_intensity_percent = std::min<uint8_t>(100, trigger_effect_intensity_percent + step);
+                replay_cached_game_trigger_effect();
+                break;
+            }
+            case ChordCtrlTriggersDown: {
+                const uint8_t step = (binding.action_param > 0) ? binding.action_param : 10;
+                trigger_effect_intensity_percent = (trigger_effect_intensity_percent >= step) ? (trigger_effect_intensity_percent - step) : 0;
+                replay_cached_game_trigger_effect();
+                break;
+            }
+            case ChordCtrlLightingUp: {
+                const uint8_t step = (binding.action_param > 0) ? binding.action_param : 10;
+                lightbar_brightness = std::min<uint8_t>(100, lightbar_brightness + step);
+                if (lightbar_override_enabled && bt_is_controller_connected()) {
+                    bt_set_lightbar_color(lightbar_red, lightbar_green, lightbar_blue, lightbar_brightness);
+                }
+                break;
+            }
+            case ChordCtrlLightingDown: {
+                const uint8_t step = (binding.action_param > 0) ? binding.action_param : 10;
+                lightbar_brightness = (lightbar_brightness >= step) ? (lightbar_brightness - step) : 0;
+                if (lightbar_override_enabled && bt_is_controller_connected()) {
+                    bt_set_lightbar_color(lightbar_red, lightbar_green, lightbar_blue, lightbar_brightness);
+                }
+                break;
+            }
+            case ChordCtrlToggleLightingOverride:
+                lightbar_override_enabled = !lightbar_override_enabled;
+                if (lightbar_override_enabled && bt_is_controller_connected()) {
+                    bt_set_lightbar_color(lightbar_red, lightbar_green, lightbar_blue, lightbar_brightness);
+                }
+                break;
+            case ChordCtrlToggleAudioHaptics:
+                volume[1] = (volume[1] > 0.0f) ? 0.0f : 1.0f;
+                break;
+            case ChordCtrlPersonaDualSense:
+                if (host_persona_active() != HostPersonaModeDualSense && host_persona_is_supported(HostPersonaModeDualSense)) {
+                    host_input_prepare_persona_switch();
+                    host_persona_set_active(HostPersonaModeDualSense);
+                }
+                break;
+            case ChordCtrlPersonaDualSenseEdge:
+                if (host_persona_active() != HostPersonaModeDualSenseEdge && host_persona_is_supported(HostPersonaModeDualSenseEdge)) {
+                    host_input_prepare_persona_switch();
+                    host_persona_set_active(HostPersonaModeDualSenseEdge);
+                }
+                break;
+            case ChordCtrlPersonaDs4:
+                if (host_persona_active() != HostPersonaModeDs4 && host_persona_is_supported(HostPersonaModeDs4)) {
+                    host_input_prepare_persona_switch();
+                    host_persona_set_active(HostPersonaModeDs4);
+                }
+                break;
+            case ChordCtrlPersonaXbox:
+                if (host_persona_active() != HostPersonaModeXusb360 && host_persona_is_supported(HostPersonaModeXusb360)) {
+                    host_input_prepare_persona_switch();
+                    host_persona_set_active(HostPersonaModeXusb360);
+                }
+                break;
+            case ChordCtrlToggleTurbo: {
+                const TurboConfig &cfg = turbo_controller_get_config();
+                turbo_controller_set_config(!cfg.enabled, cfg.speed_cps, cfg.humanize, cfg.mask);
+                break;
+            }
+            default:
+                break;
+        }
+    } else if (binding.action_type == ChordActionKeyboard) {
+        queue_chord_keyboard_press(binding.action_param, binding.action_code);
     }
 }
 
@@ -2432,7 +2696,7 @@ void handle_command(uint8_t const *buffer, uint16_t bufsize) {
                 set_ack(command_id, sequence, AckInvalidValue);
                 return;
             }
-            set_dynamic_chord_bindings(buffer + 10, value);
+            set_dynamic_chord_bindings(buffer + 10, value, bufsize - 10);
             clear_shortcut_events();
             settings_revision++;
             set_ack(command_id, sequence, AckOk);
@@ -2758,6 +3022,25 @@ bool process_shortcut_bindings(uint8_t *report) {
             if (should_emit) {
                 queue_shortcut_event(binding.event);
                 shortcut_binding_last_step_us[i] = now;
+                switch (binding.event) {
+                    case ShortcutEventSleepController:
+                        (void)bt_disconnect_with_intent(BtControllerDisconnectIntentSleep);
+                        break;
+                    case ShortcutEventControllerVolumeUp: {
+                        const float next_vol = std::min<float>(1.0f, volume[0] + 0.05f);
+                        volume[0] = next_vol;
+                        bt_refresh_speaker_output();
+                        break;
+                    }
+                    case ShortcutEventControllerVolumeDown: {
+                        const float next_vol = std::max<float>(0.0f, volume[0] - 0.05f);
+                        volume[0] = next_vol;
+                        bt_refresh_speaker_output();
+                        break;
+                    }
+                    default:
+                        break;
+                }
             }
         } else {
             shortcut_binding_last_step_us[i] = 0;
@@ -3067,6 +3350,7 @@ DynamicChordProcessingResult process_dynamic_chord_bindings(uint8_t *report, uin
             }
             if (!binding.last_pressed) {
                 queue_shortcut_event(binding.event);
+                execute_dynamic_chord_standalone(binding);
             }
         }
         binding.last_pressed = pressed;
@@ -3169,6 +3453,7 @@ void apply_button_remap(uint8_t *report, uint16_t len) {
 void companion_init() {
     critical_section_init(&companion_report_cs);
     restore_defaults();
+    load_dynamic_chord_bindings_from_flash();
     touchpad_mouse_init();
     turbo_controller_init();
     touchpad_zone_init();
@@ -3194,6 +3479,7 @@ void companion_loop() {
     classic_rumble_test_loop();
     mute_keyboard_chord_window_loop();
     mute_keyboard_loop();
+    chord_keyboard_loop();
     touchpad_mouse_loop();
     turbo_controller_loop();
     adaptive_trigger_test_loop();

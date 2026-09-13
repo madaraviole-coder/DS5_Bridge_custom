@@ -467,13 +467,136 @@ export function buildButtonRemapPayload(mapping: ButtonRemapMap): number[] {
   });
 }
 
-export function buildChordBindingsPayload(assignments: ChordAssignment[]): number[] {
+export const CHORD_ACTION_TYPE = {
+  NONE: 0,
+  CONTROLLER_SETTING: 1,
+  KEYBOARD: 2,
+  MEDIA: 3,
+} as const;
+
+export const CHORD_CONTROLLER_ACTION_CODE_MAP: Record<ChordControllerSettingAction, number> = {
+  'sleep-controller': 1,
+  'toggle-mic-mute': 2,
+  'speaker-up': 3,
+  'speaker-down': 4,
+  'mic-up': 5,
+  'mic-down': 6,
+  'haptics-up': 7,
+  'haptics-down': 8,
+  'rumble-up': 9,
+  'rumble-down': 10,
+  'triggers-up': 11,
+  'triggers-down': 12,
+  'lighting-up': 13,
+  'lighting-down': 14,
+  'toggle-lightbar-override': 15,
+  'toggle-audio-haptics': 16,
+  'persona-dualsense': 17,
+  'persona-dualsense-edge': 18,
+  'persona-ds4': 19,
+  'persona-xbox': 20,
+};
+
+export const CHORD_MEDIA_ACTION_CODE_MAP: Record<ChordMediaAction, number> = {
+  'play-pause': 1,
+  'next-track': 2,
+  'previous-track': 3,
+  'mute': 4,
+  'volume-up': 5,
+  'volume-down': 6,
+};
+
+export const CHORD_KEYBOARD_MODIFIER_MAP: Record<string, number> = {
+  ctrl: 0x01,
+  control: 0x01,
+  shift: 0x02,
+  alt: 0x04,
+  win: 0x08,
+  gui: 0x08,
+  cmd: 0x08,
+  meta: 0x08,
+};
+
+export const CHORD_KEYBOARD_USAGE_MAP: Record<string, number> = {
+  a: 0x04, b: 0x05, c: 0x06, d: 0x07, e: 0x08, f: 0x09, g: 0x0A, h: 0x0B,
+  i: 0x0C, j: 0x0D, k: 0x0E, l: 0x0F, m: 0x10, n: 0x11, o: 0x12, p: 0x13,
+  q: 0x14, r: 0x15, s: 0x16, t: 0x17, u: 0x18, v: 0x19, w: 0x1A, x: 0x1B,
+  y: 0x1C, z: 0x1D,
+  '1': 0x1E, '2': 0x1F, '3': 0x20, '4': 0x21, '5': 0x22,
+  '6': 0x23, '7': 0x24, '8': 0x25, '9': 0x26, '0': 0x27,
+  enter: 0x28, escape: 0x29, esc: 0x29, backspace: 0x2A, tab: 0x2B, space: 0x2C,
+  '-': 0x2D, '=': 0x2E, '[': 0x2F, ']': 0x30, '\\': 0x31, ';': 0x33,
+  "'": 0x34, '`': 0x35, ',': 0x36, '.': 0x37, '/': 0x38,
+  f1: 0x3A, f2: 0x3B, f3: 0x3C, f4: 0x3D, f5: 0x3E, f6: 0x3F,
+  f7: 0x40, f8: 0x41, f9: 0x42, f10: 0x43, f11: 0x44, f12: 0x45,
+  insert: 0x49, home: 0x4A, pageup: 0x4B, 'page up': 0x4B, delete: 0x4C,
+  end: 0x4D, pagedown: 0x4E, 'page down': 0x4E,
+  right: 0x4F, 'right arrow': 0x4F, left: 0x50, 'left arrow': 0x50,
+  down: 0x51, 'down arrow': 0x51, up: 0x52, 'up arrow': 0x52,
+  f13: 0x68, f14: 0x69, f15: 0x6A, f16: 0x6B, f17: 0x6C, f18: 0x6D,
+  f19: 0x6E, f20: 0x6F, f21: 0x70, f22: 0x71, f23: 0x72, f24: 0x73,
+};
+
+export function parseChordKeyboardKeys(keys: string[]): { modifiers: number; usage: number } {
+  let modifiers = 0;
+  let usage = 0;
+  for (const rawKey of keys) {
+    const key = rawKey.trim().toLowerCase();
+    if (key in CHORD_KEYBOARD_MODIFIER_MAP) {
+      modifiers |= CHORD_KEYBOARD_MODIFIER_MAP[key];
+    } else if (key in CHORD_KEYBOARD_USAGE_MAP) {
+      usage = CHORD_KEYBOARD_USAGE_MAP[key];
+    }
+  }
+  return { modifiers, usage };
+}
+
+export function buildChordBindingsPayload(
+  assignments: ChordAssignment[],
+  functions?: ChordFunction[]
+): number[] {
+  const functionMap = new Map<string, ChordFunction>();
+  if (functions) {
+    for (const fn of functions) {
+      functionMap.set(fn.id, fn);
+    }
+  }
+
+  const maxExtendedChords = Math.floor(54 / 6);
+  const useExtended = Boolean(functions && assignments.length <= maxExtendedChords);
+
   return assignments.slice(0, MAX_CHORD_ASSIGNMENTS).flatMap((assignment, index) => {
-    return [
-      (CHORD_FUNCTION_EVENT_BASE + index) & 0xff,
-      chordStarterIdValue(assignment.starter),
-      remapButtonIdValue(assignment.button)
-    ];
+    const event = (CHORD_FUNCTION_EVENT_BASE + index) & 0xff;
+    const starter = chordStarterIdValue(assignment.starter);
+    const button = remapButtonIdValue(assignment.button);
+
+    if (!useExtended) {
+      return [event, starter, button];
+    }
+
+    const fn = functionMap.get(assignment.functionId);
+    let actionType = 0;
+    let actionCode = 0;
+    let actionParam = 0;
+
+    if (fn) {
+      if (fn.type === 'controller-setting') {
+        actionType = CHORD_ACTION_TYPE.CONTROLLER_SETTING;
+        actionCode = CHORD_CONTROLLER_ACTION_CODE_MAP[fn.action] ?? 0;
+        actionParam = fn.stepPercent ?? 10;
+      } else if (fn.type === 'keyboard') {
+        actionType = CHORD_ACTION_TYPE.KEYBOARD;
+        const { modifiers, usage } = parseChordKeyboardKeys(fn.keys);
+        actionCode = usage;
+        actionParam = modifiers;
+      } else if (fn.type === 'media') {
+        actionType = CHORD_ACTION_TYPE.MEDIA;
+        actionCode = CHORD_MEDIA_ACTION_CODE_MAP[fn.action] ?? 0;
+        actionParam = 0;
+      }
+    }
+
+    return [event, starter, button, actionType, actionCode, actionParam];
   });
 }
 export const MUTE_KEYBOARD_HOLD_FLAG = 0x80;

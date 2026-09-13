@@ -19,6 +19,7 @@ import {
   buildButtonRemapPayload,
   buildChordBindingsPayload,
   buildCommandReport,
+  ChordFunction,
   buildRadialDeadzonePayload,
   buildTurboConfigPayload,
   clampAudioInterleaveValues,
@@ -620,6 +621,64 @@ describe('companion protocol', () => {
     expect(payload).toEqual([0x20, 0x01, 11, 0x21, 0x02, 10, 0x22, 0x04, 10]);
     expect(report[7]).toBe(COMMAND_ID.SET_CHORD_BINDINGS);
     expect(report.slice(11, 20)).toEqual(payload);
+  });
+
+  it('builds extended 6-byte chord binding command payloads for standalone execution', () => {
+    const assignments = [
+      {
+        id: 'chord-sleep',
+        kind: 'chord' as const,
+        starter: 'ps' as const,
+        button: 'triangle' as const,
+        functionId: 'fn-sleep'
+      },
+      {
+        id: 'chord-mic-toggle',
+        kind: 'chord' as const,
+        starter: 'mute' as const,
+        button: 'square' as const,
+        functionId: 'fn-mic-mute'
+      },
+      {
+        id: 'chord-key-hotkey',
+        kind: 'chord' as const,
+        starter: 'lfn' as const,
+        button: 'options' as const,
+        functionId: 'fn-key'
+      }
+    ];
+
+    const functions: ChordFunction[] = [
+      {
+        id: 'fn-sleep',
+        name: 'Sleep',
+        type: 'controller-setting',
+        action: 'sleep-controller',
+        stepPercent: 10
+      },
+      {
+        id: 'fn-mic-mute',
+        name: 'Mute Mic',
+        type: 'controller-setting',
+        action: 'toggle-mic-mute',
+        stepPercent: 10
+      },
+      {
+        id: 'fn-key',
+        name: 'Task Manager',
+        type: 'keyboard',
+        keys: ['Ctrl', 'Shift', 'Escape']
+      }
+    ];
+
+    const payload = buildChordBindingsPayload(assignments, functions);
+    expect(payload.length).toBe(18);
+    // Chord 0: event 0x20, starter 1 (ps), button 11 (triangle), action_type 1, action_code 1 (sleep), action_param 10
+    expect(payload.slice(0, 6)).toEqual([0x20, 0x01, 11, 1, 1, 10]);
+    // Chord 1: event 0x21, starter 4 (mute), button 14 (square), action_type 1, action_code 2 (toggle mic mute), action_param 10
+    expect(payload.slice(6, 12)).toEqual([0x21, 0x04, 14, 1, 2, 10]);
+    // Chord 2: event 0x22, starter 2 (lfn), button 10 (options), action_type 2, action_code 0x29 (Escape), action_param 0x03 (Ctrl 0x01 | Shift 0x02)
+    expect(payload.slice(12, 18)).toEqual([0x22, 0x02, 10, 2, 0x29, 0x03]);
   });
 
   it('allows Edge Fn face-button chord combos only while profile switching is blocked', () => {

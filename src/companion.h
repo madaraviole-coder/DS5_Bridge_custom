@@ -38,6 +38,48 @@ enum CompanionFeedbackTraceStage : uint8_t {
     CompanionFeedbackTraceLocalAudio = 10,
 };
 
+enum ChordActionType : uint8_t {
+    ChordActionNone = 0,
+    ChordActionControllerSetting = 1,
+    ChordActionKeyboard = 2,
+    ChordActionMedia = 3,
+};
+
+enum ChordControllerAction : uint8_t {
+    ChordCtrlNone = 0,
+    ChordCtrlSleepController = 1,
+    ChordCtrlToggleMicMute = 2,
+    ChordCtrlSpeakerUp = 3,
+    ChordCtrlSpeakerDown = 4,
+    ChordCtrlMicUp = 5,
+    ChordCtrlMicDown = 6,
+    ChordCtrlHapticsUp = 7,
+    ChordCtrlHapticsDown = 8,
+    ChordCtrlRumbleUp = 9,
+    ChordCtrlRumbleDown = 10,
+    ChordCtrlTriggersUp = 11,
+    ChordCtrlTriggersDown = 12,
+    ChordCtrlLightingUp = 13,
+    ChordCtrlLightingDown = 14,
+    ChordCtrlToggleLightingOverride = 15,
+    ChordCtrlToggleAudioHaptics = 16,
+    ChordCtrlPersonaDualSense = 17,
+    ChordCtrlPersonaDualSenseEdge = 18,
+    ChordCtrlPersonaDs4 = 19,
+    ChordCtrlPersonaXbox = 20,
+    ChordCtrlToggleTurbo = 21,
+};
+
+enum ChordMediaActionCode : uint8_t {
+    ChordMediaNone = 0,
+    ChordMediaPlayPause = 1,
+    ChordMediaNextTrack = 2,
+    ChordMediaPrevTrack = 3,
+    ChordMediaMute = 4,
+    ChordMediaVolumeUp = 5,
+    ChordMediaVolumeDown = 6,
+};
+
 void companion_init();
 void companion_loop();
 void companion_process_controller_report(uint8_t *report, uint16_t len);

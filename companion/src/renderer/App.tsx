@@ -10126,6 +10126,12 @@ export function App() {
                       <h3>Assignments</h3>
                       <p>{chordAssignmentsSubtitle}</p>
                     </div>
+                    <span
+                      className="chords-standalone-badge"
+                      title="Chords persist to onboard Flash memory and execute directly in hardware, even without Companion app"
+                    >
+                      Standalone Hardware
+                    </span>
                     {chordAssignmentConflictState.conflictCount > 0 ? (
                       <span className="chords-conflict-badge" title="Duplicate, inactive, or shortcut-shadowed chord bindings">
                         <strong>{chordAssignmentConflictState.conflictCount}x</strong>

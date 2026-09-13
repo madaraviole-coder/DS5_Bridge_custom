@@ -2300,6 +2300,38 @@ void assert_dualsense_battery_buckets_preserve_power_state(
     }
 }
 
+void assert_standalone_chords_and_flash_persistence(std::filesystem::path const &root) {
+    const auto companion_cpp = read_text(root / "src" / "companion.cpp");
+    const auto companion_h = read_text(root / "src" / "companion.h");
+
+    if (
+        companion_h.find("enum ChordActionType : uint8_t") == std::string::npos
+        || companion_h.find("ChordActionControllerSetting = 1") == std::string::npos
+        || companion_h.find("ChordActionKeyboard = 2") == std::string::npos
+        || companion_h.find("ChordActionMedia = 3") == std::string::npos
+        || companion_h.find("enum ChordControllerAction : uint8_t") == std::string::npos
+        || companion_h.find("ChordCtrlSleepController = 1") == std::string::npos
+        || companion_h.find("ChordCtrlToggleMicMute = 2") == std::string::npos
+        || companion_h.find("ChordCtrlSpeakerUp = 3") == std::string::npos
+    ) {
+        throw std::runtime_error("companion.h must declare standalone Chord action enums");
+    }
+
+    if (
+        companion_cpp.find("#define BT_CHORD_CONFIG_TLV_TAG 0x43485244u") == std::string::npos
+        || companion_cpp.find("save_dynamic_chord_bindings_to_flash()") == std::string::npos
+        || companion_cpp.find("load_dynamic_chord_bindings_from_flash()") == std::string::npos
+        || companion_cpp.find("execute_dynamic_chord_standalone(binding);") == std::string::npos
+        || companion_cpp.find("chord_keyboard_loop();") == std::string::npos
+    ) {
+        throw std::runtime_error("companion.cpp must implement standalone chord execution and TLV flash persistence");
+    }
+
+    if (companion_cpp.find("case ShortcutEventSleepController:") == std::string::npos) {
+        throw std::runtime_error("companion.cpp must execute sleep shortcut standalone");
+    }
+}
+
 } // namespace
 
 int main() {
@@ -2334,6 +2366,7 @@ int main() {
         assert_companion_trigger_tests_survive_continuous_audio(source_root);
         assert_lightbar_restore_can_be_disabled(source_root);
         assert_dualsense_battery_buckets_preserve_power_state(source_root);
+        assert_standalone_chords_and_flash_persistence(source_root);
 
         if (bcd_device != kExpectedUsbDeviceRevision) {
             std::cerr << "USB bcdDevice changed unexpectedly. Expected 0x" << std::hex

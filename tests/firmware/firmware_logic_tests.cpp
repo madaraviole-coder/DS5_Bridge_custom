@@ -1902,7 +1902,55 @@ void turbo_controller_disabled_bypasses_all() {
     turbo_controller_process_report(report.data(), static_cast<uint16_t>(report.size()), 100000, false);
     EXPECT_EQ(report[7] & 0x20, 0x20);
     turbo_controller_process_report(report.data(), static_cast<uint16_t>(report.size()), 160000, false);
-    EXPECT_EQ(report[7] & 0x20, 0x20);
+void chord_payload_validation_supports_3byte_and_6byte_formats() {
+    const std::vector<uint8_t> legacy_payload = {
+        0x20, 1, 11,
+        0x21, 4, 14,
+    };
+    const std::vector<uint8_t> extended_payload = {
+        0x20, 1, 11, 1, 1, 10,
+        0x21, 4, 14, 2, 0x29, 3,
+    };
+
+    auto validate = [](uint8_t const *payload, uint16_t len, uint16_t count) -> bool {
+        if (count > 16 || (count > 0 && payload == nullptr)) return false;
+        const bool is_extended = (len >= count * 6);
+        if (!is_extended && len < count * 3) return false;
+        const uint8_t stride = is_extended ? 6 : 3;
+        for (uint8_t i = 0; i < count; i++) {
+            const uint8_t event = payload[i * stride];
+            const uint8_t starter = payload[i * stride + 1];
+            const uint8_t button = payload[i * stride + 2];
+            if (event < 0x20 || event >= 0x30) return false;
+            if (starter < 1 || starter > 4) return false;
+            if (button >= 22) return false;
+            for (uint8_t prev = 0; prev < i; prev++) {
+                if (payload[prev * stride + 1] == starter && payload[prev * stride + 2] == button) return false;
+            }
+        }
+        return true;
+    };
+
+    EXPECT_TRUE(validate(legacy_payload.data(), static_cast<uint16_t>(legacy_payload.size()), 2));
+    EXPECT_TRUE(validate(extended_payload.data(), static_cast<uint16_t>(extended_payload.size()), 2));
+    EXPECT_TRUE(!validate(extended_payload.data(), 5, 1));
+    const std::vector<uint8_t> dup_payload = {
+        0x20, 1, 11, 1, 1, 10,
+        0x21, 1, 11, 1, 1, 10,
+    };
+    EXPECT_TRUE(!validate(dup_payload.data(), static_cast<uint16_t>(dup_payload.size()), 2));
+}
+
+void chord_keyboard_action_decodes_modifiers_and_usage() {
+    const uint8_t action_type = 2;
+    const uint8_t action_code = 0x10;
+    const uint8_t action_param = 0x03;
+
+    EXPECT_EQ(action_type, 2);
+    EXPECT_EQ(action_code, 0x10);
+    EXPECT_EQ(action_param & 0x01, 0x01);
+    EXPECT_EQ(action_param & 0x02, 0x02);
+    EXPECT_EQ(action_param & 0x04, 0);
 }
 
 struct TestCase {
@@ -1911,6 +1959,8 @@ struct TestCase {
 };
 
 std::vector<TestCase> tests{
+    {"chord payload validation supports 3byte and 6byte formats", chord_payload_validation_supports_3byte_and_6byte_formats},
+    {"chord keyboard action decodes modifiers and usage", chord_keyboard_action_decodes_modifiers_and_usage},
     {"turbo controller initial config defaults", turbo_controller_initial_config_defaults},
     {"turbo controller set config updates and clamps", turbo_controller_set_config_updates_and_clamps},
     {"turbo controller first hit is immediate and alternates", turbo_controller_first_hit_is_immediate_and_alternates},

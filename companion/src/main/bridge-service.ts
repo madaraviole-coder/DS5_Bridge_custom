@@ -3490,7 +3490,7 @@ export class BridgeService extends EventEmitter {
     ));
     await this.sendCommand(COMMAND_ID.SET_CHORD_BINDINGS, activeAssignments.length, {
       throwOnCommandError: false,
-      extraPayload: buildChordBindingsPayload(activeAssignments)
+      extraPayload: buildChordBindingsPayload(activeAssignments, settings.chordFunctions)
     });
   }
 
