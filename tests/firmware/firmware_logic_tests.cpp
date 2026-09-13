@@ -1902,6 +1902,9 @@ void turbo_controller_disabled_bypasses_all() {
     turbo_controller_process_report(report.data(), static_cast<uint16_t>(report.size()), 100000, false);
     EXPECT_EQ(report[7] & 0x20, 0x20);
     turbo_controller_process_report(report.data(), static_cast<uint16_t>(report.size()), 160000, false);
+    EXPECT_EQ(report[7] & 0x20, 0x20);
+}
+
 void chord_payload_validation_supports_3byte_and_6byte_formats() {
     const std::vector<uint8_t> legacy_payload = {
         0x20, 1, 11,
