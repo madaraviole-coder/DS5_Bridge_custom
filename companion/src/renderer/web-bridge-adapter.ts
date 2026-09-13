@@ -13,7 +13,7 @@ import {
   buildButtonRemapPayload,
   buildCommandReport,
   buildRadialDeadzonePayload,
-  buildSetChordBindingsPayload,
+  buildChordBindingsPayload,
   buildTouchpadZonePayload,
   buildTurboConfigPayload,
   hostPersonaModeValue,
@@ -1229,7 +1229,7 @@ export class WebBridgeAdapter {
     this.settings.chordFunctions = functions;
     this.settings.chordAssignments = assignments;
     if (this.device?.opened) {
-      const payload = buildSetChordBindingsPayload(assignments, functions);
+      const payload = buildChordBindingsPayload(assignments, functions);
       await this.sendCommand(COMMAND_ID.SET_CHORD_BINDINGS, assignments.length, payload);
     }
     saveWebSettings(this.settings);
@@ -1257,7 +1257,7 @@ export class WebBridgeAdapter {
   async setChordAssignments(assignments: ChordAssignment[]): Promise<BridgeSnapshot> {
     this.settings.chordAssignments = assignments;
     if (this.device?.opened) {
-      const payload = buildSetChordBindingsPayload(assignments, this.settings.chordFunctions);
+      const payload = buildChordBindingsPayload(assignments, this.settings.chordFunctions);
       await this.sendCommand(COMMAND_ID.SET_CHORD_BINDINGS, assignments.length, payload);
     }
     saveWebSettings(this.settings);
