@@ -7036,6 +7036,24 @@ export function App() {
         )}
         <div className="topbar-right">
           <div className="bridge-tools">
+            {(window.bridge as any)?.isWebHid && (
+              <button
+                className={`topbar-tool webhid-connect-tool ${connected ? 'connected' : 'action-required'}`}
+                type="button"
+                aria-label={connected ? 'DS5 Bridge Connected via WebHID' : 'Connect DS5 Bridge via WebHID'}
+                title={connected ? 'DS5 Bridge Connected via WebHID' : 'Connect DS5 Bridge via WebHID'}
+                onClick={async () => {
+                  if ((window.bridge as any)?.connectWebHid) {
+                    await (window.bridge as any).connectWebHid();
+                  }
+                }}
+              >
+                <IconUsb size={18} />
+                <span className="webhid-button-label">
+                  {connected ? 'WebHID' : 'Connect'}
+                </span>
+              </button>
+            )}
             <div className="notifications-control" ref={notificationsRef}>
               <button
                 className={`topbar-tool notification-tool ${showNotificationsMenu ? 'active' : ''} ${notificationsEnabled ? 'armed' : ''}`}
@@ -7100,14 +7118,16 @@ export function App() {
             </div>
             <span className="bridge-tool-divider" aria-hidden="true" />
           </div>
-          <div className="window-actions">
-            <button type="button" title="Minimize" onClick={() => void window.bridge.minimizeWindow()}>
-              <Minus size={16} />
-            </button>
-            <button type="button" title="Hide to tray" onClick={() => void window.bridge.hideWindow()}>
-              <X size={16} />
-            </button>
-          </div>
+          {!(window.bridge as any)?.isWebHid && (
+            <div className="window-actions">
+              <button type="button" title="Minimize" onClick={() => void window.bridge.minimizeWindow()}>
+                <Minus size={16} />
+              </button>
+              <button type="button" title="Hide to tray" onClick={() => void window.bridge.hideWindow()}>
+                <X size={16} />
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

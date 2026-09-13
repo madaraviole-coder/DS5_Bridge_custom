@@ -9,10 +9,12 @@
   "main": "dist/main/main/main.js",
   "scripts": {
     "dev": "npm run build && electron .",
+    "dev:web": "vite",
     "typecheck": "tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.json --noEmit",
     "build:audio-helper": "node scripts/run-dotnet-sdk.mjs publish native/AudioHelper/AudioHelper.csproj -c Release -r win-x64 --self-contained true -o native/AudioHelper/bin/publish/win-x64",
     "build:firmware-tools": "powershell -NoProfile -ExecutionPolicy Bypass -File ../tools/build-pico-universal-flash-nuke.ps1",
     "build:app": "tsc -p tsconfig.main.json && vite build",
+    "build:web": "vite build --outDir dist/web",
     "build": "npm run build:audio-helper && npm run build:app",
     "package:win": "npm run build:firmware-tools && npm run build && node scripts/package-win.mjs",
     "installer:win": "npm run build:firmware-tools && npm run build && electron-builder --win nsis --x64",
