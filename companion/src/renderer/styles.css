@@ -5077,90 +5077,110 @@ button.feature-icon {
 .remapping-subtabs {
   display: inline-flex;
   align-items: center;
-  background: rgba(8, 12, 20, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: 10px;
+  background: var(--surface-control);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--card-radius);
   padding: 4px;
   gap: 4px;
+  box-shadow: var(--shadow-panel);
 }
 
 .remapping-subtab {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 14px;
-  border-radius: 7px;
-  border: none;
+  padding: 7px 14px;
+  border-radius: calc(var(--card-radius) - 1px);
+  border: 1px solid transparent;
   background: transparent;
-  color: var(--text-muted, #94a3b8);
-  font-size: 13px;
-  font-weight: 500;
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.18s ease;
+  transition: all 0.16s ease;
   user-select: none;
 }
 
 .remapping-subtab svg {
   width: 16px;
   height: 16px;
-  opacity: 0.8;
-  transition: opacity 0.18s ease;
+  opacity: 0.82;
+  transition: opacity 0.16s ease, transform 0.16s ease;
 }
 
 .remapping-subtab:hover {
-  color: #fff;
-  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+  background: var(--surface-control-hover);
+  border-color: var(--surface-border);
 }
 
 .remapping-subtab:hover svg {
   opacity: 1;
+  transform: scale(1.06);
 }
 
 .remapping-subtab.active {
-  background: rgba(255, 255, 255, 0.12);
-  color: #fff;
-  font-weight: 600;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  background: var(--surface-card);
+  color: var(--text-strong);
+  font-weight: 700;
+  border-color: var(--surface-border-strong);
+  box-shadow: var(--shadow-control);
 }
 
 .remapping-subtab.active svg {
   opacity: 1;
-  color: var(--accent, #38bdf8);
+  color: var(--accent);
 }
 
 .remapping-subtab.active.touchpad-subtab svg {
-  color: #ff7a00;
+  color: #ff8a00;
+  filter: drop-shadow(0 0 6px rgba(255, 138, 0, 0.45));
 }
 
 .remapping-subtab.active.turbo-subtab svg {
   color: #ff5722;
+  filter: drop-shadow(0 0 6px rgba(255, 87, 34, 0.45));
 }
 
-/* Turbo Rapid Fire Card & Styles */
+/* ==========================================================================
+   Turbo Rapid Fire Card & Controls
+   ========================================================================== */
+
 .turbo-remapping-card {
-  padding: 24px;
+  min-height: 0;
+  height: auto;
+  padding: var(--card-padding);
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  gap: 18px;
+  border: 1px solid var(--surface-border);
+  border-radius: var(--card-radius);
+  background: var(--remapping-card-bg, var(--surface-card));
+  box-shadow: var(--shadow-panel);
 }
 
 .turbo-card-header {
+  min-height: var(--feature-card-header-height);
   display: flex;
   align-items: center;
   gap: 14px;
-  position: relative;
+  margin: calc(var(--card-padding) * -1) calc(var(--card-padding) * -1) 0;
+  padding: 12px var(--card-padding);
+  border-bottom: 1px solid var(--surface-divider);
+  border-radius: calc(var(--card-radius) - 1px) calc(var(--card-radius) - 1px) 0 0;
+  background: var(--surface-card-header);
 }
 
 .turbo-header-badge {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
+  width: 42px;
+  height: 42px;
+  border-radius: var(--control-radius);
   background: linear-gradient(135deg, #ff3d00 0%, #ff9100 100%);
   display: flex;
   align-items: center;
   justify-content: center;
   color: #fff;
-  box-shadow: 0 4px 16px rgba(255, 61, 0, 0.4);
+  box-shadow: 0 4px 14px rgba(255, 61, 0, 0.35);
   flex-shrink: 0;
 }
 
@@ -5182,86 +5202,101 @@ button.feature-icon {
 
 .turbo-header-text h3 {
   margin: 0;
-  font-size: 17px;
+  font-size: 15px;
   font-weight: 700;
-  color: #fff;
+  color: var(--card-heading-text, var(--text-primary));
   letter-spacing: -0.01em;
 }
 
 .turbo-status-pill {
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 750;
   letter-spacing: 0.08em;
   padding: 2px 8px;
   border-radius: 9999px;
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--text-muted, #94a3b8);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--surface-control);
+  color: var(--text-muted);
+  border: 1px solid var(--surface-border);
   transition: all 0.2s ease;
 }
 
 .turbo-status-pill.active {
-  background: rgba(255, 87, 34, 0.18);
+  background: rgba(255, 87, 34, 0.16);
   color: #ff7043;
-  border-color: rgba(255, 87, 34, 0.4);
+  border-color: rgba(255, 87, 34, 0.45);
   box-shadow: 0 0 10px rgba(255, 87, 34, 0.25);
 }
 
 .turbo-header-text p {
-  margin: 3px 0 0 0;
-  font-size: 12.5px;
-  color: var(--text-muted, #94a3b8);
+  margin: 2px 0 0 0;
+  font-size: 12px;
+  color: var(--card-subtitle-text, var(--text-secondary));
+  line-height: 1.35;
 }
 
 .turbo-header-switch {
   margin-left: auto;
   display: flex;
   align-items: center;
+  flex-shrink: 0;
 }
 
 /* Turbo Grid */
 .turbo-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
-  gap: 18px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+@media (max-width: 880px) {
+  .turbo-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .turbo-column {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 16px;
 }
 
 /* Setting Box */
 .turbo-setting-box {
-  background: rgba(0, 0, 0, 0.25);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 14px;
-  padding: 18px 20px;
+  background: var(--surface-control-soft);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--card-radius);
+  padding: 16px 18px;
   display: flex;
   flex-direction: column;
   gap: 14px;
+  box-shadow: var(--shadow-panel);
+  transition: border-color 0.18s ease;
+}
+
+.turbo-setting-box:hover {
+  border-color: var(--surface-border-strong);
 }
 
 .turbo-setting-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
+  gap: 10px;
 }
 
 .turbo-setting-label h4 {
   margin: 0;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 750;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--text-muted, #94a3b8);
+  color: var(--text-muted);
 }
 
 .turbo-setting-sub {
   margin: 3px 0 0 0;
   font-size: 12px;
-  color: var(--text-muted, #94a3b8);
+  color: var(--text-secondary);
   line-height: 1.4;
 }
 
@@ -5273,15 +5308,16 @@ button.feature-icon {
 }
 
 .turbo-cps-callout strong {
-  font-size: 20px;
-  font-weight: 700;
+  font-size: 22px;
+  font-weight: 800;
   color: #ff7043;
   letter-spacing: -0.02em;
+  line-height: 1;
 }
 
 .turbo-cps-cycle {
   font-size: 12px;
-  color: var(--text-muted, #94a3b8);
+  color: var(--text-muted);
   font-family: var(--font-mono, monospace);
 }
 
@@ -5293,17 +5329,51 @@ button.feature-icon {
 }
 
 .turbo-range-slider {
+  appearance: none;
+  -webkit-appearance: none;
   width: 100%;
-  accent-color: #ff5722;
-  cursor: pointer;
   height: 6px;
+  border-radius: 999px;
+  background: var(--range-track-rest, rgba(126, 145, 172, 0.34));
+  outline: none;
+  margin: 8px 0 6px 0;
+  cursor: pointer;
+}
+
+.turbo-range-slider::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ff7043, #ff3d00);
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 10px rgba(255, 61, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.turbo-range-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.18);
+  box-shadow: 0 0 14px rgba(255, 61, 0, 0.75);
+}
+
+.turbo-range-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ff7043, #ff3d00);
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 10px rgba(255, 61, 0, 0.5);
+  cursor: pointer;
 }
 
 .turbo-slider-labels {
   display: flex;
   justify-content: space-between;
   font-size: 11px;
-  color: var(--text-muted, #64748b);
+  color: var(--text-muted);
+  font-weight: 550;
 }
 
 /* Quick Presets Row */
@@ -5319,36 +5389,39 @@ button.feature-icon {
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  padding: 8px 6px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  color: var(--text-secondary, #cbd5e1);
+  padding: 7px 6px;
+  border-radius: var(--control-radius);
+  background: var(--surface-control);
+  border: 1px solid var(--surface-border);
+  color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.15s ease;
+  user-select: none;
 }
 
 .turbo-preset-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.16);
+  background: var(--surface-control-hover);
+  border-color: var(--surface-border-strong);
+  color: var(--text-primary);
   transform: translateY(-1px);
 }
 
 .turbo-preset-btn.active {
-  background: rgba(255, 87, 34, 0.18);
+  background: rgba(255, 87, 34, 0.16);
   border-color: #ff5722;
-  color: #ff8a65;
+  color: #ff7043;
   box-shadow: 0 0 12px rgba(255, 87, 34, 0.25);
 }
 
 .turbo-preset-btn .preset-name {
   font-size: 11.5px;
-  font-weight: 600;
+  font-weight: 650;
 }
 
 .turbo-preset-btn .preset-cps {
   font-size: 10px;
-  color: var(--text-muted, #94a3b8);
+  color: var(--text-muted);
+  font-weight: 550;
 }
 
 .turbo-preset-btn.active .preset-cps {
@@ -5365,6 +5438,7 @@ button.feature-icon {
 
 .turbo-humanize-info {
   flex: 1;
+  min-width: 0;
 }
 
 .turbo-humanize-title {
@@ -5375,19 +5449,20 @@ button.feature-icon {
 
 .turbo-humanize-title h4 {
   margin: 0;
-  font-size: 13.5px;
-  font-weight: 600;
-  color: #f1f5f9;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
 }
 
 .humanize-icon {
   color: #ff9800;
+  flex-shrink: 0;
 }
 
 .turbo-humanize-desc {
-  margin: 6px 0 0 0;
+  margin: 5px 0 0 0;
   font-size: 12px;
-  color: var(--text-muted, #94a3b8);
+  color: var(--text-secondary);
   line-height: 1.45;
 }
 
@@ -5406,51 +5481,93 @@ button.feature-icon {
   justify-content: center;
   padding: 10px 4px;
   gap: 4px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  color: #94a3b8;
+  min-height: 60px;
+  border-radius: var(--control-radius);
+  background: var(--surface-control);
+  border: 1px solid var(--surface-border);
+  color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   user-select: none;
 }
 
 .turbo-btn-chip:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.15);
+  background: var(--surface-control-hover);
+  border-color: var(--surface-border-strong);
+  color: var(--text-primary);
   transform: translateY(-1px);
 }
 
 .turbo-btn-chip.active {
-  background: linear-gradient(180deg, rgba(255, 87, 34, 0.15) 0%, rgba(255, 87, 34, 0.25) 100%);
+  background: linear-gradient(180deg, rgba(255, 87, 34, 0.16) 0%, rgba(255, 61, 0, 0.24) 100%);
   border-color: #ff5722;
-  color: #fff;
-  box-shadow: 0 0 14px rgba(255, 87, 34, 0.3);
+  color: var(--text-strong);
+  box-shadow: 0 0 12px rgba(255, 87, 34, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .turbo-chip-glyph {
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 800;
+  line-height: 1;
   font-family: inherit;
-  color: #e2e8f0;
+  transition: color 0.15s ease, filter 0.15s ease;
+}
+
+/* Specific PlayStation button colors for authentic polish */
+.turbo-btn-cross .turbo-chip-glyph {
+  color: #58a6ff;
+}
+
+.turbo-btn-circle .turbo-chip-glyph {
+  color: #ff6b6b;
+}
+
+.turbo-btn-square .turbo-chip-glyph {
+  color: #f071d3;
+}
+
+.turbo-btn-triangle .turbo-chip-glyph {
+  color: #4ade80;
+}
+
+.turbo-btn-l1 .turbo-chip-glyph,
+.turbo-btn-r1 .turbo-chip-glyph,
+.turbo-btn-l2 .turbo-chip-glyph,
+.turbo-btn-r2 .turbo-chip-glyph {
+  font-size: 12.5px;
+  font-weight: 750;
+  color: var(--text-secondary);
 }
 
 .turbo-btn-chip.active .turbo-chip-glyph {
-  color: #ff7043;
+  filter: drop-shadow(0 0 6px currentColor);
+}
+
+.turbo-btn-chip.active.turbo-btn-l1 .turbo-chip-glyph,
+.turbo-btn-chip.active.turbo-btn-r1 .turbo-chip-glyph,
+.turbo-btn-chip.active.turbo-btn-l2 .turbo-chip-glyph,
+.turbo-btn-chip.active.turbo-btn-r2 .turbo-chip-glyph {
+  color: #ff9e80;
+  filter: drop-shadow(0 0 6px rgba(255, 112, 67, 0.6));
 }
 
 .turbo-chip-label {
-  font-size: 10.5px;
-  font-weight: 600;
+  font-size: 10px;
+  font-weight: 650;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.turbo-btn-chip.active .turbo-chip-label {
+  color: var(--text-primary);
 }
 
 .turbo-chip-indicator {
   width: 4px;
   height: 4px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.15);
+  background: var(--surface-border-strong);
   margin-top: 1px;
   transition: all 0.2s ease;
 }
@@ -5462,20 +5579,32 @@ button.feature-icon {
 
 /* Interactive Click Tester */
 .turbo-tester-box {
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0.3) 0%, rgba(255, 87, 34, 0.04) 100%);
-  border-color: rgba(255, 87, 34, 0.18);
+  position: relative;
+  overflow: hidden;
+}
+
+.turbo-tester-box::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 120px;
+  height: 120px;
+  background: radial-gradient(circle, rgba(255, 87, 34, 0.08) 0%, transparent 70%);
+  pointer-events: none;
 }
 
 .turbo-tester-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
 }
 
 .turbo-tester-header h4 {
   margin: 0;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 750;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: #ff8a65;
@@ -5483,7 +5612,8 @@ button.feature-icon {
 
 .turbo-tester-hint {
   font-size: 11px;
-  color: var(--text-muted, #94a3b8);
+  color: var(--text-muted);
+  font-weight: 500;
 }
 
 .turbo-tester-body {
@@ -5497,14 +5627,14 @@ button.feature-icon {
   align-items: center;
   justify-content: center;
   gap: 10px;
-  padding: 14px 20px;
-  border-radius: 10px;
+  padding: 13px 20px;
+  border-radius: var(--control-radius);
   background: rgba(255, 87, 34, 0.12);
-  border: 1px solid rgba(255, 87, 34, 0.35);
+  border: 1px solid rgba(255, 87, 34, 0.38);
   color: #ff7043;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  font-size: 12.5px;
+  font-weight: 750;
+  letter-spacing: 0.05em;
   cursor: pointer;
   transition: all 0.12s ease;
   user-select: none;
@@ -5512,7 +5642,8 @@ button.feature-icon {
 
 .turbo-test-trigger:hover {
   background: rgba(255, 87, 34, 0.2);
-  border-color: rgba(255, 87, 34, 0.55);
+  border-color: rgba(255, 87, 34, 0.58);
+  box-shadow: 0 2px 14px rgba(255, 87, 34, 0.2);
 }
 
 .turbo-test-trigger:active,
@@ -5520,24 +5651,24 @@ button.feature-icon {
   background: linear-gradient(135deg, #ff3d00 0%, #ff9100 100%);
   border-color: #ff9100;
   color: #fff;
-  box-shadow: 0 4px 18px rgba(255, 61, 0, 0.5);
+  box-shadow: 0 4px 20px rgba(255, 61, 0, 0.55);
   transform: scale(0.985);
 }
 
 .turbo-test-icon .fire-flash {
-  filter: drop-shadow(0 0 8px #fff);
-  transform: scale(1.15);
+  filter: drop-shadow(0 0 8px #fff) drop-shadow(0 0 14px #ff9100);
+  transform: scale(1.2);
   transition: transform 0.04s ease;
 }
 
 .turbo-meter-card {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 10px 12px;
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: var(--control-radius);
+  background: var(--surface-control);
+  border: 1px solid var(--surface-border);
 }
 
 .turbo-meter-row {
@@ -5548,69 +5679,86 @@ button.feature-icon {
 
 .meter-label {
   font-size: 11.5px;
-  color: var(--text-muted, #94a3b8);
+  color: var(--text-muted);
+  font-weight: 600;
 }
 
 .turbo-pulse-led {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: #334155;
+  background: var(--surface-border-strong);
   transition: background 0.04s ease, box-shadow 0.04s ease;
 }
 
 .turbo-pulse-led.flash {
   background: #ff3d00;
-  box-shadow: 0 0 10px #ff3d00, 0 0 18px #ff7043;
+  box-shadow: 0 0 10px #ff3d00, 0 0 20px #ff7043;
 }
 
 .meter-count {
   margin-left: auto;
   font-size: 12px;
-  color: var(--text-muted, #94a3b8);
+  color: var(--text-muted);
 }
 
 .meter-count strong {
   font-size: 14px;
-  color: #f1f5f9;
+  color: var(--text-strong);
+  font-weight: 750;
 }
 
 .turbo-meter-bar-track {
-  height: 4px;
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 2px;
+  height: 5px;
+  background: var(--range-track-rest, rgba(126, 145, 172, 0.25));
+  border-radius: 999px;
   overflow: hidden;
 }
 
 .turbo-meter-bar-fill {
   height: 100%;
   background: linear-gradient(90deg, #ff7043 0%, #ff3d00 100%);
-  border-radius: 2px;
+  border-radius: 999px;
   transition: width 0.15s ease;
 }
 
 .turbo-meter-bar-fill.pulse {
-  filter: brightness(1.4);
+  filter: brightness(1.35) drop-shadow(0 0 4px #ff7043);
 }
 
-/* Touchpad Card & Header */
+/* ==========================================================================
+   Touchpad Remapping Card & 4-Zone Canvas
+   ========================================================================== */
+
 .touchpad-remapping-card {
-  padding: 24px;
+  min-height: 0;
+  height: auto;
+  padding: var(--card-padding);
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  gap: 18px;
+  border: 1px solid var(--surface-border);
+  border-radius: var(--card-radius);
+  background: var(--remapping-card-bg, var(--surface-card));
+  box-shadow: var(--shadow-panel);
 }
 
 .touchpad-card-header {
+  min-height: var(--feature-card-header-height);
   display: flex;
   align-items: center;
   gap: 14px;
+  margin: calc(var(--card-padding) * -1) calc(var(--card-padding) * -1) 0;
+  padding: 12px var(--card-padding);
+  border-bottom: 1px solid var(--surface-divider);
+  border-radius: calc(var(--card-radius) - 1px) calc(var(--card-radius) - 1px) 0 0;
+  background: var(--surface-card-header);
 }
 
 .touchpad-header-badge {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
+  width: 42px;
+  height: 42px;
+  border-radius: var(--control-radius);
   background: linear-gradient(135deg, #ff8a00 0%, #e65100 100%);
   display: flex;
   align-items: center;
@@ -5627,46 +5775,55 @@ button.feature-icon {
 
 .touchpad-header-text h3 {
   margin: 0;
-  font-size: 17px;
+  font-size: 15px;
   font-weight: 700;
-  color: #fff;
+  color: var(--card-heading-text, var(--text-primary));
   letter-spacing: -0.01em;
 }
 
 .touchpad-header-text p {
   margin: 2px 0 0 0;
-  font-size: 12.5px;
-  color: var(--text-muted, #94a3b8);
+  font-size: 12px;
+  color: var(--card-subtitle-text, var(--text-secondary));
+  line-height: 1.35;
 }
 
 /* Touchpad Canvas Section */
 .touchpad-canvas-section {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  background: rgba(0, 0, 0, 0.22);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 14px;
-  padding: 18px 20px;
+  gap: 14px;
+  background: var(--surface-control-soft);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--card-radius);
+  padding: 16px 18px;
+  box-shadow: var(--shadow-panel);
 }
 
 .touchpad-canvas-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
 }
 
 .touchpad-canvas-header h4 {
   margin: 0;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 750;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--text-muted, #94a3b8);
+  color: var(--text-muted);
 }
 
 .touchpad-mode-selector {
-  min-width: 170px;
+  min-width: 180px;
+}
+
+.touchpad-mode-selector .custom-select-button {
+  height: 30px;
+  font-size: 12px;
+  border-radius: var(--control-radius);
 }
 
 .touchpad-canvas-wrapper {
@@ -5675,11 +5832,11 @@ button.feature-icon {
   max-width: 520px;
   margin: 8px auto 4px auto;
   aspect-ratio: 1.82 / 1;
-  background-color: #080c14;
-  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.12) 1.2px, transparent 1.2px);
+  background-color: var(--app-bg-flat, #080c14);
+  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.1) 1.2px, transparent 1.2px);
   background-size: 14px 14px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--card-radius, 10px);
+  border: 1px solid var(--surface-border-strong);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45) inset;
   overflow: hidden;
   user-select: none;
@@ -5692,33 +5849,33 @@ button.feature-icon {
 }
 
 .touchpad-zone-path {
-  fill: rgba(0, 0, 0, 0.15);
-  stroke: rgba(255, 255, 255, 0.08);
-  stroke-width: 1.2;
+  fill: var(--surface-control-soft);
+  stroke: var(--surface-border);
+  stroke-width: 1.4;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .touchpad-zone-path:hover {
-  fill: rgba(255, 122, 0, 0.06);
-  stroke: rgba(255, 122, 0, 0.4);
+  fill: rgba(255, 122, 0, 0.1);
+  stroke: rgba(255, 122, 0, 0.55);
 }
 
 .touchpad-zone-path.active {
   stroke: #ff7a00;
-  stroke-width: 2.2;
-  fill: rgba(255, 122, 0, 0.08);
-  filter: drop-shadow(0 0 8px rgba(255, 122, 0, 0.4));
+  stroke-width: 2.4;
+  fill: rgba(255, 122, 0, 0.18);
+  filter: drop-shadow(0 0 10px rgba(255, 122, 0, 0.5));
 }
 
 .touchpad-zone-text {
-  font-family: var(--font-family, inherit);
+  font-family: inherit;
   font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  fill: rgba(255, 255, 255, 0.4);
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  fill: var(--text-muted);
   pointer-events: none;
-  transition: fill 0.2s ease;
+  transition: fill 0.18s ease;
 }
 
 .touchpad-zone-text.active {
@@ -5726,26 +5883,26 @@ button.feature-icon {
 }
 
 .touchpad-zone-binding-text {
-  font-family: var(--font-family, inherit);
-  font-size: 10px;
-  font-weight: 600;
-  fill: rgba(255, 255, 255, 0.75);
+  font-family: inherit;
+  font-size: 10.5px;
+  font-weight: 700;
+  fill: var(--text-strong);
   pointer-events: none;
 }
 
 .touchpad-center-circle {
-  fill: #080c14;
-  stroke: rgba(255, 255, 255, 0.14);
+  fill: var(--app-bg-flat, #080c14);
+  stroke: var(--surface-border-strong);
   stroke-width: 1.5;
   pointer-events: none;
 }
 
 .touchpad-swipe-arc {
   stroke: #ff7a00;
-  stroke-width: 2.6;
+  stroke-width: 2.8;
   fill: none;
   stroke-linecap: round;
-  filter: drop-shadow(0 0 6px #ff7a00);
+  filter: drop-shadow(0 0 8px #ff7a00);
 }
 
 /* Gesture Builder Section */
@@ -5753,29 +5910,31 @@ button.feature-icon {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  border-top: 1px solid var(--surface-divider);
   padding-top: 14px;
+  margin-top: 4px;
 }
 
 .gesture-builder-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
 }
 
 .gesture-builder-titles h5 {
   margin: 0;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 750;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #fff;
+  color: var(--text-muted);
 }
 
 .gesture-builder-titles p {
-  margin: 3px 0 0 0;
+  margin: 2px 0 0 0;
   font-size: 12px;
-  color: var(--text-muted, #94a3b8);
+  color: var(--text-secondary);
 }
 
 .gesture-builder-actions {
@@ -5785,12 +5944,12 @@ button.feature-icon {
 }
 
 .gesture-builder-btn {
-  width: 38px;
-  height: 38px;
-  border-radius: 9px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(255, 255, 255, 0.06);
-  color: #fff;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--control-radius);
+  border: 1px solid var(--surface-border);
+  background: var(--surface-control);
+  color: var(--text-secondary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -5799,49 +5958,51 @@ button.feature-icon {
 }
 
 .gesture-builder-btn:hover {
-  background: rgba(255, 255, 255, 0.14);
-  border-color: rgba(255, 255, 255, 0.28);
-  transform: scale(1.03);
+  background: var(--surface-control-hover);
+  border-color: var(--surface-border-strong);
+  color: var(--text-strong);
+  transform: translateY(-1px);
 }
 
 .gesture-builder-btn.play-btn {
-  color: #ff7a00;
-  border-color: rgba(255, 122, 0, 0.35);
-  background: rgba(255, 122, 0, 0.08);
+  color: #ff8a00;
+  border-color: rgba(255, 138, 0, 0.4);
+  background: rgba(255, 138, 0, 0.1);
 }
 
 .gesture-builder-btn.play-btn:hover {
-  background: rgba(255, 122, 0, 0.18);
-  border-color: #ff7a00;
-  box-shadow: 0 0 12px rgba(255, 122, 0, 0.3);
+  background: rgba(255, 138, 0, 0.2);
+  border-color: #ff8a00;
+  box-shadow: 0 0 12px rgba(255, 138, 0, 0.35);
 }
 
 .gesture-slots-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .gesture-slot {
-  width: 46px;
-  height: 44px;
-  border-radius: 8px;
-  background: rgba(0, 0, 0, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  width: 44px;
+  height: 42px;
+  border-radius: var(--control-radius);
+  background: var(--surface-control);
+  border: 1px solid var(--surface-border);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.22);
+  color: var(--text-dim);
   transition: all 0.18s ease;
 }
 
 .gesture-slot.filled {
-  border-color: rgba(255, 122, 0, 0.6);
-  background: rgba(255, 122, 0, 0.1);
-  color: #ff7a00;
-  box-shadow: 0 0 10px rgba(255, 122, 0, 0.15) inset;
+  border-color: rgba(255, 138, 0, 0.65);
+  background: rgba(255, 138, 0, 0.12);
+  color: #ff8a00;
+  box-shadow: inset 0 0 10px rgba(255, 138, 0, 0.18);
 }
 
 /* 4-Zone Button Mapping Panel */
@@ -5849,51 +6010,54 @@ button.feature-icon {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  margin-top: 4px;
+  margin-top: 2px;
 }
 
 .touchpad-zone-customization-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
 }
 
 .touchpad-zone-customization-header h4 {
   margin: 0;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 750;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--text-muted, #94a3b8);
+  color: var(--text-muted);
 }
 
 .touchpad-zone-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
   gap: 12px;
 }
 
 .touchpad-zone-card {
-  background: rgba(0, 0, 0, 0.25);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
+  background: var(--surface-control-soft);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--card-radius);
   padding: 14px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.18s ease;
+  box-shadow: var(--shadow-panel);
 }
 
 .touchpad-zone-card:hover {
-  border-color: rgba(255, 255, 255, 0.18);
-  background: rgba(0, 0, 0, 0.35);
+  border-color: var(--surface-border-strong);
+  background: var(--surface-control-hover);
+  transform: translateY(-1px);
 }
 
 .touchpad-zone-card.selected {
   border-color: #ff7a00;
-  background: rgba(255, 122, 0, 0.05);
-  box-shadow: 0 0 12px rgba(255, 122, 0, 0.15);
+  background: rgba(255, 122, 0, 0.08);
+  box-shadow: 0 0 14px rgba(255, 122, 0, 0.18), inset 0 0 0 1px rgba(255, 122, 0, 0.28);
 }
 
 .touchpad-zone-card-top {
@@ -5905,40 +6069,57 @@ button.feature-icon {
 .touchpad-zone-card-title {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .touchpad-zone-badge {
-  width: 24px;
-  height: 24px;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
-  font-size: 12px;
-  font-weight: 700;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--control-radius);
+  background: var(--surface-control);
+  border: 1px solid var(--surface-border);
+  color: var(--text-secondary);
+  font-size: 11.5px;
+  font-weight: 750;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: all 0.18s ease;
 }
 
 .touchpad-zone-card.selected .touchpad-zone-badge {
-  background: #ff7a00;
-  color: #000;
+  background: linear-gradient(135deg, #ff8a00 0%, #e65100 100%);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(230, 81, 0, 0.4);
 }
 
 .touchpad-zone-name {
   font-size: 13px;
-  font-weight: 600;
-  color: #fff;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
 }
 
 .touchpad-zone-subname {
   font-size: 11px;
-  color: var(--text-muted, #94a3b8);
+  color: var(--text-muted);
+  line-height: 1.2;
 }
 
-.touchpad-zone-card .remapping-select {
-  width: 100%;
+.touchpad-zone-card .remapping-select .custom-select-button {
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--surface-border);
+  border-radius: var(--control-radius);
+  grid-template-columns: minmax(0, 1fr) 14px;
+  gap: 6px;
+  background: var(--surface-control);
+}
+
+.touchpad-zone-card .remapping-select .custom-select-button:hover {
+  border-color: var(--surface-border-strong);
+  background: var(--surface-control-hover);
 }
 
 .touchpad-presets-bar {
@@ -5946,30 +6127,41 @@ button.feature-icon {
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
-  padding-top: 8px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 10px 0 2px;
+  border-top: 1px solid var(--surface-divider);
 }
 
 .touchpad-preset-label {
-  font-size: 12px;
-  color: var(--text-muted, #94a3b8);
+  font-size: 11px;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
   margin-right: 4px;
 }
 
 .touchpad-preset-chip {
-  padding: 4px 10px;
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.04);
-  color: #e2e8f0;
+  padding: 6px 12px;
+  border-radius: var(--control-radius);
+  border: 1px solid var(--surface-border);
+  background: var(--surface-control);
+  color: var(--text-secondary);
   font-size: 11.5px;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .touchpad-preset-chip:hover {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(255, 255, 255, 0.22);
+  background: var(--surface-control-hover);
+  border-color: var(--accent-border-strong);
+  color: var(--text-strong);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-control);
+}
+
+.touchpad-preset-chip:active {
+  transform: translateY(0);
 }
 
 .audio-enable-button svg,

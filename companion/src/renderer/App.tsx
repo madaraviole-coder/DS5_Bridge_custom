@@ -9868,7 +9868,8 @@ export function App() {
                               <button
                                 key={btn.id}
                                 type="button"
-                                className={`turbo-btn-chip ${isAssigned ? 'active' : ''}`}
+                                className={`turbo-btn-chip turbo-btn-${btn.id} ${isAssigned ? 'active' : ''}`}
+                                data-turbo-btn={btn.id}
                                 onClick={() => handleToggleTurboButton(btn.mask)}
                                 aria-pressed={isAssigned}
                               >
