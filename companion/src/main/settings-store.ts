@@ -40,8 +40,15 @@ import type {
   HostPersonaMode,
   RemapButtonId
 } from '../shared/protocol';
-import type { CompanionSettings, UiScalePercent, UiThemePreset } from '../shared/types';
+import type { CompanionSettings, TurboSettings, UiScalePercent, UiThemePreset } from '../shared/types';
 import { DEFAULT_TOUCHPAD_SETTINGS, type TouchpadSettings } from '../shared/touchpad-gestures';
+
+export const DEFAULT_TURBO_SETTINGS: TurboSettings = {
+  enabled: false,
+  speedCps: 8,
+  humanize: true,
+  buttonsMask: 0
+};
 
 const DEFAULT_CONTROLLER_PROFILE_SETTINGS: ControllerProfileSettings = {
   leftStickRadialDeadzonePercent: 0,
@@ -216,7 +223,8 @@ export const DEFAULT_SETTINGS: CompanionSettings = {
   buttonRemappingDraft: { ...DEFAULT_BUTTON_REMAP_PROFILE.mappings },
   chordFunctions: [],
   chordAssignments: [],
-  touchpadSettings: { ...DEFAULT_TOUCHPAD_SETTINGS }
+  touchpadSettings: { ...DEFAULT_TOUCHPAD_SETTINGS },
+  turboSettings: { ...DEFAULT_TURBO_SETTINGS }
 };
 
 function normalizeColor(value: unknown): string {
@@ -1068,7 +1076,13 @@ function normalizeSettings(value: Partial<CompanionSettings> | null | undefined)
     buttonRemappingDraft: normalizeRemapMap(value?.buttonRemappingDraft),
     chordFunctions,
     chordAssignments: normalizeChordAssignments(value?.chordAssignments, chordFunctions),
-    touchpadSettings: value?.touchpadSettings ?? DEFAULT_SETTINGS.touchpadSettings
+    touchpadSettings: value?.touchpadSettings ?? DEFAULT_SETTINGS.touchpadSettings,
+    turboSettings: value?.turboSettings ? {
+      enabled: typeof value.turboSettings.enabled === 'boolean' ? value.turboSettings.enabled : DEFAULT_TURBO_SETTINGS.enabled,
+      speedCps: Math.max(2, Math.min(30, Math.round(Number.isFinite(value.turboSettings.speedCps) ? value.turboSettings.speedCps : DEFAULT_TURBO_SETTINGS.speedCps))),
+      humanize: typeof value.turboSettings.humanize === 'boolean' ? value.turboSettings.humanize : DEFAULT_TURBO_SETTINGS.humanize,
+      buttonsMask: typeof value.turboSettings.buttonsMask === 'number' ? value.turboSettings.buttonsMask & 0xff : DEFAULT_TURBO_SETTINGS.buttonsMask
+    } : DEFAULT_SETTINGS.turboSettings
   };
 }
 
@@ -1330,6 +1344,12 @@ export class SettingsStore {
   setTouchpadSettings(touchpadSettings: TouchpadSettings): CompanionSettings {
     return this.update({
       touchpadSettings
+    });
+  }
+
+  setTurboSettings(turboSettings: TurboSettings): CompanionSettings {
+    return this.update({
+      turboSettings
     });
   }
 

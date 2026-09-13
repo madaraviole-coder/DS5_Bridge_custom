@@ -99,8 +99,21 @@ export const COMMAND_ID = {
   SET_LIGHTBAR_RESTORE_ENABLED: 0x36,
   SET_RADIAL_DEADZONES: 0x37,
   SET_EDGE_PROFILE_SWITCHING_BLOCKED: 0x45,
-  SET_TOUCHPAD_ZONE_CONFIG: 0x46
+  SET_TOUCHPAD_ZONE_CONFIG: 0x46,
+  SET_TURBO_CONFIG: 0x47
 } as const;
+
+export function buildTurboConfigPayload(settings: {
+  speedCps: number;
+  humanize: boolean;
+  buttonsMask: number;
+}): number[] {
+  return [
+    Math.max(2, Math.min(30, Math.round(Number.isFinite(settings.speedCps) ? settings.speedCps : 8))),
+    settings.humanize ? 1 : 0,
+    (settings.buttonsMask ?? 0) & 0xff
+  ];
+}
 
 export function buildTouchpadZonePayload(settings: {
   deadzonePercent: number;

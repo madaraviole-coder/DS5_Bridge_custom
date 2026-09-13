@@ -144,7 +144,7 @@ import type {
   TriggerTestMode,
   TriggerTestTarget
 } from '../shared/protocol';
-import type { AudioHapticsSession, BridgeSnapshot, UiScalePercent, UiThemePreset } from '../shared/types';
+import type { AudioHapticsSession, BridgeSnapshot, TurboSettings, UiScalePercent, UiThemePreset } from '../shared/types';
 import {
   DEFAULT_TOUCHPAD_SETTINGS,
   DEFAULT_TOUCHPAD_ZONE_MAPPINGS,
@@ -584,6 +584,22 @@ const TOUCHPAD_TARGET_OPTIONS: Array<[string, TouchpadZoneTarget]> = [
 const TOUCHPAD_MODE_OPTIONS: Array<[string, TouchpadMode]> = [
   ['Swipe Sequence', 'swipe'],
   ['4-Zone Button Mapping', 'zones']
+];
+const TURBO_BUTTONS: Array<{ id: string; label: string; glyph: string; mask: number }> = [
+  { id: 'cross', label: 'Cross', glyph: '✕', mask: 0x01 },
+  { id: 'circle', label: 'Circle', glyph: '○', mask: 0x02 },
+  { id: 'square', label: 'Square', glyph: '□', mask: 0x04 },
+  { id: 'triangle', label: 'Triangle', glyph: '△', mask: 0x08 },
+  { id: 'l1', label: 'L1', glyph: 'L1', mask: 0x10 },
+  { id: 'r1', label: 'R1', glyph: 'R1', mask: 0x20 },
+  { id: 'l2', label: 'L2', glyph: 'L2', mask: 0x40 },
+  { id: 'r2', label: 'R2', glyph: 'R2', mask: 0x80 }
+];
+const TURBO_SPEED_PRESETS: Array<{ label: string; cps: number; desc: string }> = [
+  { label: 'Casual', cps: 5, desc: '200ms cycle' },
+  { label: 'Natural', cps: 8, desc: '125ms (human rate)' },
+  { label: 'Fast', cps: 12, desc: '83ms (jitter tap)' },
+  { label: 'Pro Rapid', cps: 20, desc: '50ms (rapid fire)' }
 ];
 const CHORD_STARTERS: Record<ChordStarterId, ChordStarterDefinition> = {
   ps: { id: 'ps', label: 'PS Button', glyphUrl: psHomeGlyphUrl },
@@ -3095,7 +3111,17 @@ export function App() {
   const [triggerLabProfileDialog, setTriggerLabProfileDialog] = useState<TriggerLabProfileDialogState | null>(null);
   const [triggerLabProfileNameDraft, setTriggerLabProfileNameDraft] = useState('');
   const [remapDraft, setRemapDraft] = useState<Record<RemapButtonId, RemapButtonId>>(DEFAULT_REMAP_DRAFT);
-  const [remappingSubTab, setRemappingSubTab] = useState<'buttons' | 'sticks' | 'triggers' | 'touchpad'>('buttons');
+  const [remappingSubTab, setRemappingSubTab] = useState<'buttons' | 'sticks' | 'triggers' | 'touchpad' | 'turbo'>('buttons');
+  const [turboSettings, setTurboSettings] = useState<TurboSettings>(() => ({
+    enabled: false,
+    speedCps: 8,
+    humanize: true,
+    buttonsMask: 0
+  }));
+  const [turboTesterActive, setTurboTesterActive] = useState(false);
+  const [turboTesterFlash, setTurboTesterFlash] = useState(false);
+  const [turboTesterCount, setTurboTesterCount] = useState(0);
+  const turboTesterRef = useRef<{ active: boolean; timer: number | null }>({ active: false, timer: null });
   const [touchpadSettings, setTouchpadSettings] = useState<TouchpadSettings>(() => loadTouchpadSettings(window.localStorage));
   const [selectedTouchpadZone, setSelectedTouchpadZone] = useState<TouchpadZoneId>(2);
   const [gesturePreviewActive, setGesturePreviewActive] = useState<boolean>(false);
@@ -3555,6 +3581,9 @@ export function App() {
     if (next.settings.touchpadSettings) {
       setTouchpadSettings(next.settings.touchpadSettings);
       saveTouchpadSettings(window.localStorage, next.settings.touchpadSettings);
+    }
+    if (next.settings.turboSettings) {
+      setTurboSettings(next.settings.turboSettings);
     }
     if (!hapticsEditingRef.current) {
       setHapticsValue(displayHapticsValue(next));
@@ -5612,6 +5641,83 @@ export function App() {
       gestures: s.gestures.map((g, idx) => (idx === 0 ? { ...g, sequence: [] } : g))
     }));
   }
+
+  function updateTurboSettings(updater: (prev: TurboSettings) => TurboSettings) {
+    setTurboSettings((prev) => {
+      const next = updater(prev);
+      if (typeof window !== 'undefined' && window.bridge?.setTurboConfig) {
+        void runAction('turbo-config', () => window.bridge.setTurboConfig(next));
+      }
+      return next;
+    });
+  }
+
+  function handleToggleTurboMaster() {
+    updateTurboSettings((prev) => ({
+      ...prev,
+      enabled: !prev.enabled
+    }));
+  }
+
+  function handleSetTurboSpeed(speedCps: number) {
+    updateTurboSettings((prev) => ({
+      ...prev,
+      speedCps: Math.max(2, Math.min(30, Math.round(speedCps)))
+    }));
+  }
+
+  function handleToggleTurboHumanize() {
+    updateTurboSettings((prev) => ({
+      ...prev,
+      humanize: !prev.humanize
+    }));
+  }
+
+  function handleToggleTurboButton(buttonMask: number) {
+    updateTurboSettings((prev) => ({
+      ...prev,
+      buttonsMask: prev.buttonsMask ^ buttonMask
+    }));
+  }
+
+  function startTurboTester() {
+    if (turboTesterRef.current.active) return;
+    turboTesterRef.current.active = true;
+    setTurboTesterActive(true);
+    setTurboTesterCount(0);
+
+    const tick = () => {
+      if (!turboTesterRef.current.active) return;
+      setTurboTesterCount((c) => c + 1);
+      setTurboTesterFlash(true);
+      window.setTimeout(() => setTurboTesterFlash(false), 35);
+
+      const baseMs = 1000 / Math.max(2, Math.min(30, turboSettings.speedCps));
+      const jitterPct = turboSettings.humanize ? (Math.random() * 30 - 15) / 100 : 0;
+      const nextDelay = Math.max(15, Math.round(baseMs * (1 + jitterPct)));
+      turboTesterRef.current.timer = window.setTimeout(tick, nextDelay);
+    };
+
+    tick();
+  }
+
+  function stopTurboTester() {
+    turboTesterRef.current.active = false;
+    if (turboTesterRef.current.timer !== null) {
+      window.clearTimeout(turboTesterRef.current.timer);
+      turboTesterRef.current.timer = null;
+    }
+    setTurboTesterActive(false);
+  }
+
+  useEffect(() => {
+    return () => {
+      turboTesterRef.current.active = false;
+      if (turboTesterRef.current.timer !== null) {
+        window.clearTimeout(turboTesterRef.current.timer);
+      }
+    };
+  }, []);
 
   function renameButtonRemappingProfile() {
     if (!selectedRemapProfile || selectedRemapProfileIsDefault) {
@@ -9133,6 +9239,16 @@ export function App() {
                     <IconTouchpadHand size={16} />
                     <span>Touchpad</span>
                   </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={remappingSubTab === 'turbo'}
+                    className={`remapping-subtab turbo-subtab ${remappingSubTab === 'turbo' ? 'active' : ''}`}
+                    onClick={() => setRemappingSubTab('turbo')}
+                  >
+                    <IconFlame size={16} />
+                    <span>Turbo</span>
+                  </button>
                 </div>
               </div>
 
@@ -9614,6 +9730,202 @@ export function App() {
                           </div>
                         );
                       })}
+                    </div>
+                  </div>
+                </section>
+              )}
+
+              {remappingSubTab === 'turbo' && (
+                <section className="feature-card turbo-remapping-card" aria-label="Turbo Rapid Fire configuration">
+                  {/* Turbo Card Header with Master Switch */}
+                  <div className="turbo-card-header">
+                    <div className="turbo-header-badge">
+                      <IconFlame size={24} />
+                    </div>
+                    <div className="turbo-header-text">
+                      <div className="turbo-title-row">
+                        <h3>Turbo Rapid Fire</h3>
+                        <span className={`turbo-status-pill ${turboSettings.enabled ? 'active' : ''}`}>
+                          {turboSettings.enabled ? 'ACTIVE' : 'STANDBY'}
+                        </span>
+                      </div>
+                      <p>Hardware-accelerated rapid clicking with authentic human cadence and anti-cheat safe timing.</p>
+                    </div>
+                    <div className="turbo-header-switch">
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={turboSettings.enabled}
+                        aria-label="Toggle Turbo Mode"
+                        className={`switch ${turboSettings.enabled ? 'on' : ''}`}
+                        onClick={handleToggleTurboMaster}
+                      >
+                        <span />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* TURBO MAIN GRID */}
+                  <div className="turbo-grid">
+                    {/* LEFT COLUMN: Cadence & Speed Settings */}
+                    <div className="turbo-column">
+                      {/* Click Speed (CPS) Section */}
+                      <div className="turbo-setting-box">
+                        <div className="turbo-setting-header">
+                          <div className="turbo-setting-label">
+                            <h4>CLICK FREQUENCY</h4>
+                            <span className="turbo-cps-callout">
+                              <strong>{turboSettings.speedCps} CPS</strong>
+                              <span className="turbo-cps-cycle">
+                                (~{Math.round(1000 / turboSettings.speedCps)}ms cycle)
+                              </span>
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Slider */}
+                        <div className="turbo-slider-container">
+                          <input
+                            type="range"
+                            min="2"
+                            max="25"
+                            step="1"
+                            value={turboSettings.speedCps}
+                            onChange={(e) => handleSetTurboSpeed(Number(e.target.value))}
+                            className="turbo-range-slider"
+                            aria-label="Click speed in clicks per second"
+                          />
+                          <div className="turbo-slider-labels">
+                            <span>2 CPS (Slow)</span>
+                            <span>8 CPS (Human Default)</span>
+                            <span>25 CPS (Max)</span>
+                          </div>
+                        </div>
+
+                        {/* Quick Presets */}
+                        <div className="turbo-presets-row">
+                          {TURBO_SPEED_PRESETS.map((preset) => {
+                            const isSelected = turboSettings.speedCps === preset.cps;
+                            return (
+                              <button
+                                key={preset.label}
+                                type="button"
+                                className={`turbo-preset-btn ${isSelected ? 'active' : ''}`}
+                                onClick={() => handleSetTurboSpeed(preset.cps)}
+                                title={preset.desc}
+                              >
+                                <span className="preset-name">{preset.label}</span>
+                                <span className="preset-cps">{preset.cps} CPS</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Humanized Timing Section */}
+                      <div className="turbo-setting-box turbo-humanize-box">
+                        <div className="turbo-humanize-header">
+                          <div className="turbo-humanize-info">
+                            <div className="turbo-humanize-title">
+                              <Zap size={18} className="humanize-icon" />
+                              <h4>Humanized Cadence (Anti-Cheat Safe)</h4>
+                            </div>
+                            <p className="turbo-humanize-desc">
+                              Applies dynamic ±15% timing jitter and realistic micro-variance to each press/release cycle. Evades rigid square-wave bot detection and feels like natural finger clicking.
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={turboSettings.humanize}
+                            aria-label="Toggle Humanized Cadence"
+                            className={`switch ${turboSettings.humanize ? 'on' : ''}`}
+                            onClick={handleToggleTurboHumanize}
+                          >
+                            <span />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* RIGHT COLUMN: Target Buttons & Live Click Tester */}
+                    <div className="turbo-column">
+                      {/* Active Buttons Selector */}
+                      <div className="turbo-setting-box">
+                        <div className="turbo-setting-header">
+                          <div className="turbo-setting-label">
+                            <h4>ASSIGNED TURBO BUTTONS</h4>
+                            <p className="turbo-setting-sub">
+                              Select buttons to rapid-fire when held down. (Can also be toggled with PS button double-tap + button)
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="turbo-buttons-grid">
+                          {TURBO_BUTTONS.map((btn) => {
+                            const isAssigned = (turboSettings.buttonsMask & btn.mask) !== 0;
+                            return (
+                              <button
+                                key={btn.id}
+                                type="button"
+                                className={`turbo-btn-chip ${isAssigned ? 'active' : ''}`}
+                                onClick={() => handleToggleTurboButton(btn.mask)}
+                                aria-pressed={isAssigned}
+                              >
+                                <span className="turbo-chip-glyph">{btn.glyph}</span>
+                                <span className="turbo-chip-label">{btn.label}</span>
+                                <span className="turbo-chip-indicator" />
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Interactive Live Click Tester */}
+                      <div className="turbo-setting-box turbo-tester-box">
+                        <div className="turbo-tester-header">
+                          <h4>INTERACTIVE CLICK TESTER</h4>
+                          <span className="turbo-tester-hint">Press & hold button to test cadence</span>
+                        </div>
+
+                        <div className="turbo-tester-body">
+                          <button
+                            type="button"
+                            className={`turbo-test-trigger ${turboTesterActive ? 'active' : ''}`}
+                            onMouseDown={startTurboTester}
+                            onMouseUp={stopTurboTester}
+                            onMouseLeave={stopTurboTester}
+                            onTouchStart={startTurboTester}
+                            onTouchEnd={stopTurboTester}
+                            aria-label="Hold to test turbo clicking speed"
+                          >
+                            <span className="turbo-test-icon">
+                              <IconFlame size={28} className={turboTesterFlash ? 'fire-flash' : ''} />
+                            </span>
+                            <span className="turbo-test-label">
+                              {turboTesterActive ? 'FIRING TURBO...' : 'HOLD TO TEST TURBO'}
+                            </span>
+                          </button>
+
+                          <div className="turbo-meter-card">
+                            <div className="turbo-meter-row">
+                              <span className="meter-label">Output Pulse:</span>
+                              <div className={`turbo-pulse-led ${turboTesterFlash ? 'flash' : ''} ${turboTesterActive ? 'active' : ''}`} />
+                              <span className="meter-count">
+                                <strong>{turboTesterCount}</strong> clicks
+                              </span>
+                            </div>
+                            <div className="turbo-meter-bar-track">
+                              <div
+                                className={`turbo-meter-bar-fill ${turboTesterFlash ? 'pulse' : ''}`}
+                                style={{
+                                  width: turboTesterActive ? `${Math.min(100, Math.max(10, (turboSettings.speedCps / 25) * 100))}%` : '0%'
+                                }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </section>

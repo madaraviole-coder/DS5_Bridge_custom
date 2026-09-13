@@ -20,6 +20,7 @@ import {
   buildChordBindingsPayload,
   buildCommandReport,
   buildRadialDeadzonePayload,
+  buildTurboConfigPayload,
   clampAudioInterleaveValues,
   hostPersonaModeValue,
   isChordBindingAllowed,
@@ -834,5 +835,18 @@ describe('companion protocol', () => {
     expect(normalizeBridgePresetId('quiet')).toBe('quiet');
     expect(normalizeBridgePresetId('ptt-f24')).toBe('balanced');
     expect(normalizeBridgePresetId('retired-profile', 'custom')).toBe('custom');
+  });
+
+  it('builds a turbo config command report and payload', () => {
+    const payload = buildTurboConfigPayload(12, true, 0x05);
+    expect(payload).toEqual([12, 1, 0x05]);
+
+    const report = buildCommandReport(COMMAND_ID.SET_TURBO_CONFIG, 8, 1, payload);
+    expect(report[7]).toBe(COMMAND_ID.SET_TURBO_CONFIG);
+    expect(report[8]).toBe(8);
+    expect(report[9]).toBe(1);
+    expect(report[11]).toBe(12);
+    expect(report[12]).toBe(1);
+    expect(report[13]).toBe(0x05);
   });
 });

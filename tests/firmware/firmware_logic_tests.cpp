@@ -21,6 +21,7 @@
 #include "output_scheduler.h"
 #include "radial_deadzone.h"
 #include "touchpad_zone.h"
+#include "turbo_controller.h"
 #include "usb_audio_render_gain.h"
 #include "persona/ds4_persona.h"
 #include "persona/dualsense_persona.h"
@@ -39,6 +40,21 @@ extern "C" bool host_persona_descriptors_verified(HostPersonaMode mode) {
         default:
             return false;
     }
+}
+
+bool bt_set_classic_rumble_output(uint8_t left, uint8_t right) {
+    (void)left;
+    (void)right;
+    return true;
+}
+
+bool bt_set_temporary_lightbar_color(uint8_t r, uint8_t g, uint8_t b, uint8_t brightness, uint16_t duration_ms) {
+    (void)r;
+    (void)g;
+    (void)b;
+    (void)brightness;
+    (void)duration_ms;
+    return true;
 }
 
 namespace {
@@ -1829,12 +1845,76 @@ void touchpad_zone_disabling_clears_latch_and_resets_click() {
     EXPECT_EQ(report2[7] & 0x80, 0); // No lingering injection
 }
 
+void turbo_controller_initial_config_defaults() {
+    turbo_controller_init();
+    const auto &cfg = turbo_controller_get_config();
+    EXPECT_TRUE(cfg.enabled);
+    EXPECT_EQ(cfg.speed_cps, 8);
+    EXPECT_TRUE(cfg.humanize);
+    EXPECT_EQ(cfg.mask, 0);
+}
+
+void turbo_controller_set_config_updates_and_clamps() {
+    turbo_controller_init();
+    turbo_controller_set_config(false, 1, false, 0x05);
+    auto cfg = turbo_controller_get_config();
+    EXPECT_FALSE(cfg.enabled);
+    EXPECT_EQ(cfg.speed_cps, 2);
+    EXPECT_FALSE(cfg.humanize);
+    EXPECT_EQ(cfg.mask, 0x05);
+
+    turbo_controller_set_config(true, 50, true, 0xFF);
+    cfg = turbo_controller_get_config();
+    EXPECT_TRUE(cfg.enabled);
+    EXPECT_EQ(cfg.speed_cps, 30);
+    EXPECT_TRUE(cfg.humanize);
+    EXPECT_EQ(cfg.mask, 0xFF);
+}
+
+void turbo_controller_first_hit_is_immediate_and_alternates() {
+    turbo_controller_init();
+    turbo_controller_set_config(true, 10, false, TurboCross);
+
+    std::array<uint8_t, 64> report{};
+    report[7] = 0x20;
+
+    turbo_controller_process_report(report.data(), static_cast<uint16_t>(report.size()), 100000, false);
+    EXPECT_EQ(report[7] & 0x20, 0x20);
+
+    turbo_controller_process_report(report.data(), static_cast<uint16_t>(report.size()), 120000, false);
+    EXPECT_EQ(report[7] & 0x20, 0x20);
+
+    turbo_controller_process_report(report.data(), static_cast<uint16_t>(report.size()), 160000, false);
+    EXPECT_EQ(report[7] & 0x20, 0);
+
+    report[7] = 0x20;
+    turbo_controller_process_report(report.data(), static_cast<uint16_t>(report.size()), 210000, false);
+    EXPECT_EQ(report[7] & 0x20, 0x20);
+}
+
+void turbo_controller_disabled_bypasses_all() {
+    turbo_controller_init();
+    turbo_controller_set_config(false, 10, false, TurboCross);
+
+    std::array<uint8_t, 64> report{};
+    report[7] = 0x20;
+
+    turbo_controller_process_report(report.data(), static_cast<uint16_t>(report.size()), 100000, false);
+    EXPECT_EQ(report[7] & 0x20, 0x20);
+    turbo_controller_process_report(report.data(), static_cast<uint16_t>(report.size()), 160000, false);
+    EXPECT_EQ(report[7] & 0x20, 0x20);
+}
+
 struct TestCase {
     char const *name;
     void (*run)();
 };
 
 std::vector<TestCase> tests{
+    {"turbo controller initial config defaults", turbo_controller_initial_config_defaults},
+    {"turbo controller set config updates and clamps", turbo_controller_set_config_updates_and_clamps},
+    {"turbo controller first hit is immediate and alternates", turbo_controller_first_hit_is_immediate_and_alternates},
+    {"turbo controller disabled bypasses all", turbo_controller_disabled_bypasses_all},
     {"touchpad zone detect identifies quadrants and deadzone", touchpad_zone_detect_identifies_quadrants_and_deadzone},
     {"touchpad zone process report remaps clicks", touchpad_zone_process_report_remaps_clicks},
     {"touchpad zone center deadzone preserves touchpad click", touchpad_zone_center_deadzone_preserves_touchpad_click},

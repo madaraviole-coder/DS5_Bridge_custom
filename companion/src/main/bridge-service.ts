@@ -38,6 +38,7 @@ import {
   SHORTCUT_EVENT,
   buildButtonRemapPayload,
   buildTouchpadZonePayload,
+  buildTurboConfigPayload,
   hostPersonaModeValue,
   normalizeChordControllerSettingStepPercent,
   normalizeBridgePresetId,
@@ -89,7 +90,8 @@ import type {
   UiScalePercent,
   UiThemePreset,
   WindowsDeviceCleanupResult,
-  BridgeDeviceCensus
+  BridgeDeviceCensus,
+  TurboSettings
 } from '../shared/types';
 import {
   AudioHapticsSessionMonitor,
@@ -107,7 +109,7 @@ import {
 } from './audio-helper';
 import { CompanionDebugConfig } from './debug-config';
 import { HidDiscoveryClient } from './hid-discovery-client';
-import { SettingsStore, normalizeUiScalePercent, normalizeUiThemePreset } from './settings-store';
+import { SettingsStore, DEFAULT_TURBO_SETTINGS, normalizeUiScalePercent, normalizeUiThemePreset } from './settings-store';
 import { WinUsbCompanionTransport } from './winusb-companion-transport';
 
 const POLL_INTERVAL_MS = 500;
@@ -3449,6 +3451,35 @@ export class BridgeService extends EventEmitter {
     return this.getSnapshot();
   }
 
+  private async applyTurboSettings(
+    settings: CompanionSettings,
+    expectSettingsRevisionChange: boolean
+  ): Promise<void> {
+    const turbo = settings.turboSettings ?? DEFAULT_TURBO_SETTINGS;
+    const payload = buildTurboConfigPayload({
+      speedCps: turbo.speedCps,
+      humanize: turbo.humanize,
+      buttonsMask: turbo.buttonsMask
+    });
+    await this.sendCommand(
+      COMMAND_ID.SET_TURBO_CONFIG,
+      turbo.enabled ? 1 : 0,
+      {
+        expectSettingsRevisionChange,
+        extraPayload: payload
+      }
+    );
+  }
+
+  async setTurboConfig(turboSettings: TurboSettings): Promise<BridgeSnapshot> {
+    this.snapshot.settings = this.settingsStore.setTurboSettings(turboSettings);
+    if (this.snapshot.state === 'connected') {
+      await this.applyTurboSettings(this.snapshot.settings, true);
+    }
+    this.emitSnapshot();
+    return this.getSnapshot();
+  }
+
   private async applyChordBindings(settings: CompanionSettings): Promise<void> {
     const activeAssignments = settings.chordAssignments.filter((assignment) => (
       isChordBindingAllowed(
@@ -4139,6 +4170,7 @@ export class BridgeService extends EventEmitter {
     );
     await this.applyButtonRemapping(settings, expectSettingsRevisionChange);
     await this.applyTouchpadZoneSettings(settings, expectSettingsRevisionChange);
+    await this.applyTurboSettings(settings, expectSettingsRevisionChange);
     if (settings.edgeProfileSwitchingBlocked) {
       await this.sendCommand(
         COMMAND_ID.SET_EDGE_PROFILE_SWITCHING_BLOCKED,

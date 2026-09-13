@@ -19,7 +19,8 @@ import type {
   BridgeSnapshot,
   PicoFirmwareActionResult,
   UiThemePreset,
-  WindowsDeviceCleanupResult
+  WindowsDeviceCleanupResult,
+  TurboSettings
 } from './shared/types';
 import type { TouchpadSettings } from './shared/touchpad-gestures';
 
@@ -210,6 +211,9 @@ const api = {
   ),
   setTouchpadZoneConfig: (settings: TouchpadSettings): Promise<BridgeSnapshot> => (
     ipcRenderer.invoke('bridge:setTouchpadZoneConfig', settings)
+  ),
+  setTurboConfig: (settings: TurboSettings): Promise<BridgeSnapshot> => (
+    ipcRenderer.invoke('bridge:setTurboConfig', settings)
   ),
   selectButtonRemappingProfile: (profileId: string): Promise<BridgeSnapshot> => (
     ipcRenderer.invoke('bridge:selectButtonRemappingProfile', profileId)

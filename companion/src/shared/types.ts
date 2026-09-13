@@ -99,6 +99,14 @@ export interface CompanionSettings {
   chordFunctions: ChordFunction[];
   chordAssignments: ChordAssignment[];
   touchpadSettings?: TouchpadSettings;
+  turboSettings?: TurboSettings;
+}
+
+export interface TurboSettings {
+  enabled: boolean;
+  speedCps: number;
+  humanize: boolean;
+  buttonsMask: number;
 }
 
 export interface HidDeviceSummary {

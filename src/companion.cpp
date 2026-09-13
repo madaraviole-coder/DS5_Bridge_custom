@@ -165,6 +165,7 @@ enum CommandId : uint8_t {
     CommandSetRadialDeadzones = 0x37,
     CommandSetEdgeProfileSwitchingBlocked = 0x45,
     CommandSetTouchpadZoneConfig = 0x46,
+    CommandSetTurboConfig = 0x47,
 };
 
 enum AckResult : uint8_t {
@@ -2485,6 +2486,25 @@ void handle_command(uint8_t const *buffer, uint16_t bufsize) {
                 config.zone_targets[2] = static_cast<TouchpadZoneTargetButton>(buffer[13]);
                 config.zone_targets[3] = static_cast<TouchpadZoneTargetButton>(buffer[14]);
                 touchpad_zone_set_config(config);
+            }
+            settings_revision++;
+            set_ack(command_id, sequence, AckOk);
+            return;
+
+        case CommandSetTurboConfig:
+            if (value > 1 || bufsize < 13) {
+                set_ack(command_id, sequence, AckInvalidValue);
+                return;
+            }
+            {
+                const uint8_t speed_cps = buffer[10];
+                const bool humanize = buffer[11] != 0;
+                const uint8_t buttons_mask = buffer[12];
+                if (speed_cps < 2 || speed_cps > 30) {
+                    set_ack(command_id, sequence, AckInvalidValue);
+                    return;
+                }
+                turbo_controller_set_config(value == 1, speed_cps, humanize, buttons_mask);
             }
             settings_revision++;
             set_ack(command_id, sequence, AckOk);

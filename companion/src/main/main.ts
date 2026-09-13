@@ -33,7 +33,8 @@ import type {
   PicoFirmwareAction,
   PicoFirmwareActionResult,
   UiScalePercent,
-  UiThemePreset
+  UiThemePreset,
+  TurboSettings
 } from '../shared/types';
 import type { TouchpadSettings } from '../shared/touchpad-gestures';
 
@@ -1222,6 +1223,9 @@ function registerIpc(service: BridgeService): void {
   ));
   ipcMain.handle('bridge:setTouchpadZoneConfig', (_event, settings: TouchpadSettings) => (
     service.setTouchpadZoneConfig(settings)
+  ));
+  ipcMain.handle('bridge:setTurboConfig', (_event, settings: TurboSettings) => (
+    service.setTurboConfig(settings)
   ));
   ipcMain.handle('bridge:selectButtonRemappingProfile', (_event, profileId: string) => (
     service.selectButtonRemappingProfile(profileId)
