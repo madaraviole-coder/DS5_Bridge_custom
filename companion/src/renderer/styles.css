@@ -1144,6 +1144,24 @@ button {
   transform: translateY(-1px);
 }
 
+.webhid-connect-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.webhid-connect-tool.secondary {
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.15));
+  background: var(--surface-control, rgba(255, 255, 255, 0.05));
+  color: var(--text-secondary, #a1a1aa);
+  padding: 0 8px;
+}
+
+.webhid-connect-tool.secondary:hover {
+  border-color: var(--accent, #0080ff);
+  color: var(--text-primary, #ffffff);
+}
+
 .webhid-button-label {
   letter-spacing: 0.02em;
 }

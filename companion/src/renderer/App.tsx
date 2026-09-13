@@ -7037,22 +7037,40 @@ export function App() {
         <div className="topbar-right">
           <div className="bridge-tools">
             {(window.bridge as any)?.isWebHid && (
-              <button
-                className={`topbar-tool webhid-connect-tool ${connected ? 'connected' : 'action-required'}`}
-                type="button"
-                aria-label={connected ? 'DS5 Bridge Connected via WebHID' : 'Connect DS5 Bridge via WebHID'}
-                title={connected ? 'DS5 Bridge Connected via WebHID' : 'Connect DS5 Bridge via WebHID'}
-                onClick={async () => {
-                  if ((window.bridge as any)?.connectWebHid) {
-                    await (window.bridge as any).connectWebHid();
-                  }
-                }}
-              >
-                <IconUsb size={18} />
-                <span className="webhid-button-label">
-                  {connected ? 'WebHID' : 'Connect'}
-                </span>
-              </button>
+              <div className="webhid-connect-group">
+                <button
+                  className={`topbar-tool webhid-connect-tool ${connected ? 'connected' : 'action-required'}`}
+                  type="button"
+                  aria-label={connected ? 'DS5 Bridge Connected' : 'Connect DS5 Bridge via WebUSB'}
+                  title={connected ? `Connected via ${(window.bridge as any)?.activeTransportName || 'Web'}` : 'Connect DS5 Bridge via WebUSB (Recommended)'}
+                  onClick={async () => {
+                    if ((window.bridge as any)?.connectWebUsb) {
+                      await (window.bridge as any).connectWebUsb();
+                    } else if ((window.bridge as any)?.connectWebHid) {
+                      await (window.bridge as any).connectWebHid();
+                    }
+                  }}
+                >
+                  <IconUsb size={18} />
+                  <span className="webhid-button-label">
+                    {connected ? ((window.bridge as any)?.activeTransportName || 'Connected') : 'Connect (WebUSB)'}
+                  </span>
+                </button>
+                {!connected && (
+                  <button
+                    className="topbar-tool webhid-connect-tool secondary"
+                    type="button"
+                    title="Connect via WebHID (DualSense Gamepad interface)"
+                    onClick={async () => {
+                      if ((window.bridge as any)?.connectWebHid) {
+                        await (window.bridge as any).connectWebHid();
+                      }
+                    }}
+                  >
+                    <span className="webhid-button-label">WebHID</span>
+                  </button>
+                )}
+              </div>
             )}
             <div className="notifications-control" ref={notificationsRef}>
               <button
