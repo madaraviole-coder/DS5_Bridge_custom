@@ -5719,7 +5719,7 @@ button.feature-icon {
   height: 100%;
   background: linear-gradient(90deg, #ff7043 0%, #ff3d00 100%);
   border-radius: 999px;
-  transition: width 0.15s ease;
+  transition: transform 0.15s ease, opacity 0.15s ease;
 }
 
 .turbo-meter-bar-fill.pulse {

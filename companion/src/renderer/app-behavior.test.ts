@@ -481,7 +481,7 @@ describe('renderer behavior guards', () => {
   });
 
   it('integrates Touchpad 4-zone remapping and gesture builder', () => {
-    expect(appSource).toContain("const [remappingSubTab, setRemappingSubTab] = useState<'buttons' | 'sticks' | 'triggers' | 'touchpad'>('buttons');");
+    expect(appSource).toContain("const [remappingSubTab, setRemappingSubTab] = useState<'buttons' | 'sticks' | 'triggers' | 'touchpad' | 'turbo'>('buttons');");
     expect(appSource).toContain("className={`remapping-subtab touchpad-subtab ${remappingSubTab === 'touchpad' ? 'active' : ''}`}");
     expect(appSource).toContain('TOUCHPAD CANVAS');
     expect(appSource).toContain('GESTURE BUILDER');
