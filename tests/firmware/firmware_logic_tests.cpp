@@ -1935,7 +1935,8 @@ void chord_payload_validation_supports_3byte_and_6byte_formats() {
 
     EXPECT_TRUE(validate(legacy_payload.data(), static_cast<uint16_t>(legacy_payload.size()), 2));
     EXPECT_TRUE(validate(extended_payload.data(), static_cast<uint16_t>(extended_payload.size()), 2));
-    EXPECT_TRUE(!validate(extended_payload.data(), 5, 1));
+    EXPECT_TRUE(!validate(extended_payload.data(), 5, 2));
+    EXPECT_TRUE(!validate(extended_payload.data(), 2, 1));
     const std::vector<uint8_t> dup_payload = {
         0x20, 1, 11, 1, 1, 10,
         0x21, 1, 11, 1, 1, 10,
