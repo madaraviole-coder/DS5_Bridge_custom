@@ -360,6 +360,8 @@ uint8_t right_stick_radial_deadzone_percent = 0;
 bool shortcut_binding_last_pressed[kShortcutBindingCount]{};
 uint32_t shortcut_binding_last_step_us[kShortcutBindingCount]{};
 bool home_chord_gate_active = false;
+bool home_chord_gate_passed = false;
+bool home_chord_consumed_latched = false;
 uint32_t home_chord_gate_until_us = 0;
 uint32_t home_chord_replay_until_us = 0;
 uint8_t shortcut_event_queue[kShortcutEventQueueDepth]{};
@@ -876,6 +878,8 @@ void restore_defaults() {
     std::fill(shortcut_binding_last_pressed, shortcut_binding_last_pressed + kShortcutBindingCount, false);
     std::fill(shortcut_binding_last_step_us, shortcut_binding_last_step_us + kShortcutBindingCount, 0);
     home_chord_gate_active = false;
+    home_chord_gate_passed = false;
+    home_chord_consumed_latched = false;
     home_chord_gate_until_us = 0;
     home_chord_replay_until_us = 0;
     clear_dynamic_chord_bindings(false);
@@ -3064,6 +3068,8 @@ bool home_chord_gate_enabled() {
 
 void clear_home_chord_gate() {
     home_chord_gate_active = false;
+    home_chord_gate_passed = false;
+    home_chord_consumed_latched = false;
     home_chord_gate_until_us = 0;
     home_chord_replay_until_us = 0;
 }
@@ -3075,8 +3081,17 @@ void apply_home_chord_gate(uint8_t *report, uint16_t len, bool physical_home_pre
 
     if (home_chord_consumed) {
         clear_home_chord_gate();
+        home_chord_consumed_latched = true;
         report[9] &= static_cast<uint8_t>(~kHomeButtonBit);
         return;
+    }
+
+    if (home_chord_consumed_latched) {
+        if (physical_home_pressed) {
+            report[9] &= static_cast<uint8_t>(~kHomeButtonBit);
+            return;
+        }
+        home_chord_consumed_latched = false;
     }
 
     if (!home_chord_gate_enabled()) {
@@ -3087,18 +3102,24 @@ void apply_home_chord_gate(uint8_t *report, uint16_t len, bool physical_home_pre
     const uint32_t now = time_us_32();
     if (physical_home_pressed) {
         home_chord_replay_until_us = 0;
-        if (!home_chord_gate_active) {
+        if (!home_chord_gate_active && !home_chord_gate_passed) {
             home_chord_gate_active = true;
             home_chord_gate_until_us = now + kHomeChordSuppressUs;
         }
-        if (!time_us_reached(now, home_chord_gate_until_us)) {
-            report[9] &= static_cast<uint8_t>(~kHomeButtonBit);
-            return;
+        if (home_chord_gate_active) {
+            if (!time_us_reached(now, home_chord_gate_until_us)) {
+                report[9] &= static_cast<uint8_t>(~kHomeButtonBit);
+                return;
+            }
+            home_chord_gate_active = false;
+            home_chord_gate_until_us = 0;
+            home_chord_gate_passed = true;
         }
-        home_chord_gate_active = false;
-        home_chord_gate_until_us = 0;
         return;
     }
+
+    home_chord_gate_passed = false;
+    home_chord_consumed_latched = false;
 
     if (home_chord_gate_active) {
         home_chord_gate_active = false;
@@ -3600,7 +3621,7 @@ void companion_process_controller_report(uint8_t *report, uint16_t len) {
     }
 
     // Process Turbo rapid-fire
-    const bool home_raw_for_turbo = (report[9] & kHomeButtonBit) != 0;
+    const bool home_raw_for_turbo = home_pressed;
     turbo_controller_process_report(report, len, now, home_raw_for_turbo);
 
     // Process Touchpad modes (Laptop Touchpad vs 4-Zone Remapping)

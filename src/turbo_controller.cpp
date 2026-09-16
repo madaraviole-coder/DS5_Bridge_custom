@@ -146,7 +146,7 @@ void turbo_controller_process_report(uint8_t *report, uint16_t len, uint32_t now
     const bool home_rising = home_raw && !s_prev_home_raw;
     s_prev_home_raw = home_raw;
 
-    if (home_rising) {
+    if (s_config.enabled && home_rising) {
         if (s_last_home_press_us != 0 && static_cast<int32_t>(now_us - s_last_home_press_us) < 450000) {
             s_turbo_armed = true;
             s_turbo_armed_until_us = now_us + 3000000;
@@ -159,7 +159,11 @@ void turbo_controller_process_report(uint8_t *report, uint16_t len, uint32_t now
         }
     }
 
-    if (s_turbo_armed || (s_last_home_press_us != 0 && static_cast<int32_t>(now_us - s_last_home_press_us) < 450000)) {
+    if (s_last_home_press_us != 0 && static_cast<int32_t>(now_us - s_last_home_press_us) >= 450000) {
+        s_last_home_press_us = 0;
+    }
+
+    if (s_turbo_armed) {
         report[9] &= ~0x01;
     }
 
