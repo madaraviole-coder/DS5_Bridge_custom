@@ -1844,6 +1844,102 @@ void touchpad_zone_disabling_clears_latch_and_resets_click() {
     EXPECT_EQ(report2[7] & 0x80, 0); // No lingering injection
 }
 
+void touchpad_zone_swipe_sequence_triggers_shortcut_event() {
+    touchpad_zone_init();
+    TouchpadZoneConfig cfg = touchpad_zone_get_config();
+    cfg.mode = TouchpadOperatingModeSwipe;
+    cfg.gesture_sequence_len = 2;
+    cfg.gesture_sequence[0] = 1; // Zone 1
+    cfg.gesture_sequence[1] = 2; // Zone 2
+    cfg.gesture_action_type = TouchpadGestureActionShortcut;
+    touchpad_zone_set_config(cfg);
+
+    // Frame 1: Touch point at Zone 1 (x = 200, y = 200)
+    std::array<uint8_t, 64> report1{};
+    report1[32] = 0x00;
+    report1[33] = 200 & 0xFF;
+    report1[34] = static_cast<uint8_t>(((200 >> 8) & 0x0F) | ((200 & 0x0F) << 4));
+    report1[35] = static_cast<uint8_t>((200 >> 4) & 0xFF);
+    report1[36] = 0x80;
+
+    uint8_t event = touchpad_zone_process_report(report1.data(), static_cast<uint16_t>(report1.size()));
+    EXPECT_EQ(event, 0);
+
+    // Frame 2: Move touch point to Zone 2 (x = 1500, y = 200)
+    std::array<uint8_t, 64> report2{};
+    report2[32] = 0x00;
+    report2[33] = 1500 & 0xFF;
+    report2[34] = static_cast<uint8_t>(((1500 >> 8) & 0x0F) | ((200 & 0x0F) << 4));
+    report2[35] = static_cast<uint8_t>((200 >> 4) & 0xFF);
+    report2[36] = 0x80;
+
+    event = touchpad_zone_process_report(report2.data(), static_cast<uint16_t>(report2.size()));
+    EXPECT_EQ(event, 0x50);
+
+    // Frame 3: Continue holding in Zone 2
+    event = touchpad_zone_process_report(report2.data(), static_cast<uint16_t>(report2.size()));
+    EXPECT_EQ(event, 0);
+
+    // Frame 4: Release touch
+    std::array<uint8_t, 64> report_release{};
+    report_release[32] = 0x80;
+    report_release[36] = 0x80;
+    event = touchpad_zone_process_report(report_release.data(), static_cast<uint16_t>(report_release.size()));
+    EXPECT_EQ(event, 0);
+
+    // Frame 5: New stroke starting at Zone 1 again
+    event = touchpad_zone_process_report(report1.data(), static_cast<uint16_t>(report1.size()));
+    EXPECT_EQ(event, 0);
+
+    // Frame 6: Swipe to Zone 2 triggers again
+    event = touchpad_zone_process_report(report2.data(), static_cast<uint16_t>(report2.size()));
+    EXPECT_EQ(event, 0x50);
+}
+
+void touchpad_zone_swipe_sequence_button_action_injects_button() {
+    touchpad_zone_init();
+    TouchpadZoneConfig cfg = touchpad_zone_get_config();
+    cfg.mode = TouchpadOperatingModeSwipe;
+    cfg.gesture_sequence_len = 2;
+    cfg.gesture_sequence[0] = 1; // Zone 1
+    cfg.gesture_sequence[1] = 2; // Zone 2
+    cfg.gesture_action_type = TouchpadGestureActionButton;
+    cfg.gesture_target_button = TouchpadTargetTriangle;
+    touchpad_zone_set_config(cfg);
+
+    // Frame 1: Zone 1
+    std::array<uint8_t, 64> report1{};
+    report1[32] = 0x00;
+    report1[33] = 200 & 0xFF;
+    report1[34] = static_cast<uint8_t>(((200 >> 8) & 0x0F) | ((200 & 0x0F) << 4));
+    report1[35] = static_cast<uint8_t>((200 >> 4) & 0xFF);
+    report1[36] = 0x80;
+
+    uint8_t event = touchpad_zone_process_report(report1.data(), static_cast<uint16_t>(report1.size()));
+    EXPECT_EQ(event, 0);
+    EXPECT_EQ(report1[7] & 0x80, 0);
+
+    // Frame 2: Zone 2 -> triggers injection
+    std::array<uint8_t, 64> report2{};
+    report2[32] = 0x00;
+    report2[33] = 1500 & 0xFF;
+    report2[34] = static_cast<uint8_t>(((1500 >> 8) & 0x0F) | ((200 & 0x0F) << 4));
+    report2[35] = static_cast<uint8_t>((200 >> 4) & 0xFF);
+    report2[36] = 0x80;
+
+    event = touchpad_zone_process_report(report2.data(), static_cast<uint16_t>(report2.size()));
+    EXPECT_EQ(event, 0);
+    EXPECT_EQ(report2[7] & 0x80, 0x80); // Triangle injected!
+
+    // Frame 3: Next report keeps button injected for remaining ticks
+    std::array<uint8_t, 64> report3{};
+    report3[32] = 0x80;
+    report3[36] = 0x80;
+    touchpad_zone_process_report(report3.data(), static_cast<uint16_t>(report3.size()));
+    EXPECT_EQ(report3[7] & 0x80, 0x80);
+}
+
+
 void turbo_controller_initial_config_defaults() {
     turbo_controller_init();
     const auto &cfg = turbo_controller_get_config();
@@ -1976,6 +2072,8 @@ std::vector<TestCase> tests{
     {"touchpad zone click latches across dropped contact frames", touchpad_zone_click_latches_across_dropped_contact_frames},
     {"touchpad zone ignores residual coordinates when contact bit is set", touchpad_zone_ignores_residual_coordinates_when_contact_bit_is_set},
     {"touchpad zone disabling clears latch and resets click", touchpad_zone_disabling_clears_latch_and_resets_click},
+    {"touchpad zone swipe sequence triggers shortcut event", touchpad_zone_swipe_sequence_triggers_shortcut_event},
+    {"touchpad zone swipe sequence button action injects button", touchpad_zone_swipe_sequence_button_action_injects_button},
     {"scheduler prioritizes due audio over old state", scheduler_prioritizes_due_audio_over_old_state},
     {"scheduler sends coalesced state when audio is absent", scheduler_sends_coalesced_state_when_audio_is_absent},
     {"scheduler due audio stays ahead of coalesced state", scheduler_due_audio_stays_ahead_of_coalesced_state},

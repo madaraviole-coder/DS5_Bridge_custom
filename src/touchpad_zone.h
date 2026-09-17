@@ -85,6 +85,7 @@ void touchpad_zone_set_target(uint8_t zone_1_to_4, TouchpadZoneTargetButton targ
 TouchpadZoneId touchpad_zone_detect(uint16_t x, uint16_t y, uint8_t deadzone_percent);
 
 // Process controller input report: injects remapped button when touchpad is pressed
-void touchpad_zone_process_report(uint8_t *report, uint16_t len);
+// Returns shortcut event (e.g. 0x50) if a swipe gesture was triggered, or 0 otherwise.
+uint8_t touchpad_zone_process_report(uint8_t *report, uint16_t len);
 
 #endif // DS5_BRIDGE_TOUCHPAD_ZONE_H

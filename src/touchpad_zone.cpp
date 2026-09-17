@@ -1,5 +1,5 @@
 #include "touchpad_zone.h"
-#include "companion.h"
+
 
 namespace {
 
@@ -198,9 +198,9 @@ TouchpadZoneId touchpad_zone_detect(uint16_t x, uint16_t y, uint8_t deadzone_per
     return TouchpadZone4; // Bottom-Right
 }
 
-void touchpad_zone_process_report(uint8_t *report, uint16_t len) {
+uint8_t touchpad_zone_process_report(uint8_t *report, uint16_t len) {
     if (report == nullptr || len < 40 || !s_config.enabled) {
-        return;
+        return 0;
     }
 
     s_report_ticks++;
@@ -251,6 +251,7 @@ void touchpad_zone_process_report(uint8_t *report, uint16_t len) {
 
     // Step 2b: Process swipe gesture detection if in swipe mode
     if (s_config.mode == TouchpadOperatingModeSwipe && s_config.gesture_sequence_len >= 2) {
+        uint8_t triggered_shortcut = 0;
         if (contact_active) {
             TouchpadZoneId zone = touchpad_zone_detect(current_x, current_y, s_config.deadzone_percent);
             if (zone != TouchpadZoneNone) {
@@ -274,7 +275,7 @@ void touchpad_zone_process_report(uint8_t *report, uint16_t len) {
                                 s_injected_ticks_remaining = 60;
                                 inject_target_button(report, len, s_injected_button);
                             } else {
-                                queue_shortcut_event(0x50);
+                                triggered_shortcut = 0x50;
                             }
                         }
                     }
@@ -284,7 +285,7 @@ void touchpad_zone_process_report(uint8_t *report, uint16_t len) {
             s_stroke_len = 0;
             s_gesture_triggered = false;
         }
-        return;
+        return triggered_shortcut;
     }
 
     // Step 3: Check physical click
@@ -293,7 +294,7 @@ void touchpad_zone_process_report(uint8_t *report, uint16_t len) {
         // Physical click released -> clear latch
         s_click_latched = false;
         s_latched_zone = TouchpadZoneNone;
-        return;
+        return 0;
     }
 
     // If click was not yet latched on previous frame, resolve the zone now
@@ -314,14 +315,14 @@ void touchpad_zone_process_report(uint8_t *report, uint16_t len) {
     // If latched zone is inside center deadzone (or no zone detected):
     // Pass through as standard Touchpad Click
     if (s_latched_zone == TouchpadZoneNone) {
-        return;
+        return 0;
     }
 
     // Remap the zone to target button
     const TouchpadZoneTargetButton target = s_config.zone_targets[s_latched_zone - 1];
     if (target == TouchpadTargetTouchpadClick) {
         // Explicitly configured as normal Touchpad Click passthrough
-        return;
+        return 0;
     }
 
     // Suppress physical touchpad click from host report
@@ -333,4 +334,5 @@ void touchpad_zone_process_report(uint8_t *report, uint16_t len) {
 
     // Inject remapped button
     inject_target_button(report, len, target);
+    return 0;
 }

@@ -3657,7 +3657,10 @@ void companion_process_controller_report(uint8_t *report, uint16_t len) {
         report[32] = 0x80;
         report[36] = 0x80;
     } else if (len >= 40) {
-        touchpad_zone_process_report(report, len);
+        const uint8_t shortcut = touchpad_zone_process_report(report, len);
+        if (shortcut != 0) {
+            queue_shortcut_event(shortcut);
+        }
     }
 }
 
