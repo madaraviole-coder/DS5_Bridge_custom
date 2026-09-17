@@ -3471,4 +3471,82 @@ describe('BridgeService', () => {
 
     await expect(service.setHapticsGain(80)).rejects.toThrow('did not advance settings_revision');
   });
+
+  it('automatically switches controller profiles when matching game gains focus and reverts on exit', async () => {
+    const fixture = createService();
+    tempDirs.push(fixture.tempDir);
+    const service = fixture.service;
+
+    const savedCustom = await service.saveControllerProfile('Cyberpunk Profile');
+    const cyberpunkProfileId = savedCustom.settings.selectedControllerProfileId;
+    expect(cyberpunkProfileId).not.toBe(DEFAULT_CONTROLLER_PROFILE_ID);
+
+    await service.selectControllerProfile(DEFAULT_CONTROLLER_PROFILE_ID);
+    expect(service.getSnapshot().settings.selectedControllerProfileId).toBe(DEFAULT_CONTROLLER_PROFILE_ID);
+
+    const afterSaveGame = await service.saveGameProfile({
+      name: 'Cyberpunk 2077',
+      executableName: 'Cyberpunk2077.exe',
+      controllerProfileId: cyberpunkProfileId
+    });
+    expect(afterSaveGame.settings.gameProfiles).toHaveLength(1);
+    expect(afterSaveGame.settings.gameProfiles[0]?.name).toBe('Cyberpunk 2077');
+
+    const monitor = (service as any).gameProfileMonitor;
+    monitor.emitForegroundChange({
+      processId: 1000,
+      name: 'Cyberpunk 2077',
+      executableName: 'Cyberpunk2077.exe',
+      windowTitle: 'Cyberpunk 2077'
+    });
+
+    const activeSnapshot = service.getSnapshot();
+    expect(activeSnapshot.settings.selectedControllerProfileId).toBe(cyberpunkProfileId);
+    expect(activeSnapshot.activeGame).toMatchObject({
+      name: 'Cyberpunk 2077',
+      executableName: 'Cyberpunk2077.exe'
+    });
+
+    monitor.emitForegroundChange({
+      processId: 0,
+      name: '',
+      executableName: '',
+      windowTitle: ''
+    });
+
+    const revertedSnapshot = service.getSnapshot();
+    expect(revertedSnapshot.settings.selectedControllerProfileId).toBe(DEFAULT_CONTROLLER_PROFILE_ID);
+    expect(revertedSnapshot.activeGame).toBeNull();
+  });
+
+  it('does not switch profiles when game auto-switch is disabled', async () => {
+    const fixture = createService();
+    tempDirs.push(fixture.tempDir);
+    const service = fixture.service;
+
+    const savedCustom = await service.saveControllerProfile('Racing Profile');
+    const racingProfileId = savedCustom.settings.selectedControllerProfileId;
+
+    await service.selectControllerProfile(DEFAULT_CONTROLLER_PROFILE_ID);
+
+    await service.saveGameProfile({
+      name: 'Forza Horizon',
+      executableName: 'ForzaHorizon5.exe',
+      controllerProfileId: racingProfileId
+    });
+
+    await service.setGameProfileAutoSwitchEnabled(false);
+    expect(service.getSnapshot().settings.gameProfileAutoSwitchEnabled).toBe(false);
+
+    const monitor = (service as any).gameProfileMonitor;
+    monitor.emitForegroundChange({
+      processId: 2000,
+      name: 'Forza Horizon 5',
+      executableName: 'ForzaHorizon5.exe'
+    });
+
+    const snapshot = service.getSnapshot();
+    expect(snapshot.settings.selectedControllerProfileId).toBe(DEFAULT_CONTROLLER_PROFILE_ID);
+    expect(snapshot.activeGame?.name).toBe('Forza Horizon');
+  });
 });

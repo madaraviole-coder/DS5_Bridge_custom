@@ -1,4 +1,5 @@
 #include "touchpad_zone.h"
+#include "companion.h"
 
 namespace {
 
@@ -10,7 +11,12 @@ TouchpadZoneConfig s_config = {
         TouchpadTargetCircle,   // Zone 2 (Top-Right)
         TouchpadTargetSquare,   // Zone 3 (Bottom-Left)
         TouchpadTargetCross     // Zone 4 (Bottom-Right)
-    }
+    },
+    TouchpadOperatingModeZones,
+    2,
+    { 1, 2, 0, 0, 0, 0 },
+    TouchpadGestureActionShortcut,
+    TouchpadTargetDisabled
 };
 
 // Continuous touch tracking state
@@ -20,6 +26,13 @@ uint16_t s_last_touch_x = 0;
 uint16_t s_last_touch_y = 0;
 TouchpadZoneId s_last_touch_zone = TouchpadZoneNone;
 bool s_has_recent_touch = false;
+
+// Swipe sequence tracking state
+uint8_t s_stroke[6] = {};
+uint8_t s_stroke_len = 0;
+bool s_gesture_triggered = false;
+TouchpadZoneTargetButton s_injected_button = TouchpadTargetDisabled;
+uint16_t s_injected_ticks_remaining = 0;
 
 // Click latching state to prevent contact flicker / loss on mechanical edge click
 bool s_click_latched = false;
@@ -100,6 +113,21 @@ void touchpad_zone_init() {
     s_config.zone_targets[1] = TouchpadTargetCircle;
     s_config.zone_targets[2] = TouchpadTargetSquare;
     s_config.zone_targets[3] = TouchpadTargetCross;
+    s_config.mode = TouchpadOperatingModeZones;
+    s_config.gesture_sequence_len = 2;
+    s_config.gesture_sequence[0] = 1;
+    s_config.gesture_sequence[1] = 2;
+    s_config.gesture_sequence[2] = 0;
+    s_config.gesture_sequence[3] = 0;
+    s_config.gesture_sequence[4] = 0;
+    s_config.gesture_sequence[5] = 0;
+    s_config.gesture_action_type = TouchpadGestureActionShortcut;
+    s_config.gesture_target_button = TouchpadTargetDisabled;
+
+    s_stroke_len = 0;
+    s_gesture_triggered = false;
+    s_injected_button = TouchpadTargetDisabled;
+    s_injected_ticks_remaining = 0;
 
     s_report_ticks = 0;
     s_last_touch_tick = 0;
@@ -120,6 +148,9 @@ void touchpad_zone_set_enabled(bool enabled) {
     if (!enabled) {
         s_click_latched = false;
         s_latched_zone = TouchpadZoneNone;
+        s_stroke_len = 0;
+        s_gesture_triggered = false;
+        s_injected_ticks_remaining = 0;
     }
 }
 
@@ -174,6 +205,11 @@ void touchpad_zone_process_report(uint8_t *report, uint16_t len) {
 
     s_report_ticks++;
 
+    if (s_injected_ticks_remaining > 0) {
+        inject_target_button(report, len, s_injected_button);
+        s_injected_ticks_remaining--;
+    }
+
     // Step 1: Extract touch information from point 0 and point 1
     bool contact_active = false;
     uint16_t current_x = 0;
@@ -211,6 +247,44 @@ void touchpad_zone_process_report(uint8_t *report, uint16_t len) {
         s_last_touch_tick = s_report_ticks;
         s_last_touch_zone = touchpad_zone_detect(current_x, current_y, s_config.deadzone_percent);
         s_has_recent_touch = true;
+    }
+
+    // Step 2b: Process swipe gesture detection if in swipe mode
+    if (s_config.mode == TouchpadOperatingModeSwipe && s_config.gesture_sequence_len >= 2) {
+        if (contact_active) {
+            TouchpadZoneId zone = touchpad_zone_detect(current_x, current_y, s_config.deadzone_percent);
+            if (zone != TouchpadZoneNone) {
+                if (s_stroke_len == 0) {
+                    s_stroke[0] = static_cast<uint8_t>(zone);
+                    s_stroke_len = 1;
+                } else if (s_stroke[s_stroke_len - 1] != static_cast<uint8_t>(zone) && s_stroke_len < 6) {
+                    s_stroke[s_stroke_len++] = static_cast<uint8_t>(zone);
+                    if (!s_gesture_triggered && s_stroke_len == s_config.gesture_sequence_len) {
+                        bool match = true;
+                        for (uint8_t i = 0; i < s_stroke_len; i++) {
+                            if (s_stroke[i] != s_config.gesture_sequence[i]) {
+                                match = false;
+                                break;
+                            }
+                        }
+                        if (match) {
+                            s_gesture_triggered = true;
+                            if (s_config.gesture_action_type == TouchpadGestureActionButton) {
+                                s_injected_button = s_config.gesture_target_button;
+                                s_injected_ticks_remaining = 60;
+                                inject_target_button(report, len, s_injected_button);
+                            } else {
+                                queue_shortcut_event(0x50);
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            s_stroke_len = 0;
+            s_gesture_triggered = false;
+        }
+        return;
     }
 
     // Step 3: Check physical click

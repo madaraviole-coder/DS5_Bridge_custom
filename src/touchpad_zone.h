@@ -37,10 +37,27 @@ inline bool touchpad_zone_valid_target(uint8_t target) {
     return target <= TouchpadTargetTouchpadClick;
 }
 
+enum TouchpadOperatingMode : uint8_t {
+    TouchpadOperatingModeZones = 0,
+    TouchpadOperatingModeSwipe = 1,
+};
+
+enum TouchpadGestureActionType : uint8_t {
+    TouchpadGestureActionShortcut = 0,
+    TouchpadGestureActionMedia = 1,
+    TouchpadGestureActionCustomKeys = 2,
+    TouchpadGestureActionButton = 3,
+};
+
 struct TouchpadZoneConfig {
     bool enabled;
     uint8_t deadzone_percent; // e.g. 50 (radius = 150px around 960, 540)
     TouchpadZoneTargetButton zone_targets[4]; // Index 0..3 corresponds to Zone 1..4
+    TouchpadOperatingMode mode;
+    uint8_t gesture_sequence_len;
+    uint8_t gesture_sequence[6];
+    TouchpadGestureActionType gesture_action_type;
+    TouchpadZoneTargetButton gesture_target_button;
 };
 
 // Initialize touchpad zone remapping with default configuration

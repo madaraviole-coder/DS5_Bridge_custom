@@ -1812,6 +1812,344 @@ button {
   width: min(460px, calc(100vw - 48px));
 }
 
+.game-profiles-modal {
+  width: min(640px, calc(100vw - 48px));
+  max-height: min(600px, calc(100vh - 48px));
+  display: flex;
+  flex-direction: column;
+}
+
+.game-profiles-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--surface-control-soft, rgba(255, 255, 255, 0.03));
+  border-bottom: 1px solid var(--surface-border);
+  gap: 12px;
+}
+
+.game-profiles-auto-switch-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12.5px;
+  font-weight: 560;
+  color: var(--text-primary);
+}
+
+.add-game-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  height: 30px;
+}
+
+.game-profiles-content {
+  padding: 14px;
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.game-profiles-empty {
+  text-align: center;
+  padding: 40px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.game-profiles-empty-icon {
+  color: var(--text-muted);
+  opacity: 0.45;
+}
+
+.game-profiles-empty strong {
+  font-size: 15px;
+  color: var(--text-primary);
+}
+
+.game-profiles-empty p {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  max-width: 380px;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.game-profiles-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.game-profile-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-radius: var(--control-radius);
+  border: 1px solid var(--surface-border);
+  background: var(--surface-control, rgba(255, 255, 255, 0.03));
+  transition: border-color 140ms ease, background 140ms ease;
+}
+
+.game-profile-item:hover {
+  border-color: var(--surface-border-strong, rgba(255, 255, 255, 0.15));
+  background: var(--surface-control-hover, rgba(255, 255, 255, 0.06));
+}
+
+.game-profile-item.active {
+  border-color: rgba(34, 197, 94, 0.45);
+  background: rgba(34, 197, 94, 0.07);
+}
+
+.game-profile-info {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.game-profile-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.game-profile-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.game-profile-exe-badge {
+  font-size: 11px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary);
+}
+
+.game-profile-active-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--success);
+  padding: 1px 7px;
+  border-radius: 10px;
+  background: rgba(34, 197, 94, 0.15);
+}
+
+.game-profile-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.game-profile-meta-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.game-profile-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.icon-action-button {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  border: 1px solid var(--surface-border);
+  background: var(--surface-control-soft, rgba(255, 255, 255, 0.04));
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color 140ms ease, background 140ms ease, color 140ms ease;
+}
+
+.icon-action-button:hover {
+  border-color: var(--accent-border, rgba(255, 255, 255, 0.25));
+  background: var(--surface-control-hover, rgba(255, 255, 255, 0.09));
+}
+
+.icon-action-button.danger:hover {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.game-profile-editor {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.game-profile-editor h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.game-profile-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.game-profile-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.game-profile-field-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.game-profile-field label {
+  font-size: 11.5px;
+  font-weight: 560;
+  color: var(--text-secondary);
+}
+
+.game-profile-field input,
+.game-profile-field select {
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 1px solid var(--surface-border);
+  background: var(--surface-control);
+  color: var(--text-primary);
+  font-size: 12.5px;
+}
+
+.game-profile-field input:focus,
+.game-profile-field select:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.game-profile-refresh-btn {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px;
+}
+
+.game-profile-refresh-btn:hover {
+  text-decoration: underline;
+}
+
+.game-profile-refresh-btn .spin {
+  animation: spin 1s linear infinite;
+}
+
+.game-profile-scan-hint {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  font-style: italic;
+  padding: 4px 0;
+}
+
+.game-profile-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.kitsune-bar-modal {
+  width: min(440px, calc(100vw - 48px));
+}
+
+.kitsune-bar-modal-body {
+  padding: 18px 16px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: center;
+  text-align: center;
+}
+
+.kitsune-bar-badge-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.ps-home-large {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: rgba(255, 122, 0, 0.14);
+  border: 1px solid rgba(255, 122, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ps-home-large img {
+  width: 24px;
+  height: 24px;
+}
+
+.kitsune-bar-badge-hero-text {
+  font-size: 13px;
+  font-weight: 700;
+  color: #ff7a00;
+}
+
+.kitsune-bar-info-text {
+  font-size: 12.5px;
+  color: var(--text-primary);
+  line-height: 1.45;
+  margin: 0;
+}
+
+.kitsune-bar-features {
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: var(--surface-control-soft, rgba(255, 255, 255, 0.04));
+  padding: 12px 16px 12px 28px;
+  border-radius: 8px;
+  border: 1px solid var(--surface-border);
+  margin: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .startup-tutorial-backdrop {
   z-index: 120;
   background: var(--app-bg);
@@ -3482,6 +3820,115 @@ button {
 
 .overview-fields .signal-value.idle {
   color: var(--text-control);
+}
+
+.overview-card.overview-card-interactive {
+  cursor: default;
+}
+
+.overview-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.overview-card .overview-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ff7a00;
+  background: rgba(255, 122, 0, 0.14);
+  flex-shrink: 0;
+}
+
+.overview-card .overview-icon.kitsune-icon {
+  padding: 8px;
+}
+
+.kitsune-card-logo {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
+
+.overview-card-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.overview-card-label {
+  font-size: 11px;
+  font-weight: 560;
+  color: var(--text-secondary);
+  text-transform: capitalize;
+  letter-spacing: 0.02em;
+}
+
+.overview-card-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.overview-card-badge-note {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--success);
+}
+
+.overview-card-footer {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.overview-card-switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.overview-card-switch-label {
+  font-size: 12px;
+  font-weight: 560;
+  color: var(--text-secondary);
+}
+
+.overview-card-action-button {
+  width: 100%;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--surface-border);
+  border-radius: 6px;
+  background: var(--surface-control-soft, rgba(255, 255, 255, 0.04));
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+
+.overview-card-action-button:hover {
+  background: var(--surface-control-hover, rgba(255, 255, 255, 0.09));
+  border-color: var(--accent-border, rgba(255, 255, 255, 0.22));
+}
+
+.overview-technical-status .overview-chip svg {
+  color: var(--accent);
 }
 
 .overview-control-grid {
@@ -9746,6 +10193,16 @@ input[type="range"]:disabled::-webkit-slider-thumb {
   background: #ffffff;
 }
 
+.switch.switch-orange.on {
+  border-color: #ff7a00;
+  background: #ff7a00;
+}
+
+.switch.switch-orange.on span {
+  transform: translateX(22px);
+  background: #ffffff;
+}
+
 .switch:disabled,
 button:disabled,
 input:disabled,
@@ -9951,4 +10408,864 @@ input[type="color"]::-webkit-color-swatch {
 .bridge-rename-input:focus {
   box-shadow: inset 0 0 0 1px var(--accent-border-strong);
 }
+
+/* ==========================================================================
+   Touchpad Swipe Gesture Action Configuration
+   ========================================================================== */
+
+.gesture-presets-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-top: 4px;
+}
+
+.touchpad-gesture-action-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: var(--surface-control-soft);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--card-radius);
+  padding: 18px;
+  box-shadow: var(--shadow-panel);
+}
+
+.touchpad-gesture-action-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.touchpad-gesture-header-titles h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+}
+
+.touchpad-gesture-header-titles .touchpad-subname {
+  margin: 3px 0 0 0;
+  display: inline-block;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.gesture-sequence-highlight {
+  color: #ff7a00;
+  font-weight: 750;
+}
+
+.touchpad-gesture-test-btn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 34px;
+  padding: 0 14px;
+  border-radius: var(--control-radius);
+  border: 1px solid rgba(255, 122, 0, 0.45);
+  background: rgba(255, 122, 0, 0.12);
+  color: #ff9933;
+  font-size: 12.5px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.touchpad-gesture-test-btn:hover {
+  background: rgba(255, 122, 0, 0.22);
+  border-color: #ff7a00;
+  transform: translateY(-1px);
+  box-shadow: 0 0 12px rgba(255, 122, 0, 0.35);
+}
+
+.touchpad-gesture-test-btn.success {
+  background: rgba(46, 213, 115, 0.18);
+  border-color: #2ed573;
+  color: #2ed573;
+}
+
+.touchpad-gesture-category-tabs {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid var(--surface-divider);
+  padding-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.touchpad-gesture-category-tab {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px;
+  border-radius: var(--control-radius);
+  border: 1px solid var(--surface-border);
+  background: var(--surface-control);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.touchpad-gesture-category-tab:hover {
+  background: var(--surface-control-hover);
+  border-color: var(--surface-border-strong);
+  color: var(--text-strong);
+}
+
+.touchpad-gesture-category-tab.active {
+  border-color: #ff7a00;
+  background: rgba(255, 122, 0, 0.12);
+  color: #ff9933;
+  box-shadow: 0 0 8px rgba(255, 122, 0, 0.2);
+}
+
+.touchpad-gesture-options-panel {
+  min-height: 140px;
+}
+
+.touchpad-gesture-shortcuts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 10px;
+}
+
+.gesture-action-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  border-radius: var(--control-radius);
+  border: 1px solid var(--surface-border);
+  background: var(--surface-control);
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.gesture-action-card:hover {
+  background: var(--surface-control-hover);
+  border-color: var(--surface-border-strong);
+  transform: translateY(-1px);
+}
+
+.gesture-action-card.selected {
+  border-color: #ff7a00;
+  background: rgba(255, 122, 0, 0.1);
+  box-shadow: 0 0 10px rgba(255, 122, 0, 0.25), inset 0 0 0 1px rgba(255, 122, 0, 0.35);
+}
+
+.gesture-action-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.gesture-action-name {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.gesture-action-key {
+  font-size: 10.5px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--surface-control-soft);
+  border: 1px solid var(--surface-border);
+  color: #ff9933;
+  font-family: monospace;
+}
+
+.gesture-action-desc {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.touchpad-gesture-buttons-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 8px;
+}
+
+.gesture-button-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--control-radius);
+  border: 1px solid var(--surface-border);
+  background: var(--surface-control);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.gesture-button-card:hover {
+  background: var(--surface-control-hover);
+  border-color: var(--surface-border-strong);
+}
+
+.gesture-button-card.selected {
+  border-color: #ff7a00;
+  background: rgba(255, 122, 0, 0.12);
+  color: #ff9933;
+}
+
+.gesture-button-glyph {
+  font-size: 16px;
+  font-weight: 750;
+  color: #ff7a00;
+}
+
+.gesture-button-label {
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--text-primary);
+}
+
+.touchpad-gesture-custom-keys-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 0;
+}
+
+.gesture-input-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--text-secondary);
+}
+
+.gesture-input-text {
+  height: 38px;
+  padding: 0 12px;
+  border-radius: var(--control-radius);
+  border: 1px solid var(--surface-border);
+  background: var(--surface-control);
+  color: var(--text-primary);
+  font-size: 13.5px;
+  font-family: monospace;
+  font-weight: 600;
+}
+
+.gesture-input-text:focus {
+  border-color: #ff7a00;
+  box-shadow: 0 0 0 1px #ff7a00;
+  outline: none;
+}
+
+.gesture-input-hint {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.gesture-input-hint code {
+  padding: 1px 4px;
+  background: var(--surface-control);
+  border-radius: 3px;
+  font-size: 11px;
+}
+
+.touchpad-gesture-summary-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  border-radius: var(--control-radius);
+  background: rgba(255, 122, 0, 0.08);
+  border: 1px solid rgba(255, 122, 0, 0.25);
+  margin-top: 4px;
+}
+
+.gesture-summary-icon {
+  color: #ff7a00;
+  display: flex;
+  align-items: center;
+}
+
+.gesture-summary-info {
+  flex: 1;
+}
+
+.gesture-summary-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+
+.gesture-summary-title strong {
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.gesture-summary-desc {
+  margin: 2px 0 0 0;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.gesture-summary-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: #2ed573;
+  font-weight: 650;
+}
+
+.gesture-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #2ed573;
+  box-shadow: 0 0 6px rgba(46, 213, 115, 0.6);
+}
+
+/* ==========================================================================
+   Turbo Mode Multi-Actions Redesign
+   ========================================================================== */
+
+.multi-actions-container {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.multi-actions-top-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-bottom: 1px solid var(--surface-divider);
+  padding-bottom: 12px;
+}
+
+.multi-actions-header-tabs {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.multi-actions-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 14.5px;
+  font-weight: 650;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s ease;
+}
+
+.multi-actions-tab:hover {
+  color: var(--text-primary);
+}
+
+.multi-actions-tab.active {
+  color: #ff7a00;
+  border-bottom-color: #ff7a00;
+  font-weight: 750;
+}
+
+.multi-actions-subtitle {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+
+.multi-actions-grid {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: 18px;
+}
+
+@media (max-width: 900px) {
+  .multi-actions-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.multi-actions-card {
+  background: var(--surface-control-soft);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--card-radius);
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: var(--shadow-panel);
+}
+
+.action-library-card {
+  /* Left column: Action configuration library */
+}
+
+.trigger-assignments-card {
+  /* Right column: Trigger assignments list */
+}
+
+.action-library-header h4,
+.trigger-assignments-header h4 {
+  margin: 0;
+  font-size: 14.5px;
+  font-weight: 750;
+  color: var(--text-primary);
+}
+
+.action-library-sub,
+.trigger-assignments-sub {
+  margin: 3px 0 0 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.action-profile-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.action-profile-select-wrap {
+  flex: 1;
+}
+
+.action-profile-select-wrap .custom-select-button {
+  height: 36px;
+  border-radius: var(--control-radius);
+  font-weight: 650;
+}
+
+.action-profile-add-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--control-radius);
+  border: 1px solid var(--surface-border);
+  background: var(--surface-control);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.action-profile-add-btn:hover {
+  background: var(--surface-control-hover);
+  border-color: #ff7a00;
+  color: #ff7a00;
+}
+
+.action-config-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.action-config-label {
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--text-secondary);
+  min-width: 60px;
+}
+
+.action-config-control {
+  flex: 1;
+}
+
+.action-config-control .custom-select-button {
+  height: 34px;
+  border-radius: var(--control-radius);
+}
+
+.action-interval-stepper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--surface-control);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--control-radius);
+  padding: 2px 4px;
+}
+
+.interval-step-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.interval-step-btn:hover {
+  background: var(--surface-control-hover);
+  color: var(--text-primary);
+}
+
+.interval-value-display {
+  min-width: 70px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 750;
+  color: var(--text-primary);
+  font-family: monospace;
+}
+
+.deterministic-output-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--surface-control);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--control-radius);
+  padding: 12px;
+}
+
+.deterministic-output-box h5 {
+  margin: 0;
+  font-size: 11.5px;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.deterministic-output-badges {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.deterministic-pill {
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: var(--surface-control-soft);
+  border: 1px solid var(--surface-border);
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 550;
+}
+
+.action-library-humanize-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--surface-divider);
+}
+
+.humanize-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.humanize-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--text-primary);
+}
+
+.humanize-title svg {
+  color: #ff7a00;
+}
+
+.humanize-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.trigger-assignments-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.new-trigger-wrap {
+  position: relative;
+}
+
+.new-trigger-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 14px;
+  border-radius: var(--control-radius);
+  border: 1px solid rgba(255, 122, 0, 0.45);
+  background: rgba(255, 122, 0, 0.12);
+  color: #ff9933;
+  font-size: 12.5px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.new-trigger-btn:hover {
+  background: rgba(255, 122, 0, 0.22);
+  border-color: #ff7a00;
+  transform: translateY(-1px);
+}
+
+.new-trigger-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 100;
+  min-width: 240px;
+  background: var(--surface-card);
+  border: 1px solid var(--surface-border-strong);
+  border-radius: var(--card-radius);
+  padding: 12px;
+  box-shadow: var(--shadow-flyout);
+}
+
+.popover-heading {
+  font-size: 11.5px;
+  font-weight: 750;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.popover-buttons-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+
+.popover-btn-choice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: var(--control-radius);
+  border: 1px solid var(--surface-border);
+  background: var(--surface-control);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.popover-btn-choice:hover:not(:disabled) {
+  background: var(--surface-control-hover);
+  border-color: #ff7a00;
+  color: #ff7a00;
+}
+
+.popover-btn-choice:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.popover-glyph {
+  font-weight: 750;
+  color: #ff7a00;
+}
+
+.trigger-cards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 180px;
+}
+
+.empty-triggers-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 40px 20px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.empty-triggers-placeholder .empty-icon {
+  color: rgba(255, 122, 0, 0.4);
+}
+
+.empty-triggers-placeholder p {
+  margin: 0;
+  font-size: 13px;
+}
+
+.trigger-assignment-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  border-radius: var(--card-radius);
+  border: 1px solid var(--surface-border);
+  background: var(--surface-control);
+  box-shadow: var(--shadow-panel);
+}
+
+.trigger-item-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.trigger-glyph-badge {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 2px solid #ff7a00;
+  background: rgba(255, 122, 0, 0.12);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 750;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 10px rgba(255, 122, 0, 0.25);
+  flex-shrink: 0;
+}
+
+.trigger-starts-when {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.starts-when-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.starts-when-select-wrap .custom-select-button {
+  height: 32px;
+  padding: 0 10px;
+  border-radius: var(--control-radius);
+  font-size: 12px;
+}
+
+.trigger-item-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.trigger-action-pill {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 122, 0, 0.45);
+  background: rgba(255, 122, 0, 0.12);
+  color: #ff9933;
+  font-size: 12.5px;
+  font-weight: 650;
+  box-shadow: 0 0 8px rgba(255, 122, 0, 0.18);
+}
+
+.trigger-action-pill .pill-zap {
+  color: #ff7a00;
+}
+
+.trigger-delete-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--control-radius);
+  border: 1px solid var(--surface-border);
+  background: var(--surface-control-soft);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.trigger-delete-btn:hover {
+  background: rgba(255, 71, 87, 0.15);
+  border-color: #ff4757;
+  color: #ff4757;
+}
+
+.turbo-tester-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 18px;
+  border-radius: var(--card-radius);
+  background: var(--surface-control-soft);
+  border: 1px solid var(--surface-border);
+  flex-wrap: wrap;
+}
+
+.tester-bar-master {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.master-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.master-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.tester-bar-interactive {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.tester-pulse-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tester-pulse-count {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.tester-pulse-count strong {
+  color: var(--text-primary);
+  font-size: 13.5px;
+}
+
 

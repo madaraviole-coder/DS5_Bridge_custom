@@ -20,9 +20,11 @@ import type {
   PicoFirmwareActionResult,
   UiThemePreset,
   WindowsDeviceCleanupResult,
-  TurboSettings
+  TurboSettings,
+  GameProfile,
+  RunningProcessInfo
 } from './shared/types';
-import type { TouchpadSettings } from './shared/touchpad-gestures';
+import type { TouchpadGesture, TouchpadSettings } from './shared/touchpad-gestures';
 
 const api = {
   getStatus: (): Promise<BridgeSnapshot> => ipcRenderer.invoke('bridge:getStatus'),
@@ -212,6 +214,9 @@ const api = {
   setTouchpadZoneConfig: (settings: TouchpadSettings): Promise<BridgeSnapshot> => (
     ipcRenderer.invoke('bridge:setTouchpadZoneConfig', settings)
   ),
+  executeTouchpadGesture: (gesture: TouchpadGesture): Promise<void> => (
+    ipcRenderer.invoke('bridge:executeTouchpadGesture', gesture)
+  ),
   setTurboConfig: (settings: TurboSettings): Promise<BridgeSnapshot> => (
     ipcRenderer.invoke('bridge:setTurboConfig', settings)
   ),
@@ -232,6 +237,21 @@ const api = {
   ),
   restoreButtonRemappingDefaults: (): Promise<BridgeSnapshot> => (
     ipcRenderer.invoke('bridge:restoreButtonRemappingDefaults')
+  ),
+  setGameProfileAutoSwitchEnabled: (enabled: boolean): Promise<BridgeSnapshot> => (
+    ipcRenderer.invoke('bridge:setGameProfileAutoSwitchEnabled', enabled)
+  ),
+  saveGameProfile: (profile: Omit<GameProfile, 'id'> & { id?: string }): Promise<BridgeSnapshot> => (
+    ipcRenderer.invoke('bridge:saveGameProfile', profile)
+  ),
+  updateGameProfile: (profile: GameProfile): Promise<BridgeSnapshot> => (
+    ipcRenderer.invoke('bridge:updateGameProfile', profile)
+  ),
+  deleteGameProfile: (profileId: string): Promise<BridgeSnapshot> => (
+    ipcRenderer.invoke('bridge:deleteGameProfile', profileId)
+  ),
+  getRunningProcesses: (): Promise<RunningProcessInfo[]> => (
+    ipcRenderer.invoke('bridge:getRunningProcesses')
   ),
   setChordConfiguration: (functions: ChordFunction[], assignments: ChordAssignment[]): Promise<BridgeSnapshot> => (
     ipcRenderer.invoke('bridge:setChordConfiguration', functions, assignments)

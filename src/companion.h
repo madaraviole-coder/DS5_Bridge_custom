@@ -148,5 +148,6 @@ bool companion_apply_trigger_effect_intensity(uint8_t *payload, uint16_t len);
 bool companion_lightbar_override_enabled();
 uint16_t companion_get_report(uint8_t report_id, hid_report_type_t report_type, uint8_t *buffer, uint16_t reqlen);
 void companion_set_report(uint8_t report_id, hid_report_type_t report_type, uint8_t const *buffer, uint16_t bufsize);
+void queue_shortcut_event(uint8_t event);
 
 #endif // DS5_BRIDGE_COMPANION_H

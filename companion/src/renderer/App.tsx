@@ -17,6 +17,7 @@ import {
   IconBolt as Zap,
   IconBooks,
   IconBulb,
+  IconCards,
   IconCheck as Check,
   IconChevronDown as ChevronDown,
   IconCircleCheck,
@@ -24,6 +25,7 @@ import {
   IconDeviceFloppy as Save,
   IconDeviceGamepad2,
   IconDeviceGamepad3,
+  IconDeviceLaptop as Laptop,
   IconExternalLink,
   IconEyeOff,
   IconFlame,
@@ -144,14 +146,22 @@ import type {
   TriggerTestMode,
   TriggerTestTarget
 } from '../shared/protocol';
-import type { AudioHapticsSession, BridgeSnapshot, TurboSettings, UiScalePercent, UiThemePreset } from '../shared/types';
+import type { AudioHapticsSession, BridgeSnapshot, GameProfile, RunningProcessInfo, TurboSettings, UiScalePercent, UiThemePreset } from '../shared/types';
 import {
   DEFAULT_TOUCHPAD_SETTINGS,
   DEFAULT_TOUCHPAD_ZONE_MAPPINGS,
+  GESTURE_BUTTON_ACTIONS,
+  GESTURE_MEDIA_ACTIONS,
+  GESTURE_SEQUENCE_PRESETS,
+  GESTURE_WINDOWS_SHORTCUTS,
+  TouchpadGesture,
   TouchpadMode,
   TouchpadSettings,
   TouchpadZoneId,
   TouchpadZoneTarget,
+  formatGestureSequence,
+  getGestureActionDescription,
+  getGestureActionLabel,
   loadTouchpadSettings,
   saveTouchpadSettings
 } from '../shared/touchpad-gestures';
@@ -3133,6 +3143,11 @@ export function App() {
       return [1, 2];
     }
   });
+  const [touchpadGestureTestFeedback, setTouchpadGestureTestFeedback] = useState<string | null>(null);
+  const [turboNewTriggerPickerOpen, setTurboNewTriggerPickerOpen] = useState(false);
+  const [selectedTurboActionProfile, setSelectedTurboActionProfile] = useState('Turbo 1');
+  const [turboRepeatMode, setTurboRepeatMode] = useState<'hold' | 'toggle' | 'press'>('hold');
+  const [turboStartsWhenMode, setTurboStartsWhenMode] = useState<'pressed' | 'held' | 'double'>('pressed');
   const [remapProfileDialogMode, setRemapProfileDialogMode] = useState<RemapProfileDialogMode | null>(null);
   const [remapProfileNameDraft, setRemapProfileNameDraft] = useState('');
   const [selectedChordFunctionId, setSelectedChordFunctionId] = useState('');
@@ -3167,6 +3182,12 @@ export function App() {
   const [showKitsuneInputPromotion, setShowKitsuneInputPromotion] = useState(false);
   const [showClassicRumbleControl, setShowClassicRumbleControl] = useState(false);
   const [showMicrophoneControl, setShowMicrophoneControl] = useState(false);
+  const [isGameProfilesModalOpen, setIsGameProfilesModalOpen] = useState(false);
+  const [editingGameProfile, setEditingGameProfile] = useState<Partial<GameProfile> | null>(null);
+  const [gameProfileDeleteConfirmId, setGameProfileDeleteConfirmId] = useState<string | null>(null);
+  const [runningProcesses, setRunningProcesses] = useState<RunningProcessInfo[]>([]);
+  const [runningProcessesLoading, setRunningProcessesLoading] = useState(false);
+  const [isKitsuneBarInfoOpen, setIsKitsuneBarInfoOpen] = useState(false);
   const [lastRemapControllerType, setLastRemapControllerType] = useState<KnownControllerType>(storedRemapControllerType);
   const [windowDragging, setWindowDragging] = useState(false);
   const [testLocked, setTestLocked] = useState(false);
@@ -5642,6 +5663,99 @@ export function App() {
     }));
   }
 
+  function handleSelectGestureSequencePreset(presetSeq: number[]) {
+    setGestureSequence(presetSeq);
+    updateTouchpadSettings((s) => ({
+      ...s,
+      gestures: s.gestures.map((g, idx) => (idx === 0 ? { ...g, sequence: presetSeq } : g))
+    }));
+    handlePlayGesturePreview();
+  }
+
+  function handleUpdateGestureActionType(actionType: TouchpadGesture['actionType']) {
+    let defaultValue = '';
+    if (actionType === 'windows-shortcut') defaultValue = 'toggle-hdr';
+    else if (actionType === 'media') defaultValue = 'play-pause';
+    else if (actionType === 'button') defaultValue = 'triangle';
+    else if (actionType === 'custom-keys') defaultValue = 'CTRL+SHIFT+O';
+
+    updateTouchpadSettings((s) => ({
+      ...s,
+      gestures: s.gestures.map((g, idx) => (idx === 0 ? { ...g, actionType, actionValue: defaultValue } : g))
+    }));
+  }
+
+  function handleUpdateGestureActionValue(actionValue: string) {
+    updateTouchpadSettings((s) => ({
+      ...s,
+      gestures: s.gestures.map((g, idx) => (idx === 0 ? { ...g, actionValue } : g))
+    }));
+  }
+
+  function handleUpdateGestureName(name: string) {
+    updateTouchpadSettings((s) => ({
+      ...s,
+      gestures: s.gestures.map((g, idx) => (idx === 0 ? { ...g, name } : g))
+    }));
+  }
+
+  async function handleTestTouchpadGesture() {
+    const currentGesture = touchpadSettings.gestures[0];
+    if (!currentGesture) return;
+    try {
+      if (window.bridge?.executeTouchpadGesture) {
+        await window.bridge.executeTouchpadGesture(currentGesture);
+      }
+      setTouchpadGestureTestFeedback('Action Executed!');
+      window.setTimeout(() => setTouchpadGestureTestFeedback(null), 2200);
+    } catch {
+      setTouchpadGestureTestFeedback('Failed to execute');
+      window.setTimeout(() => setTouchpadGestureTestFeedback(null), 2200);
+    }
+  }
+
+  const zoneCoords: Record<TouchpadZoneId, { x: number; y: number }> = {
+    1: { x: 96, y: 48 },
+    2: { x: 304, y: 48 },
+    3: { x: 96, y: 158 },
+    4: { x: 304, y: 158 }
+  };
+
+  const swipePathD = useMemo(() => {
+    if (gestureSequence.length < 2) return '';
+    let d = `M ${zoneCoords[gestureSequence[0] as TouchpadZoneId]?.x ?? 96} ${zoneCoords[gestureSequence[0] as TouchpadZoneId]?.y ?? 48}`;
+    for (let i = 1; i < gestureSequence.length; i++) {
+      const pt = zoneCoords[gestureSequence[i] as TouchpadZoneId];
+      if (pt) {
+        d += ` L ${pt.x} ${pt.y}`;
+      }
+    }
+    return d;
+  }, [gestureSequence]);
+
+  const turboIntervalMs = Math.round(1000 / Math.max(2, Math.min(30, turboSettings.speedCps)));
+
+  function handleSetTurboInterval(intervalMs: number) {
+    const clamped = Math.max(33, Math.min(500, Math.round(intervalMs)));
+    const speedCps = Math.max(2, Math.min(30, Math.round(1000 / clamped)));
+    handleSetTurboSpeed(speedCps);
+  }
+
+  function handleAddTurboTrigger(mask: number) {
+    updateTurboSettings((prev) => ({
+      ...prev,
+      buttonsMask: prev.buttonsMask | mask
+    }));
+    setTurboNewTriggerPickerOpen(false);
+  }
+
+  function handleRemoveTurboTrigger(mask: number) {
+    updateTurboSettings((prev) => ({
+      ...prev,
+      buttonsMask: prev.buttonsMask & ~mask
+    }));
+  }
+
   function updateTurboSettings(updater: (prev: TurboSettings) => TurboSettings) {
     setTurboSettings((prev) => {
       const next = updater(prev);
@@ -5773,6 +5887,62 @@ export function App() {
       closeRemapProfileDialog();
       void runAction('remap-delete-profile', () => window.bridge.deleteButtonRemappingProfile(selectedRemapProfile.id));
     }
+  }
+
+  async function refreshRunningProcesses() {
+    setRunningProcessesLoading(true);
+    try {
+      const list = await window.bridge.getRunningProcesses();
+      setRunningProcesses(list);
+    } catch (err) {
+      console.error('Failed to get running processes', err);
+    } finally {
+      setRunningProcessesLoading(false);
+    }
+  }
+
+  function openAddGameProfile() {
+    setEditingGameProfile({
+      name: '',
+      executableName: '',
+      controllerProfileId: selectedControllerProfileId,
+      buttonRemappingProfileId: selectedRemapProfileId
+    });
+    void refreshRunningProcesses();
+  }
+
+  function openEditGameProfile(profile: GameProfile) {
+    setEditingGameProfile({ ...profile });
+    void refreshRunningProcesses();
+  }
+
+  function closeGameProfileForm() {
+    setEditingGameProfile(null);
+  }
+
+  async function saveCurrentGameProfile() {
+    if (!editingGameProfile || !editingGameProfile.name?.trim() || !editingGameProfile.executableName?.trim()) {
+      return;
+    }
+    const candidate: GameProfile = {
+      id: editingGameProfile.id || '',
+      name: editingGameProfile.name.trim(),
+      executableName: editingGameProfile.executableName.trim(),
+      controllerProfileId: editingGameProfile.controllerProfileId || DEFAULT_CONTROLLER_PROFILE_ID,
+      buttonRemappingProfileId: editingGameProfile.buttonRemappingProfileId || null
+    };
+
+    if (candidate.id) {
+      await runAction('update-game-profile', () => window.bridge.updateGameProfile(candidate));
+    } else {
+      await runAction('save-game-profile', () => window.bridge.saveGameProfile(candidate));
+    }
+    setEditingGameProfile(null);
+  }
+
+  async function confirmDeleteGameProfile(id: string) {
+    await runAction('delete-game-profile', () => window.bridge.deleteGameProfile(id));
+    setGameProfileDeleteConfirmId(null);
   }
 
   function commitChordConfiguration(
@@ -7405,79 +7575,100 @@ export function App() {
             </div>
 
             <div className="overview-card-grid">
-              <button className="overview-card" type="button" onClick={() => selectControlTab('system')}>
-                <div className="overview-card-title">
-                  <span className="feature-icon overview-icon"><Activity size={19} /></span>
-                  <h3>Connection</h3>
-                </div>
-                <div className="overview-fields">
-                  <div>
-                    <span>USB</span>
-                    <strong className={overviewConnectionStatus === 'Stable' ? 'success-value' : ''}>
-                      {overviewConnectionStatus}
+              <div className="overview-card overview-card-interactive" role="region" aria-label="Active Game">
+                <div className="overview-card-header">
+                  <span className="feature-icon overview-icon"><IconDeviceGamepad2 size={19} /></span>
+                  <div className="overview-card-meta">
+                    <span className="overview-card-label">Active Game</span>
+                    <strong
+                      className="overview-card-value"
+                      title={snapshot.activeGame ? `${snapshot.activeGame.name} (${snapshot.activeGame.executableName})` : undefined}
+                    >
+                      {snapshot.activeGame?.name || 'No game active'}
                     </strong>
                   </div>
-                  <div>
-                    <span>Polling Rate</span>
-                    <strong>{connected && pollingRateControlSupported ? pollingRateLabel : '--'}</strong>
-                  </div>
                 </div>
-              </button>
+                <div className="overview-card-footer overview-card-switch-row">
+                  <span className="overview-card-switch-label">Auto-switch</span>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={snapshot.settings.gameProfileAutoSwitchEnabled}
+                    aria-label="Auto-switch game profiles"
+                    className={`switch switch-orange ${snapshot.settings.gameProfileAutoSwitchEnabled ? 'on' : ''}`}
+                    disabled={pendingAction !== null}
+                    onClick={() => void runAction('game-profile-autoswitch', () => (
+                      window.bridge.setGameProfileAutoSwitchEnabled(!snapshot.settings.gameProfileAutoSwitchEnabled)
+                    ))}
+                  >
+                    <span />
+                  </button>
+                </div>
+              </div>
 
-              <button className="overview-card" type="button" onClick={() => selectControlTab('audio')}>
-                <div className="overview-card-title">
-                  <span className="feature-icon overview-icon"><IconBinary size={26} /></span>
-                  <h3>Audio Path</h3>
-                </div>
-                <div className="overview-fields">
-                  <div>
-                    <span>Route</span>
-                    <strong className={overviewAudioPathState === 'Pico Local' ? 'success-value' : ''}>
-                      {overviewAudioPathState}
+              <div className="overview-card overview-card-interactive" role="region" aria-label="Active Profile">
+                <div className="overview-card-header">
+                  <span className="feature-icon overview-icon"><IconCards size={19} /></span>
+                  <div className="overview-card-meta">
+                    <span className="overview-card-label">Active Profile</span>
+                    <strong className="overview-card-value" title={selectedControllerProfile?.name}>
+                      {selectedControllerProfile?.name ?? 'Custom'}
                     </strong>
                   </div>
-                  <div>
-                    <span>Status</span>
-                    <strong>{overviewAudioPathDetail}</strong>
-                  </div>
                 </div>
-              </button>
+                <div className="overview-card-footer">
+                  <button
+                    type="button"
+                    className="overview-card-action-button"
+                    onClick={() => selectControlTab('system')}
+                  >
+                    Edit Profile
+                  </button>
+                </div>
+              </div>
 
-              <button className="overview-card" type="button" onClick={() => selectControlTab('audio')}>
-                <div className="overview-card-title">
-                  <span className="feature-icon overview-icon"><Volume2 size={19} /></span>
-                  <h3>Audio</h3>
-                </div>
-                <div className="overview-fields">
-                  <div>
-                    <span>Route</span>
-                    <strong>{overviewAudioOutputLabel}</strong>
-                  </div>
-                  <div>
-                    <span>Volume</span>
-                    <strong>{overviewSpeakerVolumeValue}</strong>
-                  </div>
-                </div>
-              </button>
-
-              <button className="overview-card" type="button" onClick={() => selectControlTab('system')}>
-                <div className="overview-card-title">
-                  <span className="feature-icon overview-icon"><IconBluetooth size={19} /></span>
-                  <h3>Wireless</h3>
-                </div>
-                <div className="overview-fields">
-                  <div>
-                    <span>Signal</span>
-                    <strong className={`signal-value ${overviewSignalTone}`} title={overviewSignalTitle}>
-                      {overviewSignalLabel}
+              <div className="overview-card overview-card-interactive" role="region" aria-label="Library">
+                <div className="overview-card-header">
+                  <span className="feature-icon overview-icon"><IconBooks size={19} /></span>
+                  <div className="overview-card-meta">
+                    <span className="overview-card-label">Library</span>
+                    <strong className="overview-card-value">
+                      {`${snapshot.settings.gameProfiles.length} ${snapshot.settings.gameProfiles.length === 1 ? 'game' : 'games'}`}
                     </strong>
                   </div>
-                  <div>
-                    <span>Firmware</span>
-                    <strong>{overviewFirmwareLabel}</strong>
+                </div>
+                <div className="overview-card-footer">
+                  <button
+                    type="button"
+                    className="overview-card-action-button"
+                    onClick={() => setIsGameProfilesModalOpen(true)}
+                  >
+                    Game Profiles
+                  </button>
+                </div>
+              </div>
+
+              <div className="overview-card overview-card-interactive" role="region" aria-label="Kitsune Bar">
+                <div className="overview-card-header">
+                  <span className="feature-icon overview-icon kitsune-icon">
+                    <img src={kitsuneInputLogoUrl} alt="" className="kitsune-card-logo" />
+                  </span>
+                  <div className="overview-card-meta">
+                    <span className="overview-card-label">Kitsune Bar</span>
+                    <strong className="overview-card-value">Quick Overlay</strong>
+                    <span className="overview-card-badge-note">PS Home Button</span>
                   </div>
                 </div>
-              </button>
+                <div className="overview-card-footer">
+                  <button
+                    type="button"
+                    className="overview-card-action-button"
+                    onClick={() => setIsKitsuneBarInfoOpen(true)}
+                  >
+                    Open Kitsune Bar
+                  </button>
+                </div>
+              </div>
             </div>
 
             <div className="overview-control-grid">
@@ -7818,6 +8009,46 @@ export function App() {
                       Off
                     </button>
                   )}
+                </div>
+              </div>
+              <div className="overview-status-group overview-technical-status">
+                <div className="overview-status-heading">
+                  <Activity size={15} />
+                  <span>Technical Status</span>
+                </div>
+                <div className="overview-chip-row">
+                  <button
+                    className={`overview-chip ${overviewConnectionStatus === 'Stable' ? 'active success' : 'muted'}`}
+                    type="button"
+                    title="USB connection status"
+                    onClick={() => selectControlTab('system')}
+                  >
+                    <IconUsb size={14} /> USB {overviewConnectionStatus}
+                  </button>
+                  <button
+                    className={`overview-chip ${connected ? 'active' : 'muted'}`}
+                    type="button"
+                    title={overviewSignalTitle}
+                    onClick={() => selectControlTab('system')}
+                  >
+                    <IconBluetooth size={14} /> {overviewSignalLabel}
+                  </button>
+                  <button
+                    className="overview-chip active"
+                    type="button"
+                    title="Polling rate"
+                    onClick={() => selectControlTab('system')}
+                  >
+                    <Activity size={14} /> {connected && pollingRateControlSupported ? pollingRateLabel : '1000 Hz'}
+                  </button>
+                  <button
+                    className="overview-chip active"
+                    type="button"
+                    title="Firmware version"
+                    onClick={() => selectControlTab('system')}
+                  >
+                    <IconCpu size={14} /> Firmware {overviewFirmwareLabel}
+                  </button>
                 </div>
               </div>
             </section>
@@ -9625,22 +9856,42 @@ export function App() {
                           </g>
                         )}
 
-                        {/* Swipe arc visualization (from Zone 1 to Zone 2 or custom sequence) */}
+                        {/* Swipe arc visualization (connecting sequence of zones) */}
                         {touchpadSettings.mode === 'swipe' && (
                           <g>
-                            <path
-                              className="touchpad-swipe-arc"
-                              d="M 115 54 Q 200 38 290 48"
-                            />
+                            {swipePathD ? (
+                              <path
+                                className="touchpad-swipe-arc"
+                                d={swipePathD}
+                              />
+                            ) : (
+                              <path
+                                className="touchpad-swipe-arc"
+                                d="M 96 48 L 304 48"
+                              />
+                            )}
                             {gesturePreviewActive && (
-                              <circle r="5" fill="#ff9933">
+                              <circle r="6" fill="#ff7a00">
                                 <animateMotion
-                                  path="M 115 54 Q 200 38 290 48"
-                                  dur="0.9s"
+                                  path={swipePathD || "M 96 48 L 304 48"}
+                                  dur="0.8s"
                                   repeatCount="1"
                                 />
                               </circle>
                             )}
+                            {/* Sequence step order badges on the canvas */}
+                            {gestureSequence.map((zoneId, stepIdx) => {
+                              const pt = zoneCoords[zoneId as TouchpadZoneId];
+                              if (!pt) return null;
+                              return (
+                                <g key={`step-${stepIdx}`} transform={`translate(${pt.x + 18}, ${pt.y - 18})`}>
+                                  <circle r="9" fill="#ff7a00" />
+                                  <text textAnchor="middle" dy="3.5" fill="#ffffff" fontSize="10" fontWeight="bold">
+                                    {stepIdx + 1}
+                                  </text>
+                                </g>
+                              );
+                            })}
                           </g>
                         )}
                       </svg>
@@ -9687,283 +9938,582 @@ export function App() {
                             );
                           })}
                         </div>
+
+                        <div className="gesture-presets-bar">
+                          <span className="touchpad-preset-label">Direction Presets:</span>
+                          {GESTURE_SEQUENCE_PRESETS.map((p) => (
+                            <button
+                              key={p.label}
+                              type="button"
+                              className="touchpad-preset-chip"
+                              onClick={() => handleSelectGestureSequencePreset(p.sequence)}
+                            >
+                              {p.label}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>
 
-                  {/* 4-ZONE BUTTON CUSTOMIZATION */}
-                  <div className="touchpad-zone-customization-section">
-                    <div className="touchpad-zone-customization-header">
-                      <h4>4-Zone Button Mapping</h4>
-                      <span className="touchpad-subname">Assign a controller button to each touchpad quadrant</span>
-                    </div>
-
-                    <div className="touchpad-presets-bar">
-                      <span className="touchpad-preset-label">Presets:</span>
-                      <button
-                        type="button"
-                        className="touchpad-preset-chip"
-                        onClick={() => handleApplyTouchpadPreset('face')}
-                      >
-                        Face Buttons (△ ○ ✕ □)
-                      </button>
-                      <button
-                        type="button"
-                        className="touchpad-preset-chip"
-                        onClick={() => handleApplyTouchpadPreset('dpad')}
-                      >
-                        D-Pad (↑ → ↓ ←)
-                      </button>
-                      <button
-                        type="button"
-                        className="touchpad-preset-chip"
-                        onClick={() => handleApplyTouchpadPreset('shoulders')}
-                      >
-                        Shoulders &amp; Triggers (L1 R1 L2 R2)
-                      </button>
-                      <button
-                        type="button"
-                        className="touchpad-preset-chip"
-                        onClick={() => handleApplyTouchpadPreset('default')}
-                      >
-                        Reset Defaults
-                      </button>
-                    </div>
-
-                    <div className="touchpad-zone-grid">
-                      {([1, 2, 3, 4] as TouchpadZoneId[]).map((zoneId) => {
-                        const zoneTitles: Record<TouchpadZoneId, { title: string; sub: string }> = {
-                          1: { title: 'Zone 1', sub: 'Top-Left Quadrant' },
-                          2: { title: 'Zone 2', sub: 'Top-Right Quadrant' },
-                          3: { title: 'Zone 3', sub: 'Bottom-Left Quadrant' },
-                          4: { title: 'Zone 4', sub: 'Bottom-Right Quadrant' },
-                        };
-                        const currentVal = touchpadSettings.zoneMappings[zoneId];
-                        return (
-                          <div
-                            key={zoneId}
-                            className={`touchpad-zone-card ${selectedTouchpadZone === zoneId ? 'selected' : ''}`}
-                            onClick={() => setSelectedTouchpadZone(zoneId)}
+                  {touchpadSettings.mode === 'swipe' ? (
+                    <div className="touchpad-gesture-action-section">
+                      <div className="touchpad-gesture-action-header">
+                        <div className="touchpad-gesture-header-titles">
+                          <h4>Swipe Gesture Action</h4>
+                          <p className="touchpad-subname">
+                            Trigger an action when performing sequence{' '}
+                            <strong className="gesture-sequence-highlight">
+                              {formatGestureSequence(gestureSequence.length > 0 ? gestureSequence : [1, 2])}
+                            </strong>
+                          </p>
+                        </div>
+                        <div className="touchpad-gesture-header-actions">
+                          <button
+                            type="button"
+                            className={`touchpad-gesture-test-btn ${touchpadGestureTestFeedback ? 'success' : ''}`}
+                            onClick={() => void handleTestTouchpadGesture()}
+                            title="Trigger this action immediately to test it"
                           >
-                            <div className="touchpad-zone-card-top">
-                              <div className="touchpad-zone-card-title">
-                                <span className="touchpad-zone-badge">{zoneId}</span>
-                                <div>
-                                  <div className="touchpad-zone-name">{zoneTitles[zoneId].title}</div>
-                                  <div className="touchpad-zone-subname">{zoneTitles[zoneId].sub}</div>
+                            <Zap size={15} />
+                            <span>{touchpadGestureTestFeedback ?? 'Test Action'}</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Category Tabs: Windows Shortcuts | Media Controls | Controller Button | Custom Hotkey */}
+                      <div className="touchpad-gesture-category-tabs">
+                        <button
+                          type="button"
+                          className={`touchpad-gesture-category-tab ${(touchpadSettings.gestures[0]?.actionType ?? 'windows-shortcut') === 'windows-shortcut' ? 'active' : ''}`}
+                          onClick={() => handleUpdateGestureActionType('windows-shortcut')}
+                        >
+                          <Laptop size={15} />
+                          <span>Windows Shortcuts</span>
+                        </button>
+                        <button
+                          type="button"
+                          className={`touchpad-gesture-category-tab ${(touchpadSettings.gestures[0]?.actionType ?? 'windows-shortcut') === 'media' ? 'active' : ''}`}
+                          onClick={() => handleUpdateGestureActionType('media')}
+                        >
+                          <Volume2 size={15} />
+                          <span>Media Controls</span>
+                        </button>
+                        <button
+                          type="button"
+                          className={`touchpad-gesture-category-tab ${(touchpadSettings.gestures[0]?.actionType ?? 'windows-shortcut') === 'button' ? 'active' : ''}`}
+                          onClick={() => handleUpdateGestureActionType('button')}
+                        >
+                          <IconDeviceGamepad2 size={15} />
+                          <span>Controller Button</span>
+                        </button>
+                        <button
+                          type="button"
+                          className={`touchpad-gesture-category-tab ${(touchpadSettings.gestures[0]?.actionType ?? 'windows-shortcut') === 'custom-keys' ? 'active' : ''}`}
+                          onClick={() => handleUpdateGestureActionType('custom-keys')}
+                        >
+                          <Keyboard size={15} />
+                          <span>Custom Hotkey</span>
+                        </button>
+                      </div>
+
+                      {/* Action Selection Options */}
+                      <div className="touchpad-gesture-options-panel">
+                        {(touchpadSettings.gestures[0]?.actionType ?? 'windows-shortcut') === 'windows-shortcut' && (
+                          <div className="touchpad-gesture-shortcuts-grid">
+                            {GESTURE_WINDOWS_SHORTCUTS.map((sc) => {
+                              const isSelected = touchpadSettings.gestures[0]?.actionValue === sc.value;
+                              return (
+                                <button
+                                  key={sc.value}
+                                  type="button"
+                                  className={`gesture-action-card ${isSelected ? 'selected' : ''}`}
+                                  onClick={() => handleUpdateGestureActionValue(sc.value)}
+                                >
+                                  <div className="gesture-action-card-top">
+                                    <span className="gesture-action-name">{sc.label}</span>
+                                    <code className="gesture-action-key">{sc.keys.join('+')}</code>
+                                  </div>
+                                  <p className="gesture-action-desc">{sc.description}</p>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {(touchpadSettings.gestures[0]?.actionType ?? 'windows-shortcut') === 'media' && (
+                          <div className="touchpad-gesture-shortcuts-grid">
+                            {GESTURE_MEDIA_ACTIONS.map((m) => {
+                              const isSelected = touchpadSettings.gestures[0]?.actionValue === m.value;
+                              return (
+                                <button
+                                  key={m.value}
+                                  type="button"
+                                  className={`gesture-action-card ${isSelected ? 'selected' : ''}`}
+                                  onClick={() => handleUpdateGestureActionValue(m.value)}
+                                >
+                                  <div className="gesture-action-card-top">
+                                    <span className="gesture-action-name">{m.label}</span>
+                                  </div>
+                                  <p className="gesture-action-desc">{m.description}</p>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {(touchpadSettings.gestures[0]?.actionType ?? 'windows-shortcut') === 'button' && (
+                          <div className="touchpad-gesture-buttons-grid">
+                            {GESTURE_BUTTON_ACTIONS.map((b) => {
+                              const isSelected = touchpadSettings.gestures[0]?.actionValue === b.value;
+                              return (
+                                <button
+                                  key={b.value}
+                                  type="button"
+                                  className={`gesture-button-card ${isSelected ? 'selected' : ''}`}
+                                  onClick={() => handleUpdateGestureActionValue(b.value)}
+                                >
+                                  <span className="gesture-button-glyph">{b.glyph}</span>
+                                  <span className="gesture-button-label">{b.label}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {(touchpadSettings.gestures[0]?.actionType ?? 'windows-shortcut') === 'custom-keys' && (
+                          <div className="touchpad-gesture-custom-keys-panel">
+                            <label className="gesture-input-label">
+                              <span>Virtual Key Combination:</span>
+                              <input
+                                type="text"
+                                className="gesture-input-text"
+                                placeholder="e.g. CTRL+SHIFT+O or ALT+F4"
+                                value={touchpadSettings.gestures[0]?.actionValue ?? ''}
+                                onChange={(e) => handleUpdateGestureActionValue(e.target.value.toUpperCase())}
+                              />
+                            </label>
+                            <p className="gesture-input-hint">
+                              Supported modifiers: <code>CTRL</code>, <code>SHIFT</code>, <code>ALT</code>, <code>WIN</code> + any key (e.g. A-Z, 0-9, F1-F12, ESC, TAB, ENTER, SPACE).
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Active Gesture Summary Card */}
+                      <div className="touchpad-gesture-summary-card">
+                        <div className="gesture-summary-icon">
+                          <Sparkles size={20} />
+                        </div>
+                        <div className="gesture-summary-info">
+                          <div className="gesture-summary-title">
+                            <span>Active Binding:</span>
+                            <strong>{getGestureActionLabel(touchpadSettings.gestures[0] ?? DEFAULT_TOUCHPAD_SETTINGS.gestures[0])}</strong>
+                          </div>
+                          <p className="gesture-summary-desc">
+                            {getGestureActionDescription(touchpadSettings.gestures[0] ?? DEFAULT_TOUCHPAD_SETTINGS.gestures[0])}
+                          </p>
+                        </div>
+                        <div className="gesture-summary-status">
+                          <span className="gesture-status-dot active" />
+                          <span>Hardware Synchronized</span>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="touchpad-zone-customization-section">
+                      <div className="touchpad-zone-customization-header">
+                        <h4>4-Zone Button Mapping</h4>
+                        <span className="touchpad-subname">Assign a controller button to each touchpad quadrant</span>
+                      </div>
+
+                      <div className="touchpad-presets-bar">
+                        <span className="touchpad-preset-label">Presets:</span>
+                        <button
+                          type="button"
+                          className="touchpad-preset-chip"
+                          onClick={() => handleApplyTouchpadPreset('face')}
+                        >
+                          Face Buttons (△ ○ ✕ □)
+                        </button>
+                        <button
+                          type="button"
+                          className="touchpad-preset-chip"
+                          onClick={() => handleApplyTouchpadPreset('dpad')}
+                        >
+                          D-Pad (↑ → ↓ ←)
+                        </button>
+                        <button
+                          type="button"
+                          className="touchpad-preset-chip"
+                          onClick={() => handleApplyTouchpadPreset('shoulders')}
+                        >
+                          Shoulders &amp; Triggers (L1 R1 L2 R2)
+                        </button>
+                        <button
+                          type="button"
+                          className="touchpad-preset-chip"
+                          onClick={() => handleApplyTouchpadPreset('default')}
+                        >
+                          Reset Defaults
+                        </button>
+                      </div>
+
+                      <div className="touchpad-zone-grid">
+                        {([1, 2, 3, 4] as TouchpadZoneId[]).map((zoneId) => {
+                          const zoneTitles: Record<TouchpadZoneId, { title: string; sub: string }> = {
+                            1: { title: 'Zone 1', sub: 'Top-Left Quadrant' },
+                            2: { title: 'Zone 2', sub: 'Top-Right Quadrant' },
+                            3: { title: 'Zone 3', sub: 'Bottom-Left Quadrant' },
+                            4: { title: 'Zone 4', sub: 'Bottom-Right Quadrant' },
+                          };
+                          const currentVal = touchpadSettings.zoneMappings[zoneId];
+                          return (
+                            <div
+                              key={zoneId}
+                              className={`touchpad-zone-card ${selectedTouchpadZone === zoneId ? 'selected' : ''}`}
+                              onClick={() => setSelectedTouchpadZone(zoneId)}
+                            >
+                              <div className="touchpad-zone-card-top">
+                                <div className="touchpad-zone-card-title">
+                                  <span className="touchpad-zone-badge">{zoneId}</span>
+                                  <div>
+                                    <div className="touchpad-zone-name">{zoneTitles[zoneId].title}</div>
+                                    <div className="touchpad-zone-subname">{zoneTitles[zoneId].sub}</div>
+                                  </div>
                                 </div>
                               </div>
-                            </div>
 
-                            <CustomSelect
-                              value={currentVal}
-                              options={TOUCHPAD_TARGET_OPTIONS}
-                              className="remapping-select"
-                              showSelectedCheck={false}
-                              ariaLabel={`${zoneTitles[zoneId].title} mapping`}
-                              renderValue={(label, value) => <TouchpadZoneTargetOption label={label} value={value} />}
-                              renderOption={(label, value) => <TouchpadZoneTargetOption label={label} value={value} />}
-                              onChange={(value) => handleSetTouchpadZoneMapping(zoneId, value)}
-                            />
-                          </div>
-                        );
-                      })}
+                              <CustomSelect
+                                value={currentVal}
+                                options={TOUCHPAD_TARGET_OPTIONS}
+                                className="remapping-select"
+                                showSelectedCheck={false}
+                                ariaLabel={`${zoneTitles[zoneId].title} mapping`}
+                                renderValue={(label, value) => <TouchpadZoneTargetOption label={label} value={value} />}
+                                renderOption={(label, value) => <TouchpadZoneTargetOption label={label} value={value} />}
+                                onChange={(value) => handleSetTouchpadZoneMapping(zoneId, value)}
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </section>
               )}
 
               {remappingSubTab === 'turbo' && (
-                <section className="feature-card turbo-remapping-card" aria-label="Turbo Rapid Fire configuration">
-                  {/* Turbo Card Header with Master Switch */}
-                  <div className="turbo-card-header">
-                    <div className="turbo-header-badge">
-                      <IconFlame size={24} />
+                <section className="feature-card turbo-remapping-card multi-actions-container" aria-label="Turbo Rapid Fire configuration">
+                  {/* Top Tabs: Chords & Multi-Actions */}
+                  <div className="multi-actions-top-header">
+                    <div className="multi-actions-header-tabs" role="tablist">
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={false}
+                        className="multi-actions-tab"
+                        onClick={() => setActiveControlTab('chords')}
+                      >
+                        <IconBooks size={18} />
+                        <span>Chords</span>
+                      </button>
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={true}
+                        className="multi-actions-tab active"
+                      >
+                        <Zap size={18} />
+                        <span>Multi-Actions</span>
+                      </button>
                     </div>
-                    <div className="turbo-header-text">
-                      <div className="turbo-title-row">
-                        <h3>Turbo Rapid Fire</h3>
+                    <p className="multi-actions-subtitle">
+                      Build actions around button states, thresholds, and repeat behavior.
+                    </p>
+                  </div>
+
+                  {/* 2-Column Grid: Action Library (Left) vs Trigger Assignments (Right) */}
+                  <div className="multi-actions-grid">
+                    {/* Left Column: Action Library */}
+                    <div className="multi-actions-card action-library-card">
+                      <div className="action-library-header">
+                        <h4>Action Library</h4>
+                        <p className="action-library-sub">Create actions.</p>
+                      </div>
+
+                      {/* Action Profile Row */}
+                      <div className="action-profile-row">
+                        <div className="action-profile-select-wrap">
+                          <CustomSelect
+                            value={selectedTurboActionProfile}
+                            options={[
+                              ['Turbo 1', 'Turbo 1'],
+                              ['Turbo 2', 'Turbo 2'],
+                              ['Rapid Fire Pro', 'Rapid Fire Pro']
+                            ]}
+                            className="action-profile-select"
+                            showSelectedCheck={false}
+                            ariaLabel="Action Profile"
+                            onChange={(val) => setSelectedTurboActionProfile(val)}
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          className="action-profile-add-btn"
+                          title="Add Action"
+                          onClick={() => setSelectedTurboActionProfile(`Turbo ${Date.now() % 100}`)}
+                        >
+                          <Plus size={16} />
+                        </button>
+                      </div>
+
+                      {/* Action selector */}
+                      <div className="action-config-field">
+                        <label className="action-config-label">Action:</label>
+                        <div className="action-config-control">
+                          <CustomSelect
+                            value="turbo"
+                            options={[
+                              ['Turbo', 'turbo'],
+                              ['Toggle Rapid', 'toggle-rapid'],
+                              ['Burst (3-Shot)', 'burst']
+                            ]}
+                            className="action-config-select"
+                            showSelectedCheck={false}
+                            ariaLabel="Action type"
+                            onChange={() => {}}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Repeat selector */}
+                      <div className="action-config-field">
+                        <label className="action-config-label">Repeat:</label>
+                        <div className="action-config-control">
+                          <CustomSelect
+                            value={turboRepeatMode}
+                            options={[
+                              ['Repeat while held', 'hold'],
+                              ['Toggle repeat on press', 'toggle'],
+                              ['Fire once on press', 'press']
+                            ]}
+                            className="action-config-select"
+                            showSelectedCheck={false}
+                            ariaLabel="Repeat mode"
+                            onChange={(val) => setTurboRepeatMode(val as 'hold' | 'toggle' | 'press')}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Interval Stepper */}
+                      <div className="action-config-field action-interval-field">
+                        <label className="action-config-label">Interval:</label>
+                        <div className="action-interval-stepper">
+                          <button
+                            type="button"
+                            className="interval-step-btn"
+                            title="Decrease interval (faster)"
+                            onClick={() => handleSetTurboInterval(turboIntervalMs - 10)}
+                            aria-label="Decrease interval"
+                          >
+                            <Minus size={14} />
+                          </button>
+                          <div className="interval-value-display">
+                            <span>{turboIntervalMs} ms</span>
+                          </div>
+                          <button
+                            type="button"
+                            className="interval-step-btn"
+                            title="Increase interval (slower)"
+                            onClick={() => handleSetTurboInterval(turboIntervalMs + 10)}
+                            aria-label="Increase interval"
+                          >
+                            <Plus size={14} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Deterministic Output Card */}
+                      <div className="deterministic-output-box">
+                        <h5>Deterministic output</h5>
+                        <div className="deterministic-output-badges">
+                          <div className="deterministic-pill">
+                            Assigned button · {turboRepeatMode === 'hold' ? 'repeats while held' : turboRepeatMode === 'toggle' ? 'toggles repeat' : 'fires once'}
+                          </div>
+                          <div className="deterministic-pill">
+                            {turboIntervalMs} ms interval · stops on release
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Anti-Cheat Humanize Safe Cadence Toggle */}
+                      <div className="action-library-humanize-row">
+                        <div className="humanize-info">
+                          <div className="humanize-title">
+                            <Zap size={15} />
+                            <span>Anti-Cheat Humanized Jitter</span>
+                          </div>
+                          <span className="humanize-sub">±15% realistic micro-variance</span>
+                        </div>
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={turboSettings.humanize}
+                          aria-label="Toggle Humanized Cadence"
+                          className={`switch switch-orange ${turboSettings.humanize ? 'on' : ''}`}
+                          onClick={handleToggleTurboHumanize}
+                        >
+                          <span />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Right Column: Trigger Assignments */}
+                    <div className="multi-actions-card trigger-assignments-card">
+                      <div className="trigger-assignments-header">
+                        <div>
+                          <h4>Trigger Assignments</h4>
+                          <p className="trigger-assignments-sub">Assign actions to button events.</p>
+                        </div>
+                        <div className="new-trigger-wrap">
+                          <button
+                            type="button"
+                            className="new-trigger-btn"
+                            onClick={() => setTurboNewTriggerPickerOpen((prev) => !prev)}
+                          >
+                            <Plus size={15} />
+                            <span>New Trigger</span>
+                          </button>
+
+                          {turboNewTriggerPickerOpen && (
+                            <div className="new-trigger-popover">
+                              <div className="popover-heading">Choose Button</div>
+                              <div className="popover-buttons-grid">
+                                {TURBO_BUTTONS.map((btn) => {
+                                  const isAssigned = (turboSettings.buttonsMask & btn.mask) !== 0;
+                                  return (
+                                    <button
+                                      key={btn.id}
+                                      type="button"
+                                      className={`popover-btn-choice ${isAssigned ? 'assigned' : ''}`}
+                                      disabled={isAssigned}
+                                      onClick={() => handleAddTurboTrigger(btn.mask)}
+                                    >
+                                      <span className="popover-glyph">{btn.glyph}</span>
+                                      <span>{btn.label}</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Trigger Cards List */}
+                      <div className="trigger-cards-list">
+                        {TURBO_BUTTONS.filter((btn) => (turboSettings.buttonsMask & btn.mask) !== 0).length === 0 ? (
+                          <div className="empty-triggers-placeholder">
+                            <Zap size={32} className="empty-icon" />
+                            <p>No buttons assigned to this action yet.</p>
+                            <button
+                              type="button"
+                              className="secondary-action"
+                              onClick={() => setTurboNewTriggerPickerOpen(true)}
+                            >
+                              <Plus size={14} />
+                              Assign a button
+                            </button>
+                          </div>
+                        ) : (
+                          TURBO_BUTTONS.filter((btn) => (turboSettings.buttonsMask & btn.mask) !== 0).map((btn) => (
+                            <div key={btn.id} className="trigger-assignment-item">
+                              <div className="trigger-item-left">
+                                <div className="trigger-glyph-badge">
+                                  <span>{btn.glyph}</span>
+                                </div>
+                                <div className="trigger-starts-when">
+                                  <span className="starts-when-label">Starts when:</span>
+                                  <div className="starts-when-select-wrap">
+                                    <CustomSelect
+                                      value={turboStartsWhenMode}
+                                      options={[
+                                        ['Button is pressed', 'pressed'],
+                                        ['Button is held', 'held'],
+                                        ['Double tap button', 'double']
+                                      ]}
+                                      className="starts-when-select"
+                                      showSelectedCheck={false}
+                                      ariaLabel={`Trigger mode for ${btn.label}`}
+                                      onChange={(val) => setTurboStartsWhenMode(val as 'pressed' | 'held' | 'double')}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="trigger-item-right">
+                                <div className="trigger-action-pill">
+                                  <Zap size={14} className="pill-zap" />
+                                  <span>{selectedTurboActionProfile} · {turboRepeatMode === 'hold' ? 'Repeat while held' : turboRepeatMode === 'toggle' ? 'Toggle repeat' : 'Fire once'} · {turboIntervalMs} ms</span>
+                                </div>
+                                <button
+                                  type="button"
+                                  className="trigger-delete-btn"
+                                  title={`Remove ${btn.label} trigger`}
+                                  onClick={() => handleRemoveTurboTrigger(btn.mask)}
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Bottom Interactive Click Tester & Master Toggle */}
+                  <div className="turbo-tester-bar">
+                    <div className="tester-bar-master">
+                      <div className="master-title-row">
+                        <span className="master-label">Turbo Master:</span>
                         <span className={`turbo-status-pill ${turboSettings.enabled ? 'active' : ''}`}>
                           {turboSettings.enabled ? 'ACTIVE' : 'STANDBY'}
                         </span>
                       </div>
-                      <p>Hardware-accelerated rapid clicking with authentic human cadence and anti-cheat safe timing.</p>
-                    </div>
-                    <div className="turbo-header-switch">
                       <button
                         type="button"
                         role="switch"
                         aria-checked={turboSettings.enabled}
                         aria-label="Toggle Turbo Mode"
-                        className={`switch ${turboSettings.enabled ? 'on' : ''}`}
+                        className={`switch switch-orange ${turboSettings.enabled ? 'on' : ''}`}
                         onClick={handleToggleTurboMaster}
                       >
                         <span />
                       </button>
                     </div>
-                  </div>
 
-                  {/* TURBO MAIN GRID */}
-                  <div className="turbo-grid">
-                    {/* LEFT COLUMN: Cadence & Speed Settings */}
-                    <div className="turbo-column">
-                      {/* Click Speed (CPS) Section */}
-                      <div className="turbo-setting-box">
-                        <div className="turbo-setting-header">
-                          <div className="turbo-setting-label">
-                            <h4>CLICK FREQUENCY</h4>
-                            <span className="turbo-cps-callout">
-                              <strong>{turboSettings.speedCps} CPS</strong>
-                              <span className="turbo-cps-cycle">
-                                (~{Math.round(1000 / turboSettings.speedCps)}ms cycle)
-                              </span>
-                            </span>
-                          </div>
-                        </div>
+                    <div className="tester-bar-interactive">
+                      <button
+                        type="button"
+                        className={`turbo-test-trigger ${turboTesterActive ? 'active' : ''}`}
+                        onMouseDown={startTurboTester}
+                        onMouseUp={stopTurboTester}
+                        onMouseLeave={stopTurboTester}
+                        onTouchStart={startTurboTester}
+                        onTouchEnd={stopTurboTester}
+                        aria-label="Hold to test turbo clicking speed"
+                      >
+                        <IconFlame size={20} className={turboTesterFlash ? 'fire-flash' : ''} />
+                        <span>{turboTesterActive ? 'FIRING TURBO...' : 'HOLD TO TEST CADENCE'}</span>
+                      </button>
 
-                        {/* Slider */}
-                        <div className="turbo-slider-container">
-                          <input
-                            type="range"
-                            min="2"
-                            max="25"
-                            step="1"
-                            value={turboSettings.speedCps}
-                            onChange={(e) => handleSetTurboSpeed(Number(e.target.value))}
-                            className="turbo-range-slider"
-                            aria-label="Click speed in clicks per second"
-                          />
-                          <div className="turbo-slider-labels">
-                            <span>2 CPS (Slow)</span>
-                            <span>8 CPS (Human Default)</span>
-                            <span>25 CPS (Max)</span>
-                          </div>
-                        </div>
-
-                        {/* Quick Presets */}
-                        <div className="turbo-presets-row">
-                          {TURBO_SPEED_PRESETS.map((preset) => {
-                            const isSelected = turboSettings.speedCps === preset.cps;
-                            return (
-                              <button
-                                key={preset.label}
-                                type="button"
-                                className={`turbo-preset-btn ${isSelected ? 'active' : ''}`}
-                                onClick={() => handleSetTurboSpeed(preset.cps)}
-                                title={preset.desc}
-                              >
-                                <span className="preset-name">{preset.label}</span>
-                                <span className="preset-cps">{preset.cps} CPS</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      {/* Humanized Timing Section */}
-                      <div className="turbo-setting-box turbo-humanize-box">
-                        <div className="turbo-humanize-header">
-                          <div className="turbo-humanize-info">
-                            <div className="turbo-humanize-title">
-                              <Zap size={18} className="humanize-icon" />
-                              <h4>Humanized Cadence (Anti-Cheat Safe)</h4>
-                            </div>
-                            <p className="turbo-humanize-desc">
-                              Applies dynamic ±15% timing jitter and realistic micro-variance to each press/release cycle. Evades rigid square-wave bot detection and feels like natural finger clicking.
-                            </p>
-                          </div>
-                          <button
-                            type="button"
-                            role="switch"
-                            aria-checked={turboSettings.humanize}
-                            aria-label="Toggle Humanized Cadence"
-                            className={`switch ${turboSettings.humanize ? 'on' : ''}`}
-                            onClick={handleToggleTurboHumanize}
-                          >
-                            <span />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* RIGHT COLUMN: Target Buttons & Live Click Tester */}
-                    <div className="turbo-column">
-                      {/* Active Buttons Selector */}
-                      <div className="turbo-setting-box">
-                        <div className="turbo-setting-header">
-                          <div className="turbo-setting-label">
-                            <h4>ASSIGNED TURBO BUTTONS</h4>
-                            <p className="turbo-setting-sub">
-                              Select buttons to rapid-fire when held down. (Can also be toggled with PS button double-tap + button)
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="turbo-buttons-grid">
-                          {TURBO_BUTTONS.map((btn) => {
-                            const isAssigned = (turboSettings.buttonsMask & btn.mask) !== 0;
-                            return (
-                              <button
-                                key={btn.id}
-                                type="button"
-                                className={`turbo-btn-chip turbo-btn-${btn.id} ${isAssigned ? 'active' : ''}`}
-                                data-turbo-btn={btn.id}
-                                onClick={() => handleToggleTurboButton(btn.mask)}
-                                aria-pressed={isAssigned}
-                              >
-                                <span className="turbo-chip-glyph">{btn.glyph}</span>
-                                <span className="turbo-chip-label">{btn.label}</span>
-                                <span className="turbo-chip-indicator" />
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      {/* Interactive Live Click Tester */}
-                      <div className="turbo-setting-box turbo-tester-box">
-                        <div className="turbo-tester-header">
-                          <h4>INTERACTIVE CLICK TESTER</h4>
-                          <span className="turbo-tester-hint">Press & hold button to test cadence</span>
-                        </div>
-
-                        <div className="turbo-tester-body">
-                          <button
-                            type="button"
-                            className={`turbo-test-trigger ${turboTesterActive ? 'active' : ''}`}
-                            onMouseDown={startTurboTester}
-                            onMouseUp={stopTurboTester}
-                            onMouseLeave={stopTurboTester}
-                            onTouchStart={startTurboTester}
-                            onTouchEnd={stopTurboTester}
-                            aria-label="Hold to test turbo clicking speed"
-                          >
-                            <span className="turbo-test-icon">
-                              <IconFlame size={28} className={turboTesterFlash ? 'fire-flash' : ''} />
-                            </span>
-                            <span className="turbo-test-label">
-                              {turboTesterActive ? 'FIRING TURBO...' : 'HOLD TO TEST TURBO'}
-                            </span>
-                          </button>
-
-                          <div className="turbo-meter-card">
-                            <div className="turbo-meter-row">
-                              <span className="meter-label">Output Pulse:</span>
-                              <div className={`turbo-pulse-led ${turboTesterFlash ? 'flash' : ''} ${turboTesterActive ? 'active' : ''}`} />
-                              <span className="meter-count">
-                                <strong>{turboTesterCount}</strong> clicks
-                              </span>
-                            </div>
-                            <div className="turbo-meter-bar-track">
-                              <div
-                                className={`turbo-meter-bar-fill ${turboTesterFlash ? 'pulse' : ''}`}
-                                style={{
-                                  width: turboTesterActive ? `${Math.min(100, Math.max(10, (turboSettings.speedCps / 25) * 100))}%` : '0%'
-                                }}
-                              />
-                            </div>
-                          </div>
-                        </div>
+                      <div className="tester-pulse-row">
+                        <div className={`turbo-pulse-led ${turboTesterFlash ? 'flash' : ''} ${turboTesterActive ? 'active' : ''}`} />
+                        <span className="tester-pulse-count">
+                          <strong>{turboTesterCount}</strong> clicks ({turboSettings.speedCps} CPS / {turboIntervalMs} ms)
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -9979,6 +10529,30 @@ export function App() {
             aria-hidden={activeControlTab !== 'chords'}
           >
               <div className="feature-heading chords-heading">
+                <div className="multi-actions-header-tabs chords-top-nav-tabs" role="tablist">
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={true}
+                    className="multi-actions-tab active"
+                  >
+                    <IconBooks size={18} />
+                    <span>Chords</span>
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={false}
+                    className="multi-actions-tab"
+                    onClick={() => {
+                      setActiveControlTab('remapping');
+                      setRemappingSubTab('turbo');
+                    }}
+                  >
+                    <Zap size={18} />
+                    <span>Multi-Actions</span>
+                  </button>
+                </div>
                 <div>
                   <h2>Chords</h2>
                   <p>Assign reusable functions to controller buttons and starter chords.</p>
@@ -11150,6 +11724,381 @@ export function App() {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {isGameProfilesModalOpen && (
+        <div
+          className="modal-backdrop"
+          role="presentation"
+          onMouseDown={() => {
+            setIsGameProfilesModalOpen(false);
+            setEditingGameProfile(null);
+          }}
+        >
+          <div
+            className="settings-menu bridge-settings-modal game-profiles-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Game Profiles"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="settings-menu-heading bridge-settings-modal-heading">
+              <div className="modal-heading-copy">
+                <IconBooks size={18} />
+                <span>Game Profiles Library</span>
+              </div>
+              <button
+                className="modal-close-button"
+                type="button"
+                aria-label="Close game profiles dialog"
+                onClick={() => {
+                  setIsGameProfilesModalOpen(false);
+                  setEditingGameProfile(null);
+                }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="game-profiles-top-bar">
+              <div className="game-profiles-auto-switch-bar">
+                <span>Auto-switch profile when game launches</span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={snapshot.settings.gameProfileAutoSwitchEnabled}
+                  aria-label="Toggle auto-switch game profiles"
+                  className={`switch switch-orange ${snapshot.settings.gameProfileAutoSwitchEnabled ? 'on' : ''}`}
+                  disabled={pendingAction !== null}
+                  onClick={() => void runAction('game-profile-autoswitch', () => (
+                    window.bridge.setGameProfileAutoSwitchEnabled(!snapshot.settings.gameProfileAutoSwitchEnabled)
+                  ))}
+                >
+                  <span />
+                </button>
+              </div>
+              {!editingGameProfile && (
+                <button
+                  type="button"
+                  className="primary-action add-game-btn"
+                  onClick={openAddGameProfile}
+                >
+                  <Plus size={16} />
+                  Add Game Profile
+                </button>
+              )}
+            </div>
+
+            {editingGameProfile ? (
+              <form
+                className="game-profile-editor"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void saveCurrentGameProfile();
+                }}
+              >
+                <h4>{editingGameProfile.id ? 'Edit Game Profile' : 'Add New Game Profile'}</h4>
+
+                <div className="game-profile-form-grid">
+                  <div className="game-profile-field">
+                    <label htmlFor="game-profile-name-input">Game Title</label>
+                    <input
+                      id="game-profile-name-input"
+                      type="text"
+                      placeholder="e.g. Cyberpunk 2077"
+                      value={editingGameProfile.name ?? ''}
+                      maxLength={64}
+                      onChange={(e) => setEditingGameProfile({ ...editingGameProfile, name: e.target.value })}
+                      autoFocus
+                    />
+                  </div>
+
+                  <div className="game-profile-field">
+                    <label htmlFor="game-profile-exe-input">Executable Name (.exe)</label>
+                    <input
+                      id="game-profile-exe-input"
+                      type="text"
+                      placeholder="e.g. Cyberpunk2077.exe"
+                      value={editingGameProfile.executableName ?? ''}
+                      maxLength={128}
+                      onChange={(e) => setEditingGameProfile({ ...editingGameProfile, executableName: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="game-profile-field">
+                  <div className="game-profile-field-header">
+                    <label>Select from running games / applications</label>
+                    <button
+                      type="button"
+                      className="game-profile-refresh-btn"
+                      onClick={() => void refreshRunningProcesses()}
+                      title="Scan running processes"
+                      disabled={runningProcessesLoading}
+                    >
+                      <RefreshCcw size={13} className={runningProcessesLoading ? 'spin' : ''} />
+                      Scan Running Apps
+                    </button>
+                  </div>
+                  {runningProcesses.length > 0 ? (
+                    <select
+                      className="game-profile-process-select"
+                      aria-label="Running applications"
+                      onChange={(e) => {
+                        const selectedExe = e.target.value;
+                        if (!selectedExe) return;
+                        const proc = runningProcesses.find((p) => p.executableName.toLowerCase() === selectedExe.toLowerCase());
+                        setEditingGameProfile({
+                          ...editingGameProfile,
+                          executableName: selectedExe,
+                          name: editingGameProfile.name?.trim() ? editingGameProfile.name : (proc?.name || selectedExe.replace(/\.exe$/i, ''))
+                        });
+                      }}
+                      defaultValue=""
+                    >
+                      <option value="">-- Choose a running application --</option>
+                      {runningProcesses.map((proc) => (
+                        <option key={`${proc.processId}-${proc.executableName}`} value={proc.executableName}>
+                          {proc.name} ({proc.executableName})
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span className="game-profile-scan-hint">
+                      {runningProcessesLoading ? 'Scanning active processes...' : 'Click "Scan Running Apps" to auto-detect running games.'}
+                    </span>
+                  )}
+                </div>
+
+                <div className="game-profile-form-grid">
+                  <div className="game-profile-field">
+                    <label htmlFor="game-profile-controller-select">Controller Profile</label>
+                    <select
+                      id="game-profile-controller-select"
+                      value={editingGameProfile.controllerProfileId ?? DEFAULT_CONTROLLER_PROFILE_ID}
+                      onChange={(e) => setEditingGameProfile({ ...editingGameProfile, controllerProfileId: e.target.value })}
+                    >
+                      {snapshot.settings.controllerProfiles.map((profile) => (
+                        <option key={profile.id} value={profile.id}>
+                          {profile.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="game-profile-field">
+                    <label htmlFor="game-profile-remap-select">Button Remapping (Optional)</label>
+                    <select
+                      id="game-profile-remap-select"
+                      value={editingGameProfile.buttonRemappingProfileId ?? ''}
+                      onChange={(e) => setEditingGameProfile({ ...editingGameProfile, buttonRemappingProfileId: e.target.value || null })}
+                    >
+                      <option value="">(Keep current / None)</option>
+                      {snapshot.settings.buttonRemappingProfiles.map((profile) => (
+                        <option key={profile.id} value={profile.id}>
+                          {profile.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="game-profile-form-actions">
+                  <button type="button" className="secondary-action" onClick={closeGameProfileForm}>
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="primary-action"
+                    disabled={!editingGameProfile.name?.trim() || !editingGameProfile.executableName?.trim() || pendingAction !== null}
+                  >
+                    {editingGameProfile.id ? 'Save Changes' : 'Add Profile'}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div className="game-profiles-content">
+                {snapshot.settings.gameProfiles.length === 0 ? (
+                  <div className="game-profiles-empty">
+                    <IconDeviceGamepad2 size={42} className="game-profiles-empty-icon" />
+                    <strong>No Game Profiles Configured</strong>
+                    <p>Map your favorite games to custom controller configurations. When auto-switch is enabled, profiles will switch automatically as games gain focus.</p>
+                    <button type="button" className="primary-action" onClick={openAddGameProfile}>
+                      <Plus size={16} />
+                      Add First Game
+                    </button>
+                  </div>
+                ) : (
+                  <div className="game-profiles-list">
+                    {snapshot.settings.gameProfiles.map((profile) => {
+                      const isActive = snapshot.activeGame?.matchedProfileId === profile.id
+                        || snapshot.activeGame?.executableName?.toLowerCase() === profile.executableName?.toLowerCase();
+                      const ctrlProfile = snapshot.settings.controllerProfiles.find((p) => p.id === profile.controllerProfileId);
+                      const remapProfile = profile.buttonRemappingProfileId
+                        ? snapshot.settings.buttonRemappingProfiles.find((p) => p.id === profile.buttonRemappingProfileId)
+                        : null;
+
+                      return (
+                        <div key={profile.id} className={`game-profile-item ${isActive ? 'active' : ''}`}>
+                          <div className="game-profile-info">
+                            <div className="game-profile-title-row">
+                              <strong className="game-profile-title">{profile.name}</strong>
+                              <code className="game-profile-exe-badge">{profile.executableName}</code>
+                              {isActive && (
+                                <span className="game-profile-active-badge">
+                                  <span className="active-dot" />
+                                  Active Now
+                                </span>
+                              )}
+                            </div>
+                            <div className="game-profile-meta-row">
+                              <span className="game-profile-meta-tag">
+                                <IconDeviceGamepad2 size={13} />
+                                {ctrlProfile?.name ?? 'Default Profile'}
+                              </span>
+                              {remapProfile && (
+                                <span className="game-profile-meta-tag">
+                                  <Settings2 size={13} />
+                                  {remapProfile.name}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="game-profile-actions">
+                            <button
+                              type="button"
+                              className="icon-action-button"
+                              title="Edit profile"
+                              onClick={() => openEditGameProfile(profile)}
+                            >
+                              <Pencil size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              className="icon-action-button danger"
+                              title="Delete profile"
+                              onClick={() => setGameProfileDeleteConfirmId(profile.id)}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {gameProfileDeleteConfirmId && (
+        <div
+          className="modal-backdrop"
+          role="presentation"
+          onMouseDown={() => setGameProfileDeleteConfirmId(null)}
+        >
+          <div
+            className="settings-menu bridge-settings-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Confirm delete game profile"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="settings-menu-heading bridge-settings-modal-heading">
+              <div className="modal-heading-copy">
+                <Trash2 size={16} />
+                <span>Delete Game Profile</span>
+              </div>
+              <button
+                className="modal-close-button"
+                type="button"
+                aria-label="Close dialog"
+                onClick={() => setGameProfileDeleteConfirmId(null)}
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <p className="remap-profile-dialog-copy">
+              Are you sure you want to delete this game profile? This will not affect controller or remapping profiles.
+            </p>
+            <div className="remap-profile-dialog-actions">
+              <button
+                type="button"
+                className="secondary-action"
+                onClick={() => setGameProfileDeleteConfirmId(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="primary-action danger"
+                disabled={pendingAction !== null}
+                onClick={() => void confirmDeleteGameProfile(gameProfileDeleteConfirmId)}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isKitsuneBarInfoOpen && (
+        <div
+          className="modal-backdrop"
+          role="presentation"
+          onMouseDown={() => setIsKitsuneBarInfoOpen(false)}
+        >
+          <div
+            className="settings-menu bridge-settings-modal kitsune-bar-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Kitsune Bar Quick Overlay"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="settings-menu-heading bridge-settings-modal-heading">
+              <div className="modal-heading-copy">
+                <img src={kitsuneInputLogoUrl} alt="" className="kitsune-card-logo" />
+                <span>Kitsune Bar Quick Overlay</span>
+              </div>
+              <button
+                className="modal-close-button"
+                type="button"
+                aria-label="Close dialog"
+                onClick={() => setIsKitsuneBarInfoOpen(false)}
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="kitsune-bar-modal-body">
+              <div className="kitsune-bar-badge-hero">
+                <span className="shortcut-glyph-key ps-home-large">
+                  <img src={psHomeGlyphUrl} alt="PS Home" />
+                </span>
+                <span className="kitsune-bar-badge-hero-text">PS Home Button</span>
+              </div>
+              <p className="kitsune-bar-info-text">
+                Press the <strong>PlayStation Home</strong> button on your controller at any time during gameplay to summon the quick overlay.
+              </p>
+              <ul className="kitsune-bar-features">
+                <li>Instant game profile switching on the fly</li>
+                <li>Haptics, trigger intensity, and audio volume sliders</li>
+                <li>Live battery status and connection health</li>
+                <li>Zero-interruption overlay designed for gamepads</li>
+              </ul>
+            </div>
+            <div className="remap-profile-dialog-actions">
+              <button
+                type="button"
+                className="primary-action"
+                onClick={() => setIsKitsuneBarInfoOpen(false)}
+              >
+                Got It
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

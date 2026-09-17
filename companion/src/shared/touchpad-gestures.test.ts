@@ -101,4 +101,48 @@ describe('touchpad-gestures', () => {
     expect(protocolIdToTouchpadTarget(18)).toBe('touchpad');
     expect(protocolIdToTouchpadTarget(0)).toBe('none');
   });
+
+  it('formats gesture sequence cleanly', async () => {
+    const { formatGestureSequence } = await import('./touchpad-gestures');
+    expect(formatGestureSequence([])).toBe('None');
+    expect(formatGestureSequence([1])).toBe('Zone 1');
+    expect(formatGestureSequence([1, 2])).toBe('Zone 1 ➔ Zone 2');
+    expect(formatGestureSequence([1, 3, 4])).toBe('Zone 1 ➔ Zone 3 ➔ Zone 4');
+  });
+
+  it('provides human-readable gesture action labels and descriptions', async () => {
+    const { getGestureActionLabel, getGestureActionDescription } = await import('./touchpad-gestures');
+
+    // Windows Shortcut
+    expect(getGestureActionLabel('windows-shortcut', 'toggle-hdr')).toBe('Toggle HDR');
+    expect(getGestureActionDescription('windows-shortcut', 'toggle-hdr')).toBe('Windows + Alt + B');
+
+    // Media
+    expect(getGestureActionLabel('media', 'play-pause')).toBe('Play / Pause');
+    expect(getGestureActionDescription('media', 'play-pause')).toBe('Toggle playback');
+
+    // Button
+    expect(getGestureActionLabel('button', 'triangle')).toBe('Triangle (△)');
+    expect(getGestureActionDescription('button', 'triangle')).toContain('Triangle');
+
+    // Custom Keys
+    expect(getGestureActionLabel('custom-keys', 'CTRL+SHIFT+O')).toBe('Keys: CTRL+SHIFT+O');
+    expect(getGestureActionDescription('custom-keys', 'CTRL+SHIFT+O')).toBe('Custom key sequence: CTRL+SHIFT+O');
+
+    // Object overload
+    expect(getGestureActionLabel({
+      id: 'test',
+      name: 'HDR',
+      type: 'Swipe',
+      sequence: [1, 2],
+      actionType: 'windows-shortcut',
+      actionValue: 'screenshot'
+    })).toBe('Snipping Tool');
+  });
+
+  it('parses custom key sequence strings into virtual keys and modifiers', async () => {
+    const { parseCustomKeysString } = await import('./touchpad-gestures');
+    const parsed = parseCustomKeysString('CTRL+ALT+DELETE');
+    expect(parsed).toEqual(['CTRL', 'ALT', 'DELETE']);
+  });
 });

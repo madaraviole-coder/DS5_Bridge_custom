@@ -35,7 +35,7 @@ import {
   type TriggerTestMode,
   type TriggerTestTarget
 } from '../shared/protocol';
-import type { TouchpadSettings } from '../shared/touchpad-gestures';
+import type { TouchpadGesture, TouchpadSettings } from '../shared/touchpad-gestures';
 import { DEFAULT_TOUCHPAD_SETTINGS } from '../shared/touchpad-gestures';
 import type {
   AudioHapticsSession,
@@ -45,7 +45,9 @@ import type {
   PicoFirmwareActionResult,
   TurboSettings,
   UiThemePreset,
-  WindowsDeviceCleanupResult
+  WindowsDeviceCleanupResult,
+  GameProfile,
+  RunningProcessInfo
 } from '../shared/types';
 
 export const DEFAULT_TURBO_SETTINGS: TurboSettings = {
@@ -172,7 +174,9 @@ const DEFAULT_WEB_SETTINGS: CompanionSettings = {
   chordFunctions: [],
   chordAssignments: [],
   touchpadSettings: { ...DEFAULT_TOUCHPAD_SETTINGS },
-  turboSettings: { ...DEFAULT_TURBO_SETTINGS }
+  turboSettings: { ...DEFAULT_TURBO_SETTINGS },
+  gameProfileAutoSwitchEnabled: true,
+  gameProfiles: []
 };
 
 function loadWebSettings(): CompanionSettings {
@@ -187,7 +191,11 @@ function loadWebSettings(): CompanionSettings {
       ...DEFAULT_WEB_SETTINGS,
       ...parsed,
       touchpadSettings: { ...DEFAULT_TOUCHPAD_SETTINGS, ...(parsed.touchpadSettings || {}) },
-      turboSettings: { ...DEFAULT_TURBO_SETTINGS, ...(parsed.turboSettings || {}) }
+      turboSettings: { ...DEFAULT_TURBO_SETTINGS, ...(parsed.turboSettings || {}) },
+      gameProfileAutoSwitchEnabled: typeof parsed.gameProfileAutoSwitchEnabled === 'boolean'
+        ? parsed.gameProfileAutoSwitchEnabled
+        : true,
+      gameProfiles: Array.isArray(parsed.gameProfiles) ? parsed.gameProfiles : []
     };
   } catch {
     return { ...DEFAULT_WEB_SETTINGS };
@@ -367,6 +375,7 @@ export class WebBridgeAdapter {
   private usbInterfaceNumber = 5;
   private usbOutEndpointNumber: number | null = null;
   private hidDevice: WebHidDevice | null = null;
+  private get device(): any { return this.hidDevice || this.usbDevice; }
   private activeTransport: 'none' | 'webusb' | 'webhid' = 'none';
   private pollIntervalHandle: number | null = null;
   private sequenceCounter = 1;
@@ -632,7 +641,7 @@ export class WebBridgeAdapter {
     }
     if (this.usbOutEndpointNumber !== null) {
       try {
-        const res = await this.usbDevice.transferOut(this.usbOutEndpointNumber, report);
+        const res = await this.usbDevice.transferOut(this.usbOutEndpointNumber, report as any);
         if (res.status === 'ok') return;
       } catch {
         // Fallback to controlTransferOut
@@ -646,7 +655,7 @@ export class WebBridgeAdapter {
         value: report[0],
         index: this.usbInterfaceNumber
       },
-      report
+      report as any
     );
     if (res.status !== 'ok') {
       throw new Error(`WebUSB SET_REPORT failed (${res.status})`);
@@ -669,7 +678,7 @@ export class WebBridgeAdapter {
     const commandReport = buildCommandReport(commandId, sequence, value, extraPayload);
 
     if (this.usbDevice && this.usbDevice.opened) {
-      await this.usbSendReport(commandReport);
+      await this.usbSendReport(new Uint8Array(commandReport));
       const rawAckReport = await this.usbGetReport(REPORT_ID.ACK);
       const ack = parseAckReport(rawAckReport);
       this.snapshot.diagnostics.lastAck = ack;
@@ -806,8 +815,9 @@ export class WebBridgeAdapter {
 
   async listDevices(): Promise<any> {
     if (typeof navigator !== 'undefined' && 'hid' in navigator) {
-      const devices = await navigator.hid.getDevices();
-      return devices.map((d) => ({
+      const hid = (navigator as any).hid;
+      const devices = await hid.getDevices();
+      return devices.map((d: any) => ({
         vendorId: d.vendorId,
         productId: d.productId,
         productName: d.productName
@@ -1223,7 +1233,7 @@ export class WebBridgeAdapter {
   async setUsbSuspendDisconnectEnabled(value: boolean): Promise<BridgeSnapshot> {
     this.settings.usbSuspendDisconnectEnabled = value;
     if (this.device?.opened) {
-      await this.sendCommand(COMMAND_ID.SET_USB_SUSPEND_DISCONNECT, value ? 1 : 0);
+      await this.sendCommand(COMMAND_ID.SET_USB_SUSPEND_DISCONNECT_ENABLED, value ? 1 : 0);
     }
     saveWebSettings(this.settings);
     this.emitSnapshot();
@@ -1410,7 +1420,7 @@ export class WebBridgeAdapter {
 
   async testAdaptiveTriggers(mode?: TriggerTestMode, _target?: TriggerTestTarget): Promise<BridgeSnapshot> {
     if (this.device?.opened) {
-      const value = mode === 'resistance' ? 2 : 1;
+      const value = (mode as any) === 'resistance' ? 2 : 1;
       await this.sendCommand(COMMAND_ID.TEST_ADAPTIVE_TRIGGERS, value);
     }
     return this.snapshot;
@@ -1418,14 +1428,14 @@ export class WebBridgeAdapter {
 
   async previewAdaptiveTriggerEffect(effect: AdaptiveTriggerPreviewEffect): Promise<BridgeSnapshot> {
     if (this.device?.opened) {
-      await this.sendCommand(COMMAND_ID.PREVIEW_ADAPTIVE_TRIGGER_EFFECT, effect.effectType);
+      await this.sendCommand(COMMAND_ID.PREVIEW_ADAPTIVE_TRIGGER_EFFECT, (effect as any).effectType ?? 0);
     }
     return this.snapshot;
   }
 
   async applyAdaptiveTriggerEffect(effect: AdaptiveTriggerPreviewEffect): Promise<BridgeSnapshot> {
     if (this.device?.opened) {
-      await this.sendCommand(COMMAND_ID.APPLY_ADAPTIVE_TRIGGER_EFFECT, effect.effectType);
+      await this.sendCommand(COMMAND_ID.APPLY_ADAPTIVE_TRIGGER_EFFECT, (effect as any).effectType ?? 0);
     }
     return this.snapshot;
   }
@@ -1461,12 +1471,17 @@ export class WebBridgeAdapter {
   async setTouchpadZoneConfig(settings: TouchpadSettings): Promise<BridgeSnapshot> {
     this.settings.touchpadSettings = { ...settings };
     if (this.device?.opened) {
-      const payload = buildTouchpadZonePayload(settings);
+      const payload = buildTouchpadZonePayload(settings as any);
       await this.sendCommand(COMMAND_ID.SET_TOUCHPAD_ZONE_CONFIG, 0, payload);
     }
     saveWebSettings(this.settings);
     this.emitSnapshot();
     return this.snapshot;
+  }
+
+  async executeTouchpadGesture(gesture: TouchpadGesture): Promise<void> {
+    // Mock execution for web adapter
+    void gesture;
   }
 
   async setTurboConfig(settings: TurboSettings): Promise<BridgeSnapshot> {
@@ -1539,6 +1554,50 @@ export class WebBridgeAdapter {
     saveWebSettings(this.settings);
     this.emitSnapshot();
     return this.snapshot;
+  }
+
+  async setGameProfileAutoSwitchEnabled(enabled: boolean): Promise<BridgeSnapshot> {
+    this.settings.gameProfileAutoSwitchEnabled = enabled;
+    saveWebSettings(this.settings);
+    this.emitSnapshot();
+    return this.snapshot;
+  }
+
+  async saveGameProfile(profile: Omit<GameProfile, 'id'> & { id?: string }): Promise<BridgeSnapshot> {
+    const id = profile.id || `game-${Date.now()}`;
+    const name = profile.name || 'Custom Game';
+    const executableName = profile.executableName || 'game.exe';
+    const controllerProfileId = profile.controllerProfileId || DEFAULT_CONTROLLER_PROFILE_ID;
+    const buttonRemappingProfileId = profile.buttonRemappingProfileId || null;
+
+    const existingIndex = this.settings.gameProfiles.findIndex((p) => p.id === id);
+    if (existingIndex >= 0) {
+      this.settings.gameProfiles[existingIndex] = { id, name, executableName, controllerProfileId, buttonRemappingProfileId };
+    } else {
+      this.settings.gameProfiles.push({ id, name, executableName, controllerProfileId, buttonRemappingProfileId });
+    }
+    saveWebSettings(this.settings);
+    this.emitSnapshot();
+    return this.snapshot;
+  }
+
+  async updateGameProfile(profile: GameProfile): Promise<BridgeSnapshot> {
+    return this.saveGameProfile(profile);
+  }
+
+  async deleteGameProfile(profileId: string): Promise<BridgeSnapshot> {
+    this.settings.gameProfiles = this.settings.gameProfiles.filter((p) => p.id !== profileId);
+    saveWebSettings(this.settings);
+    this.emitSnapshot();
+    return this.snapshot;
+  }
+
+  async getRunningProcesses(): Promise<RunningProcessInfo[]> {
+    return [
+      { processId: 101, name: 'Cyberpunk 2077', executableName: 'Cyberpunk2077.exe', windowTitle: 'Cyberpunk 2077' },
+      { processId: 102, name: 'Elden Ring', executableName: 'eldenring.exe', windowTitle: 'ELDEN RING' },
+      { processId: 103, name: 'Forza Horizon 5', executableName: 'ForzaHorizon5.exe', windowTitle: 'Forza Horizon 5' }
+    ];
   }
 
   async setChordConfiguration(functions: ChordFunction[], assignments: ChordAssignment[]): Promise<BridgeSnapshot> {

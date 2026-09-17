@@ -25,7 +25,8 @@ export const SHORTCUT_EVENT = {
   CONTROLLER_VOLUME_UP: 0x02,
   SLEEP_CONTROLLER: 0x03,
   MIC_MUTE_ON: 0x04,
-  MIC_MUTE_OFF: 0x05
+  MIC_MUTE_OFF: 0x05,
+  TOUCHPAD_GESTURE_BASE: 0x50
 } as const;
 
 export const AUDIO_DEBUG_EVENT = {
@@ -131,14 +132,28 @@ export function buildTurboConfigPayload(
 }
 
 export function buildTouchpadZonePayload(
-  settings: { deadzonePercent: number; zoneTargets: [number, number, number, number] }
+  settings: {
+    deadzonePercent: number;
+    zoneTargets: [number, number, number, number];
+    mode?: 'zones' | 'swipe';
+    sequence?: number[];
+    actionType?: number;
+    actionTarget?: number;
+  }
 ): number[];
 export function buildTouchpadZonePayload(
   deadzonePercent: number,
   zoneTargets: [number, number, number, number]
 ): number[];
 export function buildTouchpadZonePayload(
-  settingsOrDeadzone: { deadzonePercent: number; zoneTargets: [number, number, number, number] } | number,
+  settingsOrDeadzone: {
+    deadzonePercent: number;
+    zoneTargets: [number, number, number, number];
+    mode?: 'zones' | 'swipe';
+    sequence?: number[];
+    actionType?: number;
+    actionTarget?: number;
+  } | number,
   maybeZoneTargets?: [number, number, number, number]
 ): number[] {
   if (typeof settingsOrDeadzone === 'number') {
@@ -151,13 +166,24 @@ export function buildTouchpadZonePayload(
       targets[3] & 0xff
     ];
   }
-  return [
+  const base = [
     Math.max(0, Math.min(100, Math.round(Number.isFinite(settingsOrDeadzone.deadzonePercent) ? settingsOrDeadzone.deadzonePercent : 50))),
     settingsOrDeadzone.zoneTargets[0] & 0xff,
     settingsOrDeadzone.zoneTargets[1] & 0xff,
     settingsOrDeadzone.zoneTargets[2] & 0xff,
     settingsOrDeadzone.zoneTargets[3] & 0xff
   ];
+  if (settingsOrDeadzone.mode === 'swipe') {
+    const seq = (settingsOrDeadzone.sequence ?? []).slice(0, 6);
+    base.push(1); // mode: 1 = swipe
+    base.push(seq.length & 0xff);
+    for (let i = 0; i < 6; i++) {
+      base.push((seq[i] ?? 0) & 0xff);
+    }
+    base.push((settingsOrDeadzone.actionType ?? 0) & 0xff);
+    base.push((settingsOrDeadzone.actionTarget ?? 0) & 0xff);
+  }
+  return base;
 }
 
 export const RADIAL_DEADZONE_MAX_PERCENT = 50;

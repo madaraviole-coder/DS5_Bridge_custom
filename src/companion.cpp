@@ -2746,13 +2746,22 @@ void handle_command(uint8_t const *buffer, uint16_t bufsize) {
                 return;
             }
             {
-                TouchpadZoneConfig config;
+                TouchpadZoneConfig config = touchpad_zone_get_config();
                 config.enabled = value == 1;
                 config.deadzone_percent = buffer[10];
                 config.zone_targets[0] = static_cast<TouchpadZoneTargetButton>(buffer[11]);
                 config.zone_targets[1] = static_cast<TouchpadZoneTargetButton>(buffer[12]);
                 config.zone_targets[2] = static_cast<TouchpadZoneTargetButton>(buffer[13]);
                 config.zone_targets[3] = static_cast<TouchpadZoneTargetButton>(buffer[14]);
+                if (bufsize >= 25) {
+                    config.mode = buffer[15] == 1 ? TouchpadOperatingModeSwipe : TouchpadOperatingModeZones;
+                    config.gesture_sequence_len = buffer[16] <= 6 ? buffer[16] : 0;
+                    for (uint8_t i = 0; i < 6; i++) {
+                        config.gesture_sequence[i] = buffer[17 + i];
+                    }
+                    config.gesture_action_type = static_cast<TouchpadGestureActionType>(buffer[23]);
+                    config.gesture_target_button = static_cast<TouchpadZoneTargetButton>(buffer[24]);
+                }
                 touchpad_zone_set_config(config);
             }
             settings_revision++;

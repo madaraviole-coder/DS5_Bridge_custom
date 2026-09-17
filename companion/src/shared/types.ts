@@ -100,6 +100,30 @@ export interface CompanionSettings {
   chordAssignments: ChordAssignment[];
   touchpadSettings?: TouchpadSettings;
   turboSettings?: TurboSettings;
+  gameProfileAutoSwitchEnabled: boolean;
+  gameProfiles: GameProfile[];
+}
+
+export interface GameProfile {
+  id: string;
+  name: string;
+  executableName: string;
+  controllerProfileId: string;
+  buttonRemappingProfileId?: string | null;
+}
+
+export interface ActiveGameInfo {
+  id: string | null;
+  name: string;
+  executableName: string;
+  matchedProfileId: string | null;
+}
+
+export interface RunningProcessInfo {
+  processId: number;
+  name: string;
+  executableName: string;
+  windowTitle?: string | null;
 }
 
 export interface TurboSettings {
@@ -181,6 +205,7 @@ export interface BridgeSnapshot {
   personaTransition?: HostPersonaTransition | null;
   bridgeDevices?: BridgeDeviceCensus | null;
   stickInputPreview?: StickInputPreviewPayload | null;
+  activeGame?: ActiveGameInfo | null;
 }
 
 export interface BridgeDeviceInfo {

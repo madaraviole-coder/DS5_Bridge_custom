@@ -60,6 +60,17 @@ if (options.MonitorAudioSessions)
     await monitor.RunAsync();
     return;
 }
+if (options.MonitorForegroundProcess)
+{
+    using var monitor = new ForegroundProcessMonitor();
+    await monitor.RunAsync();
+    return;
+}
+if (options.ListRunningProcesses)
+{
+    ForegroundProcessMonitor.ListRunningProcesses();
+    return;
+}
 if (options.ListDevices)
 {
     EndpointManager.ListDevices();
@@ -2775,6 +2786,8 @@ sealed record HelperOptions(
     public bool ListBridges { get; init; }
     public string? CompanionDevicePath { get; init; }
     public Guid? BridgeContainer { get; init; }
+    public bool MonitorForegroundProcess { get; init; }
+    public bool ListRunningProcesses { get; init; }
 
     public string SourceArgument => Source switch
     {
@@ -2802,6 +2815,8 @@ sealed record HelperOptions(
         );
         var listDevices = false;
         var monitorAudioSessions = false;
+        var monitorForegroundProcess = false;
+        var listRunningProcesses = false;
         string? resolveIconDataUrlPath = null;
         var companionTransportServer = false;
         var listBridges = false;
@@ -2938,6 +2953,12 @@ sealed record HelperOptions(
                 case "--monitor-audio-sessions":
                     monitorAudioSessions = true;
                     break;
+                case "--monitor-foreground-process":
+                    monitorForegroundProcess = true;
+                    break;
+                case "--list-running-processes":
+                    listRunningProcesses = true;
+                    break;
                 case "--resolve-icon-data-url" when index + 1 < args.Length:
                     resolveIconDataUrlPath = args[++index];
                     break;
@@ -3028,7 +3049,9 @@ sealed record HelperOptions(
         {
             ListBridges = listBridges,
             CompanionDevicePath = companionDevicePath,
-            BridgeContainer = bridgeContainer
+            BridgeContainer = bridgeContainer,
+            MonitorForegroundProcess = monitorForegroundProcess,
+            ListRunningProcesses = listRunningProcesses
         };
     }
 

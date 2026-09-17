@@ -40,7 +40,7 @@ import type {
   HostPersonaMode,
   RemapButtonId
 } from '../shared/protocol';
-import type { CompanionSettings, TurboSettings, UiScalePercent, UiThemePreset } from '../shared/types';
+import type { CompanionSettings, GameProfile, TurboSettings, UiScalePercent, UiThemePreset } from '../shared/types';
 import { DEFAULT_TOUCHPAD_SETTINGS, type TouchpadSettings } from '../shared/touchpad-gestures';
 
 export const DEFAULT_TURBO_SETTINGS: TurboSettings = {
@@ -224,7 +224,9 @@ export const DEFAULT_SETTINGS: CompanionSettings = {
   chordFunctions: [],
   chordAssignments: [],
   touchpadSettings: { ...DEFAULT_TOUCHPAD_SETTINGS },
-  turboSettings: { ...DEFAULT_TURBO_SETTINGS }
+  turboSettings: { ...DEFAULT_TURBO_SETTINGS },
+  gameProfileAutoSwitchEnabled: true,
+  gameProfiles: []
 };
 
 function normalizeColor(value: unknown): string {
@@ -857,7 +859,8 @@ function cloneSettings(settings: CompanionSettings): CompanionSettings {
     })),
     buttonRemappingDraft: cloneRemapMap(settings.buttonRemappingDraft),
     chordFunctions: settings.chordFunctions.map((func) => ({ ...func })),
-    chordAssignments: settings.chordAssignments.map((assignment) => ({ ...assignment }))
+    chordAssignments: settings.chordAssignments.map((assignment) => ({ ...assignment })),
+    gameProfiles: (settings.gameProfiles ?? []).map((profile) => ({ ...profile }))
   };
 }
 
@@ -1082,7 +1085,11 @@ function normalizeSettings(value: Partial<CompanionSettings> | null | undefined)
       speedCps: Math.max(2, Math.min(30, Math.round(Number.isFinite(value.turboSettings.speedCps) ? value.turboSettings.speedCps : DEFAULT_TURBO_SETTINGS.speedCps))),
       humanize: typeof value.turboSettings.humanize === 'boolean' ? value.turboSettings.humanize : DEFAULT_TURBO_SETTINGS.humanize,
       buttonsMask: typeof value.turboSettings.buttonsMask === 'number' ? value.turboSettings.buttonsMask & 0xff : DEFAULT_TURBO_SETTINGS.buttonsMask
-    } : DEFAULT_SETTINGS.turboSettings
+    } : DEFAULT_SETTINGS.turboSettings,
+    gameProfileAutoSwitchEnabled: typeof value?.gameProfileAutoSwitchEnabled === 'boolean'
+      ? value.gameProfileAutoSwitchEnabled
+      : DEFAULT_SETTINGS.gameProfileAutoSwitchEnabled,
+    gameProfiles: normalizeGameProfiles(value?.gameProfiles, controllerProfiles, buttonRemappingProfiles)
   };
 }
 
@@ -1371,6 +1378,45 @@ export class SettingsStore {
     }
   }
 
+  setGameProfileAutoSwitchEnabled(enabled: boolean): CompanionSettings {
+    return this.update({ gameProfileAutoSwitchEnabled: Boolean(enabled) });
+  }
+
+  saveGameProfile(candidate: Omit<GameProfile, 'id'> & { id?: string }): CompanionSettings {
+    const name = (candidate.name ?? '').trim().slice(0, 64);
+    const executableName = (candidate.executableName ?? '').trim().slice(0, 128);
+    if (!name || !executableName) {
+      return this.get();
+    }
+    const id = candidate.id?.trim() || `game-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+    const controllerProfileId = candidate.controllerProfileId?.trim() || DEFAULT_CONTROLLER_PROFILE_ID;
+    const buttonRemappingProfileId = candidate.buttonRemappingProfileId?.trim() || null;
+
+    const existingIndex = this.settings.gameProfiles.findIndex((p) => p.id === id);
+    let nextProfiles: GameProfile[];
+    if (existingIndex >= 0) {
+      nextProfiles = this.settings.gameProfiles.map((p, index) => (
+        index === existingIndex ? { id, name, executableName, controllerProfileId, buttonRemappingProfileId } : p
+      ));
+    } else {
+      nextProfiles = [
+        ...this.settings.gameProfiles,
+        { id, name, executableName, controllerProfileId, buttonRemappingProfileId }
+      ];
+    }
+    return this.update({ gameProfiles: nextProfiles });
+  }
+
+  updateGameProfile(profile: GameProfile): CompanionSettings {
+    return this.saveGameProfile(profile);
+  }
+
+  deleteGameProfile(profileId: string): CompanionSettings {
+    return this.update({
+      gameProfiles: this.settings.gameProfiles.filter((p) => p.id !== profileId)
+    });
+  }
+
   private nextButtonRemappingProfileName(): string {
     const names = new Set(this.settings.buttonRemappingProfiles.map((profile) => profile.name));
     let index = 1;
@@ -1440,3 +1486,48 @@ function normalizeControllerBindings(
   }
   return result;
 }
+
+function normalizeGameProfiles(
+  value: unknown,
+  controllerProfiles: ControllerProfile[],
+  remapProfiles: ButtonRemapProfile[]
+): GameProfile[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const controllerProfileIds = new Set(controllerProfiles.map((p) => p.id));
+  const remapProfileIds = new Set(remapProfiles.map((p) => p.id));
+  const result: GameProfile[] = [];
+  const seenIds = new Set<string>();
+
+  for (const item of value) {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) continue;
+    const candidate = item as Record<string, unknown>;
+    const rawId = typeof candidate.id === 'string' ? candidate.id.trim() : '';
+    const rawName = typeof candidate.name === 'string' ? candidate.name.trim().slice(0, 64) : '';
+    const rawExe = typeof candidate.executableName === 'string' ? candidate.executableName.trim().slice(0, 128) : '';
+    const rawControllerId = typeof candidate.controllerProfileId === 'string' ? candidate.controllerProfileId.trim() : '';
+    const rawRemapId = typeof candidate.buttonRemappingProfileId === 'string' ? candidate.buttonRemappingProfileId.trim() : null;
+
+    if (!rawId || !rawName || !rawExe || seenIds.has(rawId)) {
+      continue;
+    }
+    seenIds.add(rawId);
+    const controllerProfileId = controllerProfileIds.has(rawControllerId)
+      ? rawControllerId
+      : (controllerProfiles[0]?.id ?? DEFAULT_CONTROLLER_PROFILE_ID);
+    const buttonRemappingProfileId = rawRemapId && remapProfileIds.has(rawRemapId)
+      ? rawRemapId
+      : null;
+
+    result.push({
+      id: rawId,
+      name: rawName,
+      executableName: rawExe,
+      controllerProfileId,
+      ...(buttonRemappingProfileId ? { buttonRemappingProfileId } : {})
+    });
+  }
+  return result;
+}
+

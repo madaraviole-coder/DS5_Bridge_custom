@@ -34,9 +34,10 @@ import type {
   PicoFirmwareActionResult,
   UiScalePercent,
   UiThemePreset,
-  TurboSettings
+  TurboSettings,
+  GameProfile
 } from '../shared/types';
-import type { TouchpadSettings } from '../shared/touchpad-gestures';
+import type { TouchpadGesture, TouchpadSettings } from '../shared/touchpad-gestures';
 
 const APP_NAME = 'DS5 Bridge';
 const WINDOWS_APP_USER_MODEL_ID = 'io.github.sundaymoments.ds5bridge';
@@ -1224,6 +1225,9 @@ function registerIpc(service: BridgeService): void {
   ipcMain.handle('bridge:setTouchpadZoneConfig', (_event, settings: TouchpadSettings) => (
     service.setTouchpadZoneConfig(settings)
   ));
+  ipcMain.handle('bridge:executeTouchpadGesture', (_event, gesture: TouchpadGesture) => (
+    service.executeTouchpadGesture(gesture)
+  ));
   ipcMain.handle('bridge:setTurboConfig', (_event, settings: TurboSettings) => (
     service.setTurboConfig(settings)
   ));
@@ -1243,6 +1247,19 @@ function registerIpc(service: BridgeService): void {
     service.deleteButtonRemappingProfile(profileId)
   ));
   ipcMain.handle('bridge:restoreButtonRemappingDefaults', () => service.restoreButtonRemappingDefaults());
+  ipcMain.handle('bridge:setGameProfileAutoSwitchEnabled', (_event, enabled: boolean) => (
+    service.setGameProfileAutoSwitchEnabled(enabled)
+  ));
+  ipcMain.handle('bridge:saveGameProfile', (_event, profile: Omit<GameProfile, 'id'> & { id?: string }) => (
+    service.saveGameProfile(profile)
+  ));
+  ipcMain.handle('bridge:updateGameProfile', (_event, profile: GameProfile) => (
+    service.updateGameProfile(profile)
+  ));
+  ipcMain.handle('bridge:deleteGameProfile', (_event, profileId: string) => (
+    service.deleteGameProfile(profileId)
+  ));
+  ipcMain.handle('bridge:getRunningProcesses', () => service.getRunningProcesses());
   ipcMain.handle('bridge:setChordConfiguration', (_event, functions: ChordFunction[], assignments: ChordAssignment[]) => (
     service.setChordConfiguration(functions, assignments)
   ));

@@ -235,7 +235,7 @@ static class AudioSessionCatalog
         return $"pid:{session.ProcessId}";
     }
 
-    private static ProcessInfo? TryGetProcessInfo(int processId, bool includeFileDescription)
+    internal static ProcessInfo? TryGetProcessInfo(int processId, bool includeFileDescription)
     {
         try
         {
@@ -392,7 +392,7 @@ static class AudioSessionCatalog
         return value.Replace("\\", "\\\\").Replace("'", "\\'");
     }
 
-    private sealed record ProcessInfo(
+    internal sealed record ProcessInfo(
         string DisplayName,
         string? ExecutableName,
         string? ProcessPath,

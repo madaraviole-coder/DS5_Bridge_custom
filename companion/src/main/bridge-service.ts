@@ -46,7 +46,10 @@ import {
 } from '../shared/protocol';
 import {
   DEFAULT_TOUCHPAD_SETTINGS,
+  GESTURE_WINDOWS_SHORTCUTS,
+  parseCustomKeysString,
   touchpadTargetToProtocolId,
+  type TouchpadGesture,
   type TouchpadSettings
 } from '../shared/touchpad-gestures';
 import type {
@@ -91,8 +94,12 @@ import type {
   UiThemePreset,
   WindowsDeviceCleanupResult,
   BridgeDeviceCensus,
-  TurboSettings
+  TurboSettings,
+  ActiveGameInfo,
+  GameProfile,
+  RunningProcessInfo
 } from '../shared/types';
+import { GameProfileMonitor, type ForegroundProcessEvent } from './game-profile-monitor';
 import {
   AudioHapticsSessionMonitor,
   MicKeepaliveEngine,
@@ -646,13 +653,20 @@ function formatMicDebugEvent(prefix: string, args: number[]): string {
 
 type InputShortcutEvent =
   | { kind: 'shortcut'; event: ShortcutEvent }
-  | { kind: 'chord-function'; slot: number };
+  | { kind: 'chord-function'; slot: number }
+  | { kind: 'touchpad-gesture'; slot: number };
 
 function parseShortcutEvent(event: number): InputShortcutEvent | null {
   if (event >= CHORD_FUNCTION_EVENT_BASE && event < CHORD_FUNCTION_EVENT_BASE + MAX_CHORD_ASSIGNMENTS) {
     return {
       kind: 'chord-function',
       slot: event - CHORD_FUNCTION_EVENT_BASE
+    };
+  }
+  if (event >= SHORTCUT_EVENT.TOUCHPAD_GESTURE_BASE && event < SHORTCUT_EVENT.TOUCHPAD_GESTURE_BASE + 8) {
+    return {
+      kind: 'touchpad-gesture',
+      slot: event - SHORTCUT_EVENT.TOUCHPAD_GESTURE_BASE
     };
   }
   switch (event) {
@@ -1255,6 +1269,10 @@ export class BridgeService extends EventEmitter {
   private readonly audioHapticsSessionMonitor = new AudioHapticsSessionMonitor();
   private readonly micKeepaliveEngine = new MicKeepaliveEngine();
   private readonly hidDiscovery = new HidDiscoveryClient();
+  private readonly gameProfileMonitor = new GameProfileMonitor();
+  private currentActiveGame: ActiveGameInfo | null = null;
+  private autoSwitchedBaseProfileId: string | null = null;
+  private autoSwitchedBaseRemapProfileId: string | null = null;
   private unavailableDiscoveryRequested = false;
   private unavailableDevices: HidDeviceSummary[] = [];
   private audioHapticsSessionCache: { key: string; expiresAt: number; sessions: AudioHapticsSession[] } | null = null;
@@ -1308,7 +1326,7 @@ export class BridgeService extends EventEmitter {
   private lowBatteryToastActive = false;
   private shortcutFeaturePollRetryAt = 0;
   private shortcutActionQueue: Promise<void> = Promise.resolve();
-  private readonly shortcutActionHandlers: Record<ShortcutEvent, () => Promise<void>> = {
+  private readonly shortcutActionHandlers: Partial<Record<ShortcutEvent, () => Promise<void>>> = {
     [SHORTCUT_EVENT.CONTROLLER_VOLUME_DOWN]: () => this.applyControllerVolumeShortcut(-10),
     [SHORTCUT_EVENT.CONTROLLER_VOLUME_UP]: () => this.applyControllerVolumeShortcut(10),
     [SHORTCUT_EVENT.SLEEP_CONTROLLER]: () => this.applySleepShortcut(),
@@ -1362,6 +1380,10 @@ export class BridgeService extends EventEmitter {
       }
       this.emitSnapshot();
     });
+    this.gameProfileMonitor.on('foreground-change', (event: ForegroundProcessEvent) => {
+      this.handleForegroundChange(event);
+    });
+    this.gameProfileMonitor.start();
   }
 
   private enqueueShortcutEvent(event: InputShortcutEvent): void {
@@ -1456,6 +1478,7 @@ export class BridgeService extends EventEmitter {
     }
 
     await this.stopControllerAudioPolling();
+    this.gameProfileMonitor.stop();
     this.hidDiscovery.stop();
     this.closeDevice();
   }
@@ -1463,6 +1486,7 @@ export class BridgeService extends EventEmitter {
   getSnapshot(): BridgeSnapshot {
     return structuredClone({
       ...this.snapshot,
+      activeGame: this.currentActiveGame,
       stickInputPreview: this.stickInputPreviewLeaseUntil > Date.now()
         ? this.stickInputPreview
         : null
@@ -2760,11 +2784,60 @@ export class BridgeService extends EventEmitter {
       await this.dispatchChordFunctionSlot(event.slot);
       return;
     }
+    if (event.kind === 'touchpad-gesture') {
+      await this.dispatchTouchpadGestureSlot(event.slot);
+      return;
+    }
     await this.dispatchShortcutAction(event.event);
   }
 
+  private async dispatchTouchpadGestureSlot(slot: number): Promise<void> {
+    const settings = this.settingsStore.get();
+    const gesture = settings.touchpadSettings?.gestures?.[slot] ?? settings.touchpadSettings?.gestures?.[0];
+    if (!gesture) {
+      return;
+    }
+    await this.executeTouchpadGesture(gesture);
+  }
+
+  async executeTouchpadGesture(gesture: TouchpadGesture): Promise<void> {
+    switch (gesture.actionType) {
+      case 'windows-shortcut': {
+        const match = GESTURE_WINDOWS_SHORTCUTS.find((s) => s.value === gesture.actionValue);
+        const keys = match?.keys ?? (gesture.actionValue === 'toggle-hdr' ? ['WIN', 'ALT', 'B'] : ['WIN', 'SHIFT', 'S']);
+        const codes = keys.map(virtualKeyCodeFor).filter((code): code is number => code !== null);
+        if (codes.length > 0) {
+          await sendVirtualKeySequence(codes);
+        }
+        return;
+      }
+      case 'media': {
+        const key = MEDIA_ACTION_KEY_CODES[gesture.actionValue as Extract<ChordFunction, { type: 'media' }>['action']];
+        if (key) {
+          await sendVirtualKeySequence([key]);
+        }
+        return;
+      }
+      case 'custom-keys': {
+        const keys = parseCustomKeysString(gesture.actionValue);
+        const codes = keys.map(virtualKeyCodeFor).filter((code): code is number => code !== null);
+        if (codes.length > 0) {
+          await sendVirtualKeySequence(codes);
+        }
+        return;
+      }
+      case 'button': {
+        this.appendAudioDebugLines([`[Touchpad] gesture triggered button remap: ${gesture.actionValue}`]);
+        return;
+      }
+    }
+  }
+
   private async dispatchShortcutAction(event: ShortcutEvent): Promise<void> {
-    await this.shortcutActionHandlers[event]();
+    const handler = this.shortcutActionHandlers[event];
+    if (handler) {
+      await handler();
+    }
   }
 
   private async dispatchChordFunctionSlot(slot: number): Promise<void> {
@@ -3362,6 +3435,143 @@ export class BridgeService extends EventEmitter {
     return this.getSnapshot();
   }
 
+  private handleForegroundChange(event: ForegroundProcessEvent): void {
+    const settings = this.settingsStore.get();
+    const exe = event.executableName?.trim() || '';
+    if (!exe) {
+      if (this.currentActiveGame !== null) {
+        this.currentActiveGame = null;
+        if (settings.gameProfileAutoSwitchEnabled && this.autoSwitchedBaseProfileId) {
+          const revertProfileId = this.autoSwitchedBaseProfileId;
+          const revertRemapId = this.autoSwitchedBaseRemapProfileId;
+          this.autoSwitchedBaseProfileId = null;
+          this.autoSwitchedBaseRemapProfileId = null;
+          void this.selectControllerProfile(revertProfileId, { recordBinding: false });
+          if (revertRemapId) {
+            void this.selectButtonRemappingProfile(revertRemapId);
+          }
+        }
+        this.emitSnapshot();
+      }
+      return;
+    }
+
+    const matched = settings.gameProfiles.find(
+      (profile) => profile.executableName.toLowerCase() === exe.toLowerCase()
+    );
+
+    if (matched) {
+      const isNewGame = this.currentActiveGame?.id !== matched.id;
+      this.currentActiveGame = {
+        id: matched.id,
+        name: matched.name,
+        executableName: matched.executableName,
+        matchedProfileId: matched.controllerProfileId
+      };
+
+      if (settings.gameProfileAutoSwitchEnabled && isNewGame) {
+        if (!this.autoSwitchedBaseProfileId) {
+          this.autoSwitchedBaseProfileId = settings.selectedControllerProfileId;
+          this.autoSwitchedBaseRemapProfileId = settings.selectedButtonRemappingProfileId;
+        }
+        void this.selectControllerProfile(matched.controllerProfileId, { recordBinding: false });
+        if (matched.buttonRemappingProfileId) {
+          void this.selectButtonRemappingProfile(matched.buttonRemappingProfileId);
+        }
+      }
+      this.emitSnapshot();
+    } else {
+      if (this.currentActiveGame !== null) {
+        this.currentActiveGame = null;
+        if (settings.gameProfileAutoSwitchEnabled && this.autoSwitchedBaseProfileId) {
+          const revertProfileId = this.autoSwitchedBaseProfileId;
+          const revertRemapId = this.autoSwitchedBaseRemapProfileId;
+          this.autoSwitchedBaseProfileId = null;
+          this.autoSwitchedBaseRemapProfileId = null;
+          void this.selectControllerProfile(revertProfileId, { recordBinding: false });
+          if (revertRemapId) {
+            void this.selectButtonRemappingProfile(revertRemapId);
+          }
+        }
+        this.emitSnapshot();
+      }
+    }
+  }
+
+  async setGameProfileAutoSwitchEnabled(enabled: boolean): Promise<BridgeSnapshot> {
+    this.snapshot.settings = this.settingsStore.setGameProfileAutoSwitchEnabled(enabled);
+    const lastProc = this.gameProfileMonitor.getLastForegroundProcess();
+    if (lastProc) {
+      this.handleForegroundChange(lastProc);
+    } else {
+      this.emitSnapshot();
+    }
+    return this.getSnapshot();
+  }
+
+  async saveGameProfile(candidate: Omit<GameProfile, 'id'> & { id?: string }): Promise<BridgeSnapshot> {
+    this.snapshot.settings = this.settingsStore.saveGameProfile(candidate);
+    const lastProc = this.gameProfileMonitor.getLastForegroundProcess();
+    if (lastProc) {
+      this.handleForegroundChange(lastProc);
+    } else {
+      this.emitSnapshot();
+    }
+    return this.getSnapshot();
+  }
+
+  async updateGameProfile(profile: GameProfile): Promise<BridgeSnapshot> {
+    this.snapshot.settings = this.settingsStore.updateGameProfile(profile);
+    const lastProc = this.gameProfileMonitor.getLastForegroundProcess();
+    if (lastProc) {
+      this.handleForegroundChange(lastProc);
+    } else {
+      this.emitSnapshot();
+    }
+    return this.getSnapshot();
+  }
+
+  async deleteGameProfile(profileId: string): Promise<BridgeSnapshot> {
+    this.snapshot.settings = this.settingsStore.deleteGameProfile(profileId);
+    if (this.currentActiveGame?.id === profileId) {
+      this.currentActiveGame = null;
+      if (this.autoSwitchedBaseProfileId) {
+        const revert = this.autoSwitchedBaseProfileId;
+        const revertRemap = this.autoSwitchedBaseRemapProfileId;
+        this.autoSwitchedBaseProfileId = null;
+        this.autoSwitchedBaseRemapProfileId = null;
+        await this.selectControllerProfile(revert, { recordBinding: false });
+        if (revertRemap) {
+          await this.selectButtonRemappingProfile(revertRemap);
+        }
+      }
+    }
+    this.emitSnapshot();
+    return this.getSnapshot();
+  }
+
+  async getRunningProcesses(): Promise<RunningProcessInfo[]> {
+    const list = await this.gameProfileMonitor.listRunningProcesses();
+    if (list.length > 0) {
+      return list;
+    }
+    const sessions = await this.listAudioHapticsSessions();
+    const seen = new Set<string>();
+    const fallback: RunningProcessInfo[] = [];
+    for (const session of sessions) {
+      const exe = session.executableName?.trim();
+      if (!exe || seen.has(exe.toLowerCase())) continue;
+      seen.add(exe.toLowerCase());
+      fallback.push({
+        processId: session.processId,
+        name: session.displayName || exe,
+        executableName: exe,
+        windowTitle: session.displayName
+      });
+    }
+    return fallback;
+  }
+
   async setEdgeProfileSwitchingBlocked(enabled: boolean): Promise<BridgeSnapshot> {
     const connected = this.snapshot.state === 'connected';
     if (connected && !enabled) {
@@ -3423,6 +3633,13 @@ export class BridgeService extends EventEmitter {
     expectSettingsRevisionChange: boolean
   ): Promise<void> {
     const touchpad = settings.touchpadSettings ?? DEFAULT_TOUCHPAD_SETTINGS;
+    const primaryGesture = touchpad.gestures?.[0];
+    const actionTypeNum = primaryGesture?.actionType === 'media' ? 1
+      : primaryGesture?.actionType === 'custom-keys' ? 2
+      : primaryGesture?.actionType === 'button' ? 3 : 0;
+    const actionTargetNum = primaryGesture?.actionType === 'button'
+      ? touchpadTargetToProtocolId(primaryGesture.actionValue as any)
+      : 0;
     const payload = buildTouchpadZonePayload({
       deadzonePercent: touchpad.deadzonePercent,
       zoneTargets: [
@@ -3430,7 +3647,11 @@ export class BridgeService extends EventEmitter {
         touchpadTargetToProtocolId(touchpad.zoneMappings[2]),
         touchpadTargetToProtocolId(touchpad.zoneMappings[3]),
         touchpadTargetToProtocolId(touchpad.zoneMappings[4])
-      ]
+      ],
+      mode: touchpad.mode,
+      sequence: primaryGesture?.sequence ?? [1, 2],
+      actionType: actionTypeNum,
+      actionTarget: actionTargetNum
     });
     await this.sendCommand(
       COMMAND_ID.SET_TOUCHPAD_ZONE_CONFIG,

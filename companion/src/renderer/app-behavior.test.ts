@@ -496,5 +496,119 @@ describe('renderer behavior guards', () => {
     expect(stylesSource).toContain('.gesture-builder-section');
     expect(stylesSource).toContain('.touchpad-zone-grid');
   });
+
+  it('renders Kitsune-style Overview cards with Game Profile auto-switch and Technical Status', () => {
+    // Overview Cards
+    expect(appSource).toContain('aria-label="Active Game"');
+    expect(appSource).toContain('aria-label="Active Profile"');
+    expect(appSource).toContain('aria-label="Library"');
+    expect(appSource).toContain('aria-label="Kitsune Bar"');
+    expect(appSource).toContain('Auto-switch');
+    expect(appSource).toContain('switch switch-orange');
+    expect(appSource).toContain('Edit Profile');
+    expect(appSource).toContain('Game Profiles');
+    expect(appSource).toContain('Open Kitsune Bar');
+    expect(appSource).toContain('Quick Overlay');
+    expect(appSource).toContain('PS Home Button');
+
+    // Technical Status
+    expect(appSource).toContain('Technical Status');
+    expect(appSource).toContain('overview-technical-status');
+
+    // Bridge IPC Wiring
+    expect(appSource).toContain('window.bridge.setGameProfileAutoSwitchEnabled(');
+    expect(appSource).toContain('window.bridge.saveGameProfile(');
+    expect(appSource).toContain('window.bridge.updateGameProfile(');
+    expect(appSource).toContain('window.bridge.deleteGameProfile(');
+    expect(appSource).toContain('window.bridge.getRunningProcesses()');
+
+    // Modals
+    expect(appSource).toContain('game-profiles-modal');
+    expect(appSource).toContain('kitsune-bar-modal');
+    expect(appSource).toContain('Game Profiles Library');
+
+    // Styles
+    expect(stylesSource).toContain('.switch.switch-orange.on');
+    expect(stylesSource).toContain('.overview-card-action-button');
+    expect(stylesSource).toContain('.game-profiles-modal');
+    expect(stylesSource).toContain('.kitsune-bar-modal');
+  });
+
+  it('renders Touchpad Swipe Sequence action configuration with shortcuts, media, buttons, and test button', () => {
+    // Touchpad Gesture Action Section
+    expect(appSource).toContain('touchpad-gesture-action-section');
+    expect(appSource).toContain('Swipe Gesture Action');
+    expect(appSource).toContain('touchpad-gesture-test-btn');
+    expect(appSource).toContain('Test Action');
+    expect(appSource).toContain('Windows Shortcuts');
+    expect(appSource).toContain('Media Controls');
+    expect(appSource).toContain('Controller Button');
+    expect(appSource).toContain('Custom Hotkey');
+    expect(appSource).toContain('touchpad-gesture-summary-card');
+    expect(appSource).toContain('Hardware Synchronized');
+
+    // Direction Presets in Gesture Builder
+    expect(appSource).toContain('gesture-presets-bar');
+    expect(appSource).toContain('Direction Presets:');
+
+    // Styles
+    expect(stylesSource).toContain('.touchpad-gesture-action-section');
+    expect(stylesSource).toContain('.touchpad-gesture-test-btn');
+    expect(stylesSource).toContain('.touchpad-gesture-category-tabs');
+    expect(stylesSource).toContain('.touchpad-gesture-shortcuts-grid');
+    expect(stylesSource).toContain('.gesture-action-card');
+    expect(stylesSource).toContain('.touchpad-gesture-summary-card');
+  });
+
+  it('renders Turbo Mode with Kitsune Multi-Actions layout matching design', () => {
+    // Header Tabs
+    expect(appSource).toContain('multi-actions-container');
+    expect(appSource).toContain('multi-actions-header-tabs');
+    expect(appSource).toContain('Multi-Actions');
+    expect(appSource).toContain('Build actions around button states, thresholds, and repeat behavior.');
+
+    // Action Library (Left Column)
+    expect(appSource).toContain('action-library-card');
+    expect(appSource).toContain('Action Library');
+    expect(appSource).toContain('Create actions.');
+    expect(appSource).toContain('action-profile-select');
+    expect(appSource).toContain('action-profile-add-btn');
+    expect(appSource).toContain('action-interval-stepper');
+    expect(appSource).toContain('deterministic-output-box');
+    expect(appSource).toContain('Deterministic output');
+    expect(appSource).toContain('repeats while held');
+    expect(appSource).toContain('stops on release');
+
+    // Trigger Assignments (Right Column)
+    expect(appSource).toContain('trigger-assignments-card');
+    expect(appSource).toContain('Trigger Assignments');
+    expect(appSource).toContain('Assign actions to button events.');
+    expect(appSource).toContain('new-trigger-btn');
+    expect(appSource).toContain('New Trigger');
+    expect(appSource).toContain('new-trigger-popover');
+    expect(appSource).toContain('trigger-assignment-item');
+    expect(appSource).toContain('trigger-glyph-badge');
+    expect(appSource).toContain('Starts when:');
+    expect(appSource).toContain('starts-when-select');
+    expect(appSource).toContain('trigger-action-pill');
+
+    // Interactive Tester and Master
+    expect(appSource).toContain('turbo-tester-bar');
+    expect(appSource).toContain('Turbo Master:');
+    expect(appSource).toContain('HOLD TO TEST CADENCE');
+
+    // Styles
+    expect(stylesSource).toContain('.multi-actions-container');
+    expect(stylesSource).toContain('.multi-actions-header-tabs');
+    expect(stylesSource).toContain('.multi-actions-grid');
+    expect(stylesSource).toContain('.action-library-card');
+    expect(stylesSource).toContain('.action-interval-stepper');
+    expect(stylesSource).toContain('.deterministic-output-box');
+    expect(stylesSource).toContain('.deterministic-pill');
+    expect(stylesSource).toContain('.trigger-assignments-card');
+    expect(stylesSource).toContain('.new-trigger-btn');
+    expect(stylesSource).toContain('.trigger-glyph-badge');
+    expect(stylesSource).toContain('.trigger-action-pill');
+  });
 });
 

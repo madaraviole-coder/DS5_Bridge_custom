@@ -40,6 +40,163 @@ export const DEFAULT_TOUCHPAD_ZONE_MAPPINGS: TouchpadZoneMapping = {
   4: 'cross',
 };
 
+export interface GestureWindowsShortcut {
+  value: string;
+  label: string;
+  description: string;
+  keys: string[];
+}
+
+export const GESTURE_WINDOWS_SHORTCUTS: GestureWindowsShortcut[] = [
+  { value: 'toggle-hdr', label: 'Toggle HDR', description: 'Windows + Alt + B', keys: ['WIN', 'ALT', 'B'] },
+  { value: 'screenshot', label: 'Snipping Tool', description: 'Windows + Shift + S', keys: ['WIN', 'SHIFT', 'S'] },
+  { value: 'game-bar', label: 'Xbox Game Bar', description: 'Windows + G', keys: ['WIN', 'G'] },
+  { value: 'task-manager', label: 'Task Manager', description: 'Ctrl + Shift + Esc', keys: ['CTRL', 'SHIFT', 'ESCAPE'] },
+  { value: 'desktop', label: 'Show Desktop', description: 'Windows + D', keys: ['WIN', 'D'] },
+  { value: 'task-view', label: 'Task View', description: 'Windows + Tab', keys: ['WIN', 'TAB'] },
+  { value: 'lock', label: 'Lock PC', description: 'Windows + L', keys: ['WIN', 'L'] },
+];
+
+export interface GestureMediaAction {
+  value: string;
+  label: string;
+  description: string;
+}
+
+export const GESTURE_MEDIA_ACTIONS: GestureMediaAction[] = [
+  { value: 'play-pause', label: 'Play / Pause', description: 'Toggle playback' },
+  { value: 'next-track', label: 'Next Track', description: 'Skip forward' },
+  { value: 'previous-track', label: 'Previous Track', description: 'Skip backward' },
+  { value: 'mute', label: 'Mute Audio', description: 'Toggle mute master volume' },
+  { value: 'volume-up', label: 'Volume Up', description: 'Increase volume' },
+  { value: 'volume-down', label: 'Volume Down', description: 'Decrease volume' },
+];
+
+export interface GestureButtonAction {
+  value: TouchpadZoneTarget;
+  label: string;
+  glyph: string;
+}
+
+export const GESTURE_BUTTON_ACTIONS: GestureButtonAction[] = [
+  { value: 'triangle', label: 'Triangle (△)', glyph: '△' },
+  { value: 'circle', label: 'Circle (○)', glyph: '○' },
+  { value: 'cross', label: 'Cross (✕)', glyph: '✕' },
+  { value: 'square', label: 'Square (□)', glyph: '□' },
+  { value: 'l1', label: 'L1 Bumper', glyph: 'L1' },
+  { value: 'r1', label: 'R1 Bumper', glyph: 'R1' },
+  { value: 'l2', label: 'L2 Trigger', glyph: 'L2' },
+  { value: 'r2', label: 'R2 Trigger', glyph: 'R2' },
+  { value: 'l3', label: 'L3 Stick Click', glyph: 'L3' },
+  { value: 'r3', label: 'R3 Stick Click', glyph: 'R3' },
+  { value: 'dpad-up', label: 'D-Pad Up', glyph: '↑' },
+  { value: 'dpad-right', label: 'D-Pad Right', glyph: '→' },
+  { value: 'dpad-down', label: 'D-Pad Down', glyph: '↓' },
+  { value: 'dpad-left', label: 'D-Pad Left', glyph: '←' },
+  { value: 'create', label: 'Create', glyph: '⧉' },
+  { value: 'options', label: 'Options', glyph: '☰' },
+  { value: 'ps', label: 'PS Home', glyph: 'PS' },
+  { value: 'touchpad', label: 'Touchpad Click', glyph: 'TP' },
+];
+
+export interface GestureSequencePreset {
+  label: string;
+  sequence: number[];
+  description: string;
+}
+
+export const GESTURE_SEQUENCE_PRESETS: GestureSequencePreset[] = [
+  { label: 'Swipe Right (1➔2)', sequence: [1, 2], description: 'Zone 1 ➔ Zone 2' },
+  { label: 'Swipe Left (2➔1)', sequence: [2, 1], description: 'Zone 2 ➔ Zone 1' },
+  { label: 'Swipe Down (Left)', sequence: [1, 3], description: 'Zone 1 ➔ Zone 3' },
+  { label: 'Swipe Up (Left)', sequence: [3, 1], description: 'Zone 3 ➔ Zone 1' },
+  { label: 'Swipe Down (Right)', sequence: [2, 4], description: 'Zone 2 ➔ Zone 4' },
+  { label: 'Swipe Up (Right)', sequence: [4, 2], description: 'Zone 4 ➔ Zone 2' },
+  { label: 'Diagonal ↘', sequence: [1, 4], description: 'Zone 1 ➔ Zone 4' },
+  { label: 'Diagonal ↗', sequence: [3, 2], description: 'Zone 3 ➔ Zone 2' },
+];
+
+export function getGestureActionLabel(
+  actionTypeOrGesture: TouchpadGesture | TouchpadGesture['actionType'],
+  actionValue?: string
+): string {
+  let actionType: TouchpadGesture['actionType'];
+  let val: string;
+  if (typeof actionTypeOrGesture === 'object' && actionTypeOrGesture !== null) {
+    actionType = actionTypeOrGesture.actionType;
+    val = actionTypeOrGesture.actionValue;
+  } else {
+    actionType = actionTypeOrGesture;
+    val = actionValue ?? '';
+  }
+
+  switch (actionType) {
+    case 'windows-shortcut': {
+      const match = GESTURE_WINDOWS_SHORTCUTS.find((s) => s.value === val);
+      return match ? match.label : `Shortcut: ${val}`;
+    }
+    case 'media': {
+      const match = GESTURE_MEDIA_ACTIONS.find((m) => m.value === val);
+      return match ? match.label : `Media: ${val}`;
+    }
+    case 'button': {
+      const match = GESTURE_BUTTON_ACTIONS.find((b) => b.value === val);
+      return match ? match.label : `Button: ${val}`;
+    }
+    case 'custom-keys':
+      return val ? `Keys: ${val}` : 'Custom Keys';
+    default:
+      return val || 'Unassigned';
+  }
+}
+
+export function getGestureActionDescription(
+  actionTypeOrGesture: TouchpadGesture | TouchpadGesture['actionType'],
+  actionValue?: string
+): string {
+  let actionType: TouchpadGesture['actionType'];
+  let val: string;
+  if (typeof actionTypeOrGesture === 'object' && actionTypeOrGesture !== null) {
+    actionType = actionTypeOrGesture.actionType;
+    val = actionTypeOrGesture.actionValue;
+  } else {
+    actionType = actionTypeOrGesture;
+    val = actionValue ?? '';
+  }
+
+  switch (actionType) {
+    case 'windows-shortcut': {
+      const match = GESTURE_WINDOWS_SHORTCUTS.find((s) => s.value === val);
+      return match ? match.description : val;
+    }
+    case 'media': {
+      const match = GESTURE_MEDIA_ACTIONS.find((m) => m.value === val);
+      return match ? match.description : 'Media action';
+    }
+    case 'button': {
+      const match = GESTURE_BUTTON_ACTIONS.find((b) => b.value === val);
+      return match ? `Remap to ${match.label}` : `Controller button ${val}`;
+    }
+    case 'custom-keys':
+      return val ? `Custom key sequence: ${val}` : 'User-defined keyboard keys';
+    default:
+      return '';
+  }
+}
+
+export function formatGestureSequence(sequence: number[]): string {
+  if (!sequence || sequence.length === 0) return 'None';
+  return sequence.map((z) => `Zone ${z}`).join(' ➔ ');
+}
+
+export function parseCustomKeysString(input: string): string[] {
+  if (!input) return [];
+  return input
+    .split(/[+,\s]+/)
+    .map((k) => k.trim())
+    .filter((k) => k.length > 0);
+}
+
 export const DEFAULT_TOUCHPAD_SETTINGS: TouchpadSettings = {
   enabled: true,
   mode: 'swipe',
@@ -65,6 +222,18 @@ export function loadTouchpadSettings(storage?: Storage): TouchpadSettings {
     const raw = storage.getItem(TOUCHPAD_SETTINGS_STORAGE_KEY);
     if (!raw) return { ...DEFAULT_TOUCHPAD_SETTINGS };
     const parsed = JSON.parse(raw) as Partial<TouchpadSettings>;
+    const gestures = Array.isArray(parsed.gestures) && parsed.gestures.length > 0
+      ? parsed.gestures.map((g, index) => ({
+          id: typeof g.id === 'string' && g.id.trim() ? g.id.trim() : `gesture-${index + 1}`,
+          name: typeof g.name === 'string' && g.name.trim() ? g.name.trim() : `Gesture ${index + 1}`,
+          type: (g.type === 'Swipe' || g.type === 'Tap' || g.type === 'Hold' ? g.type : 'Swipe') as GestureType,
+          sequence: Array.isArray(g.sequence) && g.sequence.length > 0 ? g.sequence.map((n) => Number(n)) : [1, 2],
+          actionType: (g.actionType === 'windows-shortcut' || g.actionType === 'media' || g.actionType === 'custom-keys' || g.actionType === 'button'
+            ? g.actionType
+            : 'windows-shortcut') as TouchpadGesture['actionType'],
+          actionValue: typeof g.actionValue === 'string' && g.actionValue.trim() ? g.actionValue.trim() : 'toggle-hdr',
+        }))
+      : DEFAULT_TOUCHPAD_SETTINGS.gestures;
     return {
       enabled: typeof parsed.enabled === 'boolean' ? parsed.enabled : DEFAULT_TOUCHPAD_SETTINGS.enabled,
       mode: parsed.mode === 'zones' || parsed.mode === 'swipe' ? parsed.mode : 'swipe',
@@ -75,7 +244,7 @@ export function loadTouchpadSettings(storage?: Storage): TouchpadSettings {
         3: parsed.zoneMappings?.[3] ?? DEFAULT_TOUCHPAD_ZONE_MAPPINGS[3],
         4: parsed.zoneMappings?.[4] ?? DEFAULT_TOUCHPAD_ZONE_MAPPINGS[4],
       },
-      gestures: Array.isArray(parsed.gestures) && parsed.gestures.length > 0 ? parsed.gestures : DEFAULT_TOUCHPAD_SETTINGS.gestures,
+      gestures,
     };
   } catch {
     return { ...DEFAULT_TOUCHPAD_SETTINGS };

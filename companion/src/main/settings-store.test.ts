@@ -706,4 +706,36 @@ describe('SettingsStore', () => {
     expect(store.get().bridgeIdentities.aabbccddeeff0011?.label).toBe('Living Room');
     expect(store.get().controllerBindings.aabbccddeeff).toBe(profileId);
   });
+
+  it('manages game profiles and auto-switch setting', () => {
+    const userDataPath = tempUserDataPath();
+    const store = new SettingsStore(userDataPath);
+
+    expect(store.get().gameProfileAutoSwitchEnabled).toBe(true);
+    expect(store.get().gameProfiles).toEqual([]);
+
+    store.setGameProfileAutoSwitchEnabled(false);
+    expect(store.get().gameProfileAutoSwitchEnabled).toBe(false);
+
+    const saved = store.saveGameProfile({
+      name: 'Cyberpunk 2077',
+      executableName: 'Cyberpunk2077.exe',
+      controllerProfileId: DEFAULT_CONTROLLER_PROFILE_ID
+    });
+    expect(saved.gameProfiles).toHaveLength(1);
+    expect(saved.gameProfiles[0]?.name).toBe('Cyberpunk 2077');
+    expect(saved.gameProfiles[0]?.executableName).toBe('Cyberpunk2077.exe');
+
+    const profileId = saved.gameProfiles[0]!.id;
+    const updated = store.updateGameProfile({
+      id: profileId,
+      name: 'Cyberpunk 2077 (Modded)',
+      executableName: 'Cyberpunk2077.exe',
+      controllerProfileId: DEFAULT_CONTROLLER_PROFILE_ID
+    });
+    expect(updated.gameProfiles[0]?.name).toBe('Cyberpunk 2077 (Modded)');
+
+    const afterDelete = store.deleteGameProfile(profileId);
+    expect(afterDelete.gameProfiles).toHaveLength(0);
+  });
 });
