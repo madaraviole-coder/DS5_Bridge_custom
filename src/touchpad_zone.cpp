@@ -27,6 +27,10 @@ uint16_t s_last_touch_y = 0;
 TouchpadZoneId s_last_touch_zone = TouchpadZoneNone;
 bool s_has_recent_touch = false;
 
+// Zone stability: latch zone on first contact to prevent flicker near boundaries
+bool s_contact_active_prev = false;
+TouchpadZoneId s_contact_latched_zone = TouchpadZoneNone;
+
 // Swipe sequence tracking state
 uint8_t s_stroke[6] = {};
 uint8_t s_stroke_len = 0;
@@ -137,6 +141,8 @@ void touchpad_zone_init() {
     s_has_recent_touch = false;
     s_click_latched = false;
     s_latched_zone = TouchpadZoneNone;
+    s_contact_active_prev = false;
+    s_contact_latched_zone = TouchpadZoneNone;
 }
 
 bool touchpad_zone_is_enabled() {
@@ -151,6 +157,9 @@ void touchpad_zone_set_enabled(bool enabled) {
         s_stroke_len = 0;
         s_gesture_triggered = false;
         s_injected_ticks_remaining = 0;
+        s_contact_active_prev = false;
+        s_contact_latched_zone = TouchpadZoneNone;
+        s_has_recent_touch = false;
     }
 }
 
@@ -240,14 +249,31 @@ uint8_t touchpad_zone_process_report(uint8_t *report, uint16_t len) {
         );
     }
 
-    // Step 2: Continuously update touch history whenever contact is detected
+    // Step 2: Continuously update touch history whenever contact is detected.
+    // Latch zone on first-contact (rising edge) to prevent flicker near boundaries.
     if (contact_active) {
         s_last_touch_x = current_x;
         s_last_touch_y = current_y;
         s_last_touch_tick = s_report_ticks;
-        s_last_touch_zone = touchpad_zone_detect(current_x, current_y, s_config.deadzone_percent);
         s_has_recent_touch = true;
+
+        if (!s_contact_active_prev) {
+            // Rising edge: finger just touched — latch zone now
+            s_contact_latched_zone = touchpad_zone_detect(current_x, current_y, s_config.deadzone_percent);
+        }
+        s_last_touch_zone = s_contact_latched_zone;
+    } else {
+        // No contact: check if history is stale and invalidate
+        if (s_has_recent_touch && (s_report_ticks - s_last_touch_tick > kTouchHistoryTimeoutTicks)) {
+            s_has_recent_touch = false;
+            s_last_touch_zone = TouchpadZoneNone;
+        }
+        // Reset contact latch when finger is lifted
+        if (s_contact_active_prev) {
+            s_contact_latched_zone = TouchpadZoneNone;
+        }
     }
+    s_contact_active_prev = contact_active;
 
     // Step 2b: Process swipe gesture detection if in swipe mode
     if (s_config.mode == TouchpadOperatingModeSwipe && s_config.gesture_sequence_len >= 2) {
@@ -302,7 +328,9 @@ uint8_t touchpad_zone_process_report(uint8_t *report, uint16_t len) {
         TouchpadZoneId resolved_zone = TouchpadZoneNone;
 
         if (contact_active) {
-            resolved_zone = touchpad_zone_detect(current_x, current_y, s_config.deadzone_percent);
+            // Use the zone that was latched on first contact (rising edge),
+            // not the current position — prevents flicker when finger drifts near boundary
+            resolved_zone = s_contact_latched_zone;
         } else if (s_has_recent_touch && (s_report_ticks - s_last_touch_tick <= kTouchHistoryTimeoutTicks)) {
             // Edge/corner fallback: capacitive contact dropped at instant of click, use recent touch zone!
             resolved_zone = s_last_touch_zone;

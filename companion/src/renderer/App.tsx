@@ -10134,14 +10134,14 @@ export function App() {
                           className="touchpad-preset-chip"
                           onClick={() => handleApplyTouchpadPreset('face')}
                         >
-                          Face Buttons (△ ○ ✕ □)
+                          Face Buttons (△ ○ □ ✕)
                         </button>
                         <button
                           type="button"
                           className="touchpad-preset-chip"
                           onClick={() => handleApplyTouchpadPreset('dpad')}
                         >
-                          D-Pad (↑ → ↓ ←)
+                          D-Pad (↑ → ← ↓)
                         </button>
                         <button
                           type="button"
