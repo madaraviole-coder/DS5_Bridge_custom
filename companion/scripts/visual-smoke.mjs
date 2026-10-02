@@ -95,7 +95,7 @@ try {
     throw new Error('Closing the Kitsune Input modal unexpectedly saved a permanent dismissal.');
   }
 
-  const controlsNav = page.getByRole('navigation', { name: 'Controls' });
+  const controlsNav = page.getByRole('tablist', { name: 'Controls' });
   await page.getByRole('button', { name: 'Open Devices' }).click();
   await page.locator('#control-panel-devices.active').waitFor();
 

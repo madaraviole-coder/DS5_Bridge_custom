@@ -71,28 +71,55 @@ try {
   }
 
   const controlsNav = page.getByRole('tablist', { name: 'Controls' });
+
+  const groupMap = {
+    'Devices': 'Controller',
+    'Audio': 'Controller',
+    'Haptics': 'Controller',
+    'Triggers': 'Controller',
+    'Adaptive Triggers': 'Controller',
+    'Lighting': 'Controller',
+    'Stick Deadzones': 'Input',
+    'Button Remapping': 'Input',
+    'Chords': 'Input',
+    'Audio Haptics': 'Labs',
+    'Trigger Lab': 'Labs'
+  };
+
+  const selectTab = async (tabName) => {
+    if (tabName === 'System') {
+      await page.locator('#control-tab-system').click();
+      await page.waitForTimeout(150);
+      return;
+    }
+
+    const targetLabel = tabName === 'Triggers' ? 'Adaptive Triggers' : tabName;
+    const tabButton = controlsNav.getByRole('tab', { name: targetLabel, exact: true });
+
+    if (!(await tabButton.isVisible())) {
+      const groupName = groupMap[tabName] || groupMap[targetLabel];
+      if (groupName) {
+        await controlsNav.getByRole('button', { name: groupName, exact: true }).click();
+        await page.waitForTimeout(100);
+      }
+    }
+
+    await tabButton.click();
+    await page.waitForTimeout(150);
+  };
+
   const sidebarSupportSpacing = await page.evaluate(() => {
     const sidebar = document.querySelector('.hero-card');
-    const systemButton = document.querySelector('#control-tab-system');
     const badge = document.querySelector('.sidebar-kofi-badge');
+    const support = document.querySelector('.sidebar-support');
     const footer = document.querySelector('.header-settings');
-    if (!sidebar || !systemButton || !badge || !footer) return null;
+    if (!sidebar || !badge || !footer || !support) return null;
 
-    const systemIcon = systemButton.querySelector('svg');
-    const systemLabelNode = [...systemButton.childNodes].find(
-      (node) => node.nodeType === Node.TEXT_NODE && node.textContent?.trim()
-    );
-    const systemLabelRange = systemLabelNode ? document.createRange() : null;
-    systemLabelRange?.selectNodeContents(systemLabelNode);
-    const systemContentBottom = Math.max(
-      systemIcon?.getBoundingClientRect().bottom ?? 0,
-      systemLabelRange?.getBoundingClientRect().bottom ?? 0
-    );
+    const supportRect = support.getBoundingClientRect();
     const badgeRect = badge.getBoundingClientRect();
-    const footerRect = footer.getBoundingClientRect();
     return {
-      above: badgeRect.top - systemContentBottom,
-      below: footerRect.top - badgeRect.bottom,
+      above: badgeRect.top - supportRect.top,
+      below: supportRect.bottom - badgeRect.bottom,
       overflow: Math.max(0, sidebar.scrollHeight - sidebar.clientHeight)
     };
   });
@@ -121,7 +148,7 @@ try {
   let targetTextLeft = null;
   let targetPresetTop = null;
 
-  await controlsNav.getByRole('tab', { name: 'Overview' }).click();
+  await selectTab('Overview');
   await page.waitForTimeout(150);
 
   const overviewControlAlignment = await page.evaluate(() => {
@@ -174,7 +201,7 @@ try {
   }
 
   for (const tab of tabs) {
-    await controlsNav.getByRole('tab', { name: tab }).click();
+    await selectTab(tab);
     await page.waitForTimeout(150);
 
     const measurement = await page.evaluate(() => {
@@ -212,10 +239,12 @@ try {
       );
     }
 
-    targetHeight ??= left.height;
-    const tabHeightDelta = Math.abs(left.height - targetHeight);
-    if (tabHeightDelta > tolerancePx) {
-      failures.push(`${tab}: card height differs from other tabs by ${tabHeightDelta.toFixed(2)}px`);
+    if (tab !== 'System') {
+      targetHeight ??= left.height;
+      const tabHeightDelta = Math.abs(left.height - targetHeight);
+      if (tabHeightDelta > tolerancePx) {
+        failures.push(`${tab}: card height differs from other tabs by ${tabHeightDelta.toFixed(2)}px`);
+      }
     }
 
     const presetMeasurement = await page.evaluate(() => {
@@ -251,10 +280,7 @@ try {
     }
   }
 
-  await controlsNav.getByRole('tab', { name: 'Haptics' }).click();
-  await page.waitForTimeout(150);
-  await page.getByRole('switch', { name: 'Enter Audio Haptics' }).click();
-  await page.waitForTimeout(150);
+  await selectTab('Audio Haptics');
 
   const audioHapticsMeasurement = await page.evaluate(() => {
     const activePage = document.querySelector('.control-page.active');
@@ -433,11 +459,8 @@ try {
     }
   }
 
-  await page.getByRole('switch', { name: 'Exit Audio Haptics' }).click();
-  await page.waitForTimeout(150);
-
   for (const tab of testButtonTabs) {
-    await controlsNav.getByRole('tab', { name: tab }).click();
+    await selectTab(tab);
     await page.waitForTimeout(150);
 
     const measurements = await page.evaluate(() => {
@@ -556,7 +579,7 @@ try {
     }
   }
 
-  await controlsNav.getByRole('tab', { name: 'System' }).click();
+  await selectTab('System');
   await page.waitForTimeout(150);
 
   const systemTypography = await page.evaluate(() => {

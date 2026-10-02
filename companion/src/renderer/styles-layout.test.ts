@@ -1,10 +1,37 @@
 /// <reference types="node" />
 
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
+const rendererDir = path.dirname(fileURLToPath(import.meta.url));
+
+function collectRendererSources(dir: string): string[] {
+  const results: string[] = [];
+  const entries = readdirSync(dir);
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry);
+    const stat = statSync(fullPath);
+    if (stat.isDirectory()) {
+      if (entry !== 'assets' && entry !== 'node_modules') {
+        results.push(...collectRendererSources(fullPath));
+      }
+    } else if (
+      (entry.endsWith('.tsx') || entry.endsWith('.ts')) &&
+      !entry.endsWith('.test.ts') &&
+      !entry.endsWith('.test.tsx') &&
+      !entry.endsWith('.d.ts')
+    ) {
+      results.push(readFileSync(fullPath, 'utf8'));
+    }
+  }
+  return results;
+}
+
 const styles = readFileSync(new URL('./styles.css', import.meta.url), 'utf8');
-const appSource = readFileSync(new URL('./App.tsx', import.meta.url), 'utf8');
+const appFileSource = readFileSync(new URL('./App.tsx', import.meta.url), 'utf8');
+const appSource = [appFileSource, ...collectRendererSources(rendererDir).filter((s) => s !== appFileSource)].join('\n');
 const themeSource = readFileSync(new URL('./ui-themes.ts', import.meta.url), 'utf8');
 const normalizedStyles = styles.replace(/\s+/g, ' ').trim();
 

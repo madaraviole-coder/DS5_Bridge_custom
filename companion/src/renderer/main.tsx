@@ -4,12 +4,14 @@ import '@fontsource-variable/inter/standard.css';
 import { App } from './App';
 import './styles.css';
 import { initWebBridgeIfNeeded } from './web-bridge-adapter';
+import { ErrorBoundary, RootErrorFallback } from './components/common/ErrorBoundary';
 
 initWebBridgeIfNeeded();
 
 createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <App />
+    <ErrorBoundary fallbackComponent={RootErrorFallback}>
+      <App />
+    </ErrorBoundary>
   </React.StrictMode>
 );
-

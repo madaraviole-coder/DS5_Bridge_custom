@@ -1,13 +1,38 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-const appSource = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'App.tsx'), 'utf8');
-const stylesSource = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'styles.css'), 'utf8');
-const rendererEntrySource = readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'main.tsx'), 'utf8');
+const rendererDir = path.dirname(fileURLToPath(import.meta.url));
+
+function collectRendererSources(dir: string): string[] {
+  const results: string[] = [];
+  const entries = readdirSync(dir);
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry);
+    const stat = statSync(fullPath);
+    if (stat.isDirectory()) {
+      if (entry !== 'assets' && entry !== 'node_modules') {
+        results.push(...collectRendererSources(fullPath));
+      }
+    } else if (
+      (entry.endsWith('.tsx') || entry.endsWith('.ts')) &&
+      !entry.endsWith('.test.ts') &&
+      !entry.endsWith('.test.tsx') &&
+      !entry.endsWith('.d.ts')
+    ) {
+      results.push(readFileSync(fullPath, 'utf8'));
+    }
+  }
+  return results;
+}
+
+const appFileSource = readFileSync(path.join(rendererDir, 'App.tsx'), 'utf8');
+const appSource = [appFileSource, ...collectRendererSources(rendererDir).filter((s) => s !== appFileSource)].join('\n');
+const stylesSource = readFileSync(path.join(rendererDir, 'styles.css'), 'utf8');
+const rendererEntrySource = readFileSync(path.join(rendererDir, 'main.tsx'), 'utf8');
 const controllerDevicesPageSource = readFileSync(
-  path.join(path.dirname(fileURLToPath(import.meta.url)), 'ControllerDevicesPage.tsx'),
+  path.join(rendererDir, 'ControllerDevicesPage.tsx'),
   'utf8'
 );
 

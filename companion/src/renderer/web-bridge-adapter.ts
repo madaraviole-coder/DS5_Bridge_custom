@@ -1,29 +1,19 @@
+import type { BridgeApi } from '../preload';
 import {
-  ACK_RESULT,
   COMMAND_ID,
-  COMPANION_USAGE,
-  COMPANION_USAGE_PAGE,
   DEFAULT_BUTTON_REMAP_PROFILE,
   DEFAULT_BUTTON_REMAP_PROFILE_ID,
   DEFAULT_CONTROLLER_PROFILE_ID,
-  REPORT_ID,
-  REPORT_LENGTH,
-  ackUserMessage,
   bluetoothAddressPayload,
   buildButtonRemapPayload,
-  buildCommandReport,
-  buildRadialDeadzonePayload,
   buildChordBindingsPayload,
+  buildRadialDeadzonePayload,
   buildTouchpadZonePayload,
   buildTurboConfigPayload,
   hostPersonaModeValue,
-  parseAckReport,
-  parseDeviceIdentityReport,
-  parseStatusReport,
   pollingRateModeValue,
   type AdaptiveTriggerPreviewEffect,
   type AudioReactiveHapticsConfig,
-  type BridgeAckPayload,
   type BridgePresetId,
   type ChordAssignment,
   type ChordFunction,
@@ -36,782 +26,64 @@ import {
   type TriggerTestTarget
 } from '../shared/protocol';
 import type { TouchpadGesture, TouchpadSettings } from '../shared/touchpad-gestures';
-import { DEFAULT_TOUCHPAD_SETTINGS } from '../shared/touchpad-gestures';
 import type {
   AudioHapticsSession,
   BridgeDiagnostics,
   BridgeSnapshot,
-  CompanionSettings,
+  GameProfile,
   PicoFirmwareActionResult,
+  RunningProcessInfo,
   TurboSettings,
   UiThemePreset,
-  WindowsDeviceCleanupResult,
-  GameProfile,
-  RunningProcessInfo
+  WindowsDeviceCleanupResult
 } from '../shared/types';
+import {
+  DEFAULT_TURBO_SETTINGS,
+  DEFAULT_WEB_SETTINGS,
+  WEB_SETTINGS_STORAGE_KEY,
+  WEBHID_DEVICE_FILTERS,
+  WEBUSB_DEVICE_FILTERS,
+  createEmptyDiagnostics,
+  loadWebSettings,
+  saveWebSettings,
+  type WebHidCollectionInfo,
+  type WebHidDevice,
+  type WebHidDeviceFilter,
+  type WebNavigatorWithHid,
+  type WebNavigatorWithUsb,
+  type WebUsbAlternateInterface,
+  type WebUsbConfiguration,
+  type WebUsbDevice,
+  type WebUsbDeviceFilter,
+  type WebUsbEndpoint,
+  type WebUsbInterface
+} from './web-bridge-types';
+import { WebBridgeTransport } from './web-bridge-transport';
 
-export const DEFAULT_TURBO_SETTINGS: TurboSettings = {
-  enabled: false,
-  speedCps: 8,
-  humanize: true,
-  buttonsMask: 0
+export {
+  DEFAULT_TURBO_SETTINGS,
+  DEFAULT_WEB_SETTINGS,
+  WEB_SETTINGS_STORAGE_KEY,
+  WEBHID_DEVICE_FILTERS,
+  WEBUSB_DEVICE_FILTERS,
+  createEmptyDiagnostics,
+  loadWebSettings,
+  saveWebSettings,
+  type WebHidCollectionInfo,
+  type WebHidDevice,
+  type WebHidDeviceFilter,
+  type WebNavigatorWithHid,
+  type WebNavigatorWithUsb,
+  type WebUsbAlternateInterface,
+  type WebUsbConfiguration,
+  type WebUsbDevice,
+  type WebUsbDeviceFilter,
+  type WebUsbEndpoint,
+  type WebUsbInterface
 };
 
-const WEB_SETTINGS_STORAGE_KEY = 'ds5_bridge_web_settings_v1';
-
-const DEFAULT_WEB_SETTINGS: CompanionSettings = {
-  selectedPresetId: 'balanced',
-  uiScalePercent: 100,
-  uiThemePreset: 'dark',
-  launchAtStartupEnabled: false,
-  showBatteryPercentTrayIcon: false,
-  kitsuneInputPromotionDismissed: false,
-  firmwareLogDirectory: null,
-  leftStickRadialDeadzonePercent: 0,
-  rightStickRadialDeadzonePercent: 0,
-  hapticsEnabled: true,
-  hapticsGainPercent: 100,
-  feedbackBoostEnabled: false,
-  hapticsBufferLength: 64,
-  audioInterleaveMaxConsecutiveAudioSends: 4,
-  audioInterleaveStateMaxAgeUs: 10000,
-  classicRumbleEnabled: true,
-  classicRumbleGainPercent: 100,
-  classicRumbleV1Enabled: false,
-  adaptiveTriggersEnabled: true,
-  triggerEffectIntensityPercent: 100,
-  triggerTestMode: 'feedback',
-  speakerEnabled: true,
-  speakerVolumePercent: 100,
-  speakerGainLevel: 4,
-  selectedBridgePath: null,
-  bridgeIdentities: {},
-  controllerBindings: {},
-  micVolumePercent: 100,
-  micMuted: false,
-  audioReactiveHapticsEnabled: false,
-  audioReactiveHapticsSource: 'system-audio',
-  audioReactiveHapticsMode: 'mix',
-  audioReactiveHapticsGainPercent: 100,
-  audioReactiveHapticsBassFocus: 'balanced',
-  audioReactiveHapticsResponse: 'balanced',
-  audioReactiveHapticsAttack: 'balanced',
-  audioReactiveHapticsRelease: 'balanced',
-  lightbarEnabled: true,
-  lightbarColor: '#0000ff',
-  lightbarBrightnessPercent: 100,
-  lightbarOverrideEnabled: false,
-  lightbarRestoreEnabled: true,
-  muteButtonMode: 'normal',
-  muteKeyboardUsage: 0x68,
-  muteKeyboardModifiers: 0,
-  muteKeyboardBehavior: 'tap',
-  muteKeyboardChordStarterEnabled: false,
-  edgeProfileSwitchingBlocked: false,
-  ledEnabled: true,
-  playerLedEnabled: true,
-  idleDisconnectEnabled: true,
-  idleDisconnectTimeoutMinutes: 15,
-  usbSuspendDisconnectEnabled: true,
-  wakeOnConnectEnabled: true,
-  sleepKeybindEnabled: false,
-  speakerVolumeShortcutEnabled: false,
-  pollingRateMode: '1000',
-  hostPersonaMode: 'dualsense',
-  notifyControllerConnection: false,
-  notifyLowBattery: false,
-  duplexMicEnabled: true,
-  controllerPowerSavingEnabled: false,
-  selectedControllerProfileId: DEFAULT_CONTROLLER_PROFILE_ID,
-  controllerProfiles: [{
-    id: DEFAULT_CONTROLLER_PROFILE_ID,
-    name: 'Default',
-    settings: {
-      leftStickRadialDeadzonePercent: 0,
-      rightStickRadialDeadzonePercent: 0,
-      hapticsEnabled: true,
-      hapticsGainPercent: 100,
-      feedbackBoostEnabled: false,
-      classicRumbleEnabled: true,
-      classicRumbleGainPercent: 100,
-      classicRumbleV1Enabled: false,
-      adaptiveTriggersEnabled: true,
-      triggerEffectIntensityPercent: 100,
-      triggerTestMode: 'feedback',
-      speakerEnabled: true,
-      speakerVolumePercent: 100,
-      micVolumePercent: 100,
-      micMuted: false,
-      audioReactiveHapticsEnabled: false,
-      audioReactiveHapticsSource: 'system-audio',
-      audioReactiveHapticsMode: 'mix',
-      audioReactiveHapticsGainPercent: 100,
-      audioReactiveHapticsBassFocus: 'balanced',
-      audioReactiveHapticsResponse: 'balanced',
-      audioReactiveHapticsAttack: 'balanced',
-      audioReactiveHapticsRelease: 'balanced',
-      lightbarEnabled: true,
-      lightbarColor: '#0000ff',
-      lightbarBrightnessPercent: 100,
-      lightbarOverrideEnabled: false,
-      muteButtonMode: 'normal',
-      muteKeyboardUsage: 0x68,
-      muteKeyboardModifiers: 0,
-      muteKeyboardBehavior: 'tap',
-      muteKeyboardChordStarterEnabled: false,
-      edgeProfileSwitchingBlocked: false,
-      sleepKeybindEnabled: false,
-      speakerVolumeShortcutEnabled: false,
-      pollingRateMode: '1000',
-      hostPersonaMode: 'dualsense',
-      duplexMicEnabled: true,
-      controllerPowerSavingEnabled: false
-    }
-  }],
-  selectedButtonRemappingProfileId: DEFAULT_BUTTON_REMAP_PROFILE_ID,
-  buttonRemappingProfiles: [DEFAULT_BUTTON_REMAP_PROFILE],
-  buttonRemappingDraft: { ...DEFAULT_BUTTON_REMAP_PROFILE.mappings },
-  chordFunctions: [],
-  chordAssignments: [],
-  touchpadSettings: { ...DEFAULT_TOUCHPAD_SETTINGS },
-  turboSettings: { ...DEFAULT_TURBO_SETTINGS },
-  gameProfileAutoSwitchEnabled: true,
-  gameProfiles: []
-};
-
-function loadWebSettings(): CompanionSettings {
-  if (typeof window === 'undefined' || !window.localStorage) {
-    return { ...DEFAULT_WEB_SETTINGS };
-  }
-  try {
-    const raw = window.localStorage.getItem(WEB_SETTINGS_STORAGE_KEY);
-    if (!raw) return { ...DEFAULT_WEB_SETTINGS };
-    const parsed = JSON.parse(raw) as Partial<CompanionSettings>;
-    return {
-      ...DEFAULT_WEB_SETTINGS,
-      ...parsed,
-      touchpadSettings: { ...DEFAULT_TOUCHPAD_SETTINGS, ...(parsed.touchpadSettings || {}) },
-      turboSettings: { ...DEFAULT_TURBO_SETTINGS, ...(parsed.turboSettings || {}) },
-      gameProfileAutoSwitchEnabled: typeof parsed.gameProfileAutoSwitchEnabled === 'boolean'
-        ? parsed.gameProfileAutoSwitchEnabled
-        : true,
-      gameProfiles: Array.isArray(parsed.gameProfiles) ? parsed.gameProfiles : []
-    };
-  } catch {
-    return { ...DEFAULT_WEB_SETTINGS };
-  }
-}
-
-function saveWebSettings(settings: CompanionSettings): void {
-  if (typeof window === 'undefined' || !window.localStorage) return;
-  try {
-    window.localStorage.setItem(WEB_SETTINGS_STORAGE_KEY, JSON.stringify(settings));
-  } catch {
-    // ignore quota errors
-  }
-}
-
-function createEmptyDiagnostics(): BridgeDiagnostics {
-  return {
-    hidPath: 'WebHID',
-    protocolVersion: '1.23',
-    uptimeSeconds: 0,
-    settingsRevision: 1,
-    lastAck: null,
-    lastError: null,
-    firmwareUpdateAvailable: null,
-    lastPollAt: null,
-    rawDevices: [],
-    deviceIdentity: null,
-    firmwareLogDirectory: null,
-    firmwareLogPath: null,
-    firmwareLogEnabled: false,
-    firmwareLogDroppedBytes: 0,
-    firmwareLogLastError: null,
-    audioDebugLogPath: null,
-    audioDebugLogLines: [],
-    audioDebugDroppedCount: 0,
-    audioDebugStats: null,
-    triggerTraceLines: [],
-    triggerTraceDroppedCount: 0,
-    feedbackTraceLines: [],
-    feedbackTraceDroppedCount: 0,
-    audioStatus: null
-  };
-}
-
-export interface WebHidDeviceFilter {
-  vendorId?: number;
-  productId?: number;
-  usagePage?: number;
-  usage?: number;
-}
-
-export interface WebHidCollectionInfo {
-  usagePage: number;
-  usage: number;
-}
-
-export interface WebHidDevice {
-  opened: boolean;
-  vendorId: number;
-  productId: number;
-  productName?: string;
-  collections: WebHidCollectionInfo[];
-  open(): Promise<void>;
-  close(): Promise<void>;
-  sendFeatureReport(reportId: number, data: BufferSource): Promise<void>;
-  receiveFeatureReport(reportId: number): Promise<DataView>;
-  addEventListener?(type: string, listener: (event: any) => void): void;
-  removeEventListener?(type: string, listener: (event: any) => void): void;
-}
-
-export type WebNavigatorWithHid = Navigator & {
-  hid: {
-    getDevices(): Promise<WebHidDevice[]>;
-    requestDevice(options: { filters: WebHidDeviceFilter[] }): Promise<WebHidDevice[]>;
-    addEventListener(type: string, listener: (event: any) => void): void;
-  };
-};
-
-export interface WebUsbDeviceFilter {
-  vendorId?: number;
-  productId?: number;
-  classCode?: number;
-  subclassCode?: number;
-  protocolCode?: number;
-  serialNumber?: string;
-}
-
-export interface WebUsbEndpoint {
-  endpointNumber: number;
-  direction: 'in' | 'out';
-  type: 'bulk' | 'interrupt' | 'isochronous';
-}
-
-export interface WebUsbAlternateInterface {
-  alternateSetting: number;
-  interfaceClass: number;
-  interfaceSubClass: number;
-  interfaceProtocol: number;
-  endpoints: WebUsbEndpoint[];
-}
-
-export interface WebUsbInterface {
-  interfaceNumber: number;
-  alternates: WebUsbAlternateInterface[];
-}
-
-export interface WebUsbConfiguration {
-  configurationValue: number;
-  interfaces: WebUsbInterface[];
-}
-
-export interface WebUsbDevice {
-  opened: boolean;
-  vendorId: number;
-  productId: number;
-  productName?: string;
-  configuration: WebUsbConfiguration | null;
-  open(): Promise<void>;
-  close(): Promise<void>;
-  selectConfiguration(configurationValue: number): Promise<void>;
-  claimInterface(interfaceNumber: number): Promise<void>;
-  releaseInterface(interfaceNumber: number): Promise<void>;
-  controlTransferIn(
-    setup: {
-      requestType: 'standard' | 'class' | 'vendor';
-      recipient: 'device' | 'interface' | 'endpoint' | 'other';
-      request: number;
-      value: number;
-      index: number;
-    },
-    length: number
-  ): Promise<{ data?: DataView; status: 'ok' | 'stall' | 'babble' }>;
-  controlTransferOut(
-    setup: {
-      requestType: 'standard' | 'class' | 'vendor';
-      recipient: 'device' | 'interface' | 'endpoint' | 'other';
-      request: number;
-      value: number;
-      index: number;
-    },
-    data?: BufferSource
-  ): Promise<{ bytesWritten: number; status: 'ok' | 'stall' | 'babble' }>;
-  transferOut(
-    endpointNumber: number,
-    data: BufferSource
-  ): Promise<{ bytesWritten: number; status: 'ok' | 'stall' | 'babble' }>;
-}
-
-export type WebNavigatorWithUsb = Navigator & {
-  usb: {
-    getDevices(): Promise<WebUsbDevice[]>;
-    requestDevice(options: { filters: WebUsbDeviceFilter[] }): Promise<WebUsbDevice>;
-    addEventListener(type: string, listener: (event: any) => void): void;
-  };
-};
-
-export const WEBUSB_DEVICE_FILTERS: WebUsbDeviceFilter[] = [
-  { vendorId: 0x054c, productId: 0x0ce6 },
-  { vendorId: 0x054c, productId: 0x0df2 },
-  { vendorId: 0x054c, productId: 0x09cc },
-  { vendorId: 0x1209, productId: 0xdb05 },
-  { vendorId: 0x1209, productId: 0xdb08 },
-  { vendorId: 0x2e8a }
-];
-
-export const WEBHID_DEVICE_FILTERS: WebHidDeviceFilter[] = [
-  { vendorId: 0x054c, productId: 0x0ce6, usagePage: 1, usage: 5 },
-  { vendorId: 0x054c, productId: 0x0df2, usagePage: 1, usage: 5 },
-  { vendorId: 0x054c, productId: 0x09cc, usagePage: 1, usage: 5 },
-  { vendorId: 0x054c, usagePage: 1, usage: 5 },
-  { vendorId: 0x2e8a, usagePage: 1, usage: 5 }
-];
-
-export class WebBridgeAdapter {
+export class WebBridgeAdapter extends WebBridgeTransport implements BridgeApi {
   readonly isWebHid = true;
-  private usbDevice: WebUsbDevice | null = null;
-  private usbInterfaceNumber = 5;
-  private usbOutEndpointNumber: number | null = null;
-  private hidDevice: WebHidDevice | null = null;
-  private get device(): any { return this.hidDevice || this.usbDevice; }
-  private activeTransport: 'none' | 'webusb' | 'webhid' = 'none';
-  private pollIntervalHandle: number | null = null;
-  private sequenceCounter = 1;
-  private listeners = new Set<(snapshot: BridgeSnapshot) => void>();
-  private settings: CompanionSettings;
-  private snapshot: BridgeSnapshot;
-
-  constructor() {
-    this.settings = loadWebSettings();
-    this.snapshot = {
-      state: 'no-bridge',
-      message: 'Connect DS5 Bridge via WebUSB or WebHID',
-      status: null,
-      settings: this.settings,
-      diagnostics: createEmptyDiagnostics(),
-      personaTransition: null,
-      bridgeDevices: null
-    };
-
-    if (typeof navigator !== 'undefined') {
-      if ('usb' in navigator) {
-        const usb = (navigator as unknown as WebNavigatorWithUsb).usb;
-        usb.addEventListener('disconnect', (event: any) => {
-          if (event.device === this.usbDevice) {
-            this.handleDisconnect();
-          }
-        });
-      }
-      if ('hid' in navigator) {
-        const hid = (navigator as unknown as WebNavigatorWithHid).hid;
-        hid.addEventListener('disconnect', (event: any) => {
-          if (event.device === this.hidDevice) {
-            this.handleDisconnect();
-          }
-        });
-      }
-      void this.autoConnect();
-    }
-  }
-
-  get activeTransportName(): string {
-    if (this.usbDevice && this.usbDevice.opened) return 'WebUSB';
-    if (this.hidDevice && this.hidDevice.opened) return 'WebHID';
-    return '';
-  }
-
-  private async autoConnect(): Promise<void> {
-    if (typeof navigator !== 'undefined' && 'usb' in navigator) {
-      try {
-        const usb = (navigator as unknown as WebNavigatorWithUsb).usb;
-        const devices = await usb.getDevices();
-        const matched = devices.find((d) => this.matchesUsbFilter(d));
-        if (matched) {
-          await this.attachUsbDevice(matched);
-          return;
-        }
-      } catch {
-        // Ignored
-      }
-    }
-
-    if (typeof navigator !== 'undefined' && 'hid' in navigator) {
-      try {
-        const hid = (navigator as unknown as WebNavigatorWithHid).hid;
-        const devices = await hid.getDevices();
-        const matched = devices.find((d) => this.matchesHidFilter(d));
-        if (matched) {
-          await this.attachHidDevice(matched);
-        }
-      } catch {
-        // Ignored
-      }
-    }
-  }
-
-  private matchesUsbFilter(device: WebUsbDevice): boolean {
-    return device.vendorId === 0x054c || device.vendorId === 0x1209 || device.vendorId === 0x2e8a;
-  }
-
-  private matchesHidFilter(device: WebHidDevice): boolean {
-    if (device.vendorId !== 0x054c && device.vendorId !== 0x2e8a) return false;
-    for (const collection of device.collections) {
-      if (collection.usagePage === 1 && collection.usage === 5) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  async connectBridge(): Promise<BridgeSnapshot> {
-    if (typeof navigator !== 'undefined' && 'usb' in navigator) {
-      try {
-        return await this.connectWebUsb();
-      } catch {
-        // Fallback to WebHID
-      }
-    }
-    return await this.connectWebHid();
-  }
-
-  async connectWebUsb(): Promise<BridgeSnapshot> {
-    if (typeof navigator === 'undefined' || !('usb' in navigator)) {
-      this.snapshot.message = 'WebUSB API is not supported in this browser. Please use Chrome, Edge, or Brave.';
-      this.snapshot.state = 'error';
-      this.emitSnapshot();
-      return this.snapshot;
-    }
-
-    try {
-      const usb = (navigator as unknown as WebNavigatorWithUsb).usb;
-      const device = await usb.requestDevice({ filters: WEBUSB_DEVICE_FILTERS });
-      if (device) {
-        await this.attachUsbDevice(device);
-      }
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      this.snapshot.diagnostics.lastError = message;
-      this.emitSnapshot();
-    }
-    return this.snapshot;
-  }
-
-  async connectWebHid(): Promise<BridgeSnapshot> {
-    if (typeof navigator === 'undefined' || !('hid' in navigator)) {
-      this.snapshot.message = 'WebHID API is not supported in this browser. Please use Chrome, Edge, or Brave.';
-      this.snapshot.state = 'error';
-      this.emitSnapshot();
-      return this.snapshot;
-    }
-
-    try {
-      const hid = (navigator as unknown as WebNavigatorWithHid).hid;
-      const devices = await hid.requestDevice({ filters: WEBHID_DEVICE_FILTERS });
-      if (devices && devices.length > 0) {
-        await this.attachHidDevice(devices[0]);
-      }
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      this.snapshot.diagnostics.lastError = message;
-      this.emitSnapshot();
-    }
-    return this.snapshot;
-  }
-
-  private async attachUsbDevice(device: WebUsbDevice): Promise<void> {
-    if (!device.opened) {
-      await device.open();
-    }
-    if (!device.configuration) {
-      try {
-        await device.selectConfiguration(1);
-      } catch {
-        // Ignore if already configured
-      }
-    }
-
-    let targetInterfaceNumber = 5;
-    let outEndpointNumber: number | null = null;
-
-    if (device.configuration && Array.isArray(device.configuration.interfaces)) {
-      for (const itf of device.configuration.interfaces) {
-        const isVendor = itf.alternates?.some((alt) => alt.interfaceClass === 0xff);
-        if (isVendor) {
-          targetInterfaceNumber = itf.interfaceNumber;
-          const alt = itf.alternates.find((a) => a.interfaceClass === 0xff);
-          const ep = alt?.endpoints?.find((e) => e.direction === 'out');
-          if (ep) {
-            outEndpointNumber = ep.endpointNumber;
-          }
-          break;
-        }
-      }
-    }
-
-    try {
-      await device.claimInterface(targetInterfaceNumber);
-    } catch (claimErr) {
-      console.warn(`Could not claim WebUSB interface ${targetInterfaceNumber}:`, claimErr);
-    }
-
-    this.usbDevice = device;
-    this.usbInterfaceNumber = targetInterfaceNumber;
-    this.usbOutEndpointNumber = outEndpointNumber;
-    this.activeTransport = 'webusb';
-
-    this.snapshot.state = 'connected';
-    this.snapshot.message = `Connected to ${device.productName || 'DualSense Wireless Controller'} via WebUSB`;
-    this.snapshot.diagnostics.hidPath = `WebUSB:${device.vendorId.toString(16)}:${device.productId.toString(16)}:if${targetInterfaceNumber}`;
-    this.startPolling();
-    await this.poll();
-  }
-
-  private async attachHidDevice(device: WebHidDevice): Promise<void> {
-    if (!device.opened) {
-      await device.open();
-    }
-    this.hidDevice = device;
-    this.activeTransport = 'webhid';
-    this.snapshot.state = 'connected';
-    this.snapshot.message = `Connected to ${device.productName || 'DualSense Wireless Controller'} via WebHID`;
-    this.snapshot.diagnostics.hidPath = `WebHID:${device.vendorId.toString(16)}:${device.productId.toString(16)}`;
-    this.startPolling();
-    await this.poll();
-  }
-
-  private handleDisconnect(): void {
-    this.usbDevice = null;
-    this.hidDevice = null;
-    this.activeTransport = 'none';
-    this.stopPolling();
-    this.snapshot.state = 'no-bridge';
-    this.snapshot.message = 'Bridge disconnected';
-    this.snapshot.status = null;
-    this.emitSnapshot();
-  }
-
-  private startPolling(): void {
-    this.stopPolling();
-    this.pollIntervalHandle = window.setInterval(() => {
-      void this.poll();
-    }, 500);
-  }
-
-  private stopPolling(): void {
-    if (this.pollIntervalHandle !== null) {
-      window.clearInterval(this.pollIntervalHandle);
-      this.pollIntervalHandle = null;
-    }
-  }
-
-  private nextSequence(): number {
-    const seq = this.sequenceCounter;
-    this.sequenceCounter = (this.sequenceCounter + 1) & 0xff || 1;
-    return seq;
-  }
-
-  private async usbGetReport(reportId: number): Promise<Uint8Array> {
-    if (!this.usbDevice || !this.usbDevice.opened) {
-      throw new Error('No DS5 Bridge is connected via WebUSB.');
-    }
-    const result = await this.usbDevice.controlTransferIn(
-      {
-        requestType: 'vendor',
-        recipient: 'interface',
-        request: 0x31, // VENDOR_BRIDGE_CONTROL_GET_REPORT
-        value: reportId,
-        index: this.usbInterfaceNumber
-      },
-      64
-    );
-    if (!result.data || result.status !== 'ok') {
-      throw new Error(`WebUSB GET_REPORT failed (${result.status})`);
-    }
-    const raw = new Uint8Array(64);
-    raw[0] = reportId;
-    raw.set(new Uint8Array(result.data.buffer, result.data.byteOffset, result.data.byteLength), 0);
-    return raw;
-  }
-
-  private async usbSendReport(report: Uint8Array): Promise<void> {
-    if (!this.usbDevice || !this.usbDevice.opened) {
-      throw new Error('No DS5 Bridge is connected via WebUSB.');
-    }
-    if (this.usbOutEndpointNumber !== null) {
-      try {
-        const res = await this.usbDevice.transferOut(this.usbOutEndpointNumber, report as any);
-        if (res.status === 'ok') return;
-      } catch {
-        // Fallback to controlTransferOut
-      }
-    }
-    const res = await this.usbDevice.controlTransferOut(
-      {
-        requestType: 'vendor',
-        recipient: 'interface',
-        request: 0x32, // VENDOR_BRIDGE_CONTROL_SET_REPORT
-        value: report[0],
-        index: this.usbInterfaceNumber
-      },
-      report as any
-    );
-    if (res.status !== 'ok') {
-      throw new Error(`WebUSB SET_REPORT failed (${res.status})`);
-    }
-  }
-
-  private async sendCommand(
-    commandId: number,
-    value: number,
-    extraPayload?: ArrayLike<number>
-  ): Promise<BridgeAckPayload> {
-    if (
-      (!this.usbDevice || !this.usbDevice.opened) &&
-      (!this.hidDevice || !this.hidDevice.opened)
-    ) {
-      throw new Error('No DS5 Bridge is connected.');
-    }
-
-    const sequence = this.nextSequence();
-    const commandReport = buildCommandReport(commandId, sequence, value, extraPayload);
-
-    if (this.usbDevice && this.usbDevice.opened) {
-      await this.usbSendReport(new Uint8Array(commandReport));
-      const rawAckReport = await this.usbGetReport(REPORT_ID.ACK);
-      const ack = parseAckReport(rawAckReport);
-      this.snapshot.diagnostics.lastAck = ack;
-      if (ack.resultCode !== ACK_RESULT.OK) {
-        const msg = ackUserMessage(ack.resultCode);
-        this.snapshot.diagnostics.lastError = msg;
-        throw new Error(msg);
-      }
-      this.snapshot.diagnostics.settingsRevision = ack.settingsRevision;
-      this.snapshot.diagnostics.lastError = null;
-      return ack;
-    }
-
-    if (this.hidDevice && this.hidDevice.opened) {
-      const reportId = commandReport[0];
-      const data = new Uint8Array(commandReport.slice(1));
-      await this.hidDevice.sendFeatureReport(reportId, data);
-
-      const ackDataView = await this.hidDevice.receiveFeatureReport(REPORT_ID.ACK);
-      const rawAckReport = new Uint8Array(REPORT_LENGTH);
-      rawAckReport[0] = REPORT_ID.ACK;
-      rawAckReport.set(new Uint8Array(ackDataView.buffer, ackDataView.byteOffset, ackDataView.byteLength), 1);
-
-      const ack = parseAckReport(rawAckReport);
-      this.snapshot.diagnostics.lastAck = ack;
-      if (ack.resultCode !== ACK_RESULT.OK) {
-        const msg = ackUserMessage(ack.resultCode);
-        this.snapshot.diagnostics.lastError = msg;
-        throw new Error(msg);
-      }
-      this.snapshot.diagnostics.settingsRevision = ack.settingsRevision;
-      this.snapshot.diagnostics.lastError = null;
-      return ack;
-    }
-
-    throw new Error('No DS5 Bridge device connected.');
-  }
-
-  private async poll(): Promise<void> {
-    if (this.usbDevice && this.usbDevice.opened) {
-      try {
-        const rawStatusReport = await this.usbGetReport(REPORT_ID.STATUS);
-        const status = parseStatusReport(rawStatusReport);
-        this.snapshot.status = status;
-        this.snapshot.state = 'connected';
-        this.snapshot.diagnostics.lastPollAt = Date.now();
-        this.snapshot.diagnostics.uptimeSeconds = status.uptimeSeconds;
-        this.snapshot.diagnostics.protocolVersion = status.protocolVersion;
-
-        if (!this.snapshot.diagnostics.deviceIdentity) {
-          try {
-            const rawIdentReport = await this.usbGetReport(REPORT_ID.DEVICE_IDENTITY);
-            this.snapshot.diagnostics.deviceIdentity = parseDeviceIdentityReport(rawIdentReport);
-          } catch {
-            // Optional
-          }
-        }
-        this.emitSnapshot();
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : String(err);
-        this.snapshot.diagnostics.lastError = message;
-        this.emitSnapshot();
-      }
-      return;
-    }
-
-    if (this.hidDevice && this.hidDevice.opened) {
-      try {
-        const statusDataView = await this.hidDevice.receiveFeatureReport(REPORT_ID.STATUS);
-        const rawStatusReport = new Uint8Array(REPORT_LENGTH);
-        rawStatusReport[0] = REPORT_ID.STATUS;
-        rawStatusReport.set(
-          new Uint8Array(statusDataView.buffer, statusDataView.byteOffset, statusDataView.byteLength),
-          1
-        );
-
-        const status = parseStatusReport(rawStatusReport);
-        this.snapshot.status = status;
-        this.snapshot.state = 'connected';
-        this.snapshot.diagnostics.lastPollAt = Date.now();
-        this.snapshot.diagnostics.uptimeSeconds = status.uptimeSeconds;
-        this.snapshot.diagnostics.protocolVersion = status.protocolVersion;
-
-        if (!this.snapshot.diagnostics.deviceIdentity) {
-          try {
-            const identDataView = await this.hidDevice.receiveFeatureReport(REPORT_ID.DEVICE_IDENTITY);
-            const rawIdentReport = new Uint8Array(REPORT_LENGTH);
-            rawIdentReport[0] = REPORT_ID.DEVICE_IDENTITY;
-            rawIdentReport.set(
-              new Uint8Array(identDataView.buffer, identDataView.byteOffset, identDataView.byteLength),
-              1
-            );
-            this.snapshot.diagnostics.deviceIdentity = parseDeviceIdentityReport(rawIdentReport);
-          } catch {
-            // Ignore optional report
-          }
-        }
-
-        this.emitSnapshot();
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : String(err);
-        this.snapshot.diagnostics.lastError = message;
-        this.emitSnapshot();
-      }
-    }
-  }
-
-  private emitSnapshot(): void {
-    this.snapshot = {
-      ...this.snapshot,
-      settings: { ...this.settings }
-    };
-    for (const listener of this.listeners) {
-      try {
-        listener(this.snapshot);
-      } catch {
-        // Ignore listener error
-      }
-    }
-  }
-
-  onSnapshot(callback: (snapshot: BridgeSnapshot) => void): () => void {
-    this.listeners.add(callback);
-    callback(this.snapshot);
-    return () => this.listeners.delete(callback);
-  }
-
-  async getStatus(): Promise<BridgeSnapshot> {
-    if (this.device && this.device.opened) {
-      await this.poll();
-    }
-    return this.snapshot;
-  }
 
   async listDevices(): Promise<any> {
     if (typeof navigator !== 'undefined' && 'hid' in navigator) {
@@ -1672,7 +944,7 @@ export class WebBridgeAdapter {
       window.open(url, '_blank', 'noopener,noreferrer');
     }
   }
-  onWindowMaximizedChange(_callback: (maximized: boolean) => void): () => void {
+  onWindowMaximizedChange(_callback: (maximized: boolean) => void): any {
     return () => {};
   }
 }
