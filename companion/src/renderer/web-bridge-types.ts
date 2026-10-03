@@ -135,6 +135,26 @@ export const DEFAULT_WEB_SETTINGS: CompanionSettings = {
   chordAssignments: [],
   touchpadSettings: { ...DEFAULT_TOUCHPAD_SETTINGS },
   turboSettings: { ...DEFAULT_TURBO_SETTINGS },
+  kitsuneBarSettings: {
+    enabled: true,
+    toggleShortcut: 'keyboard',
+    customHotkey: 'Control+Shift+K',
+    transparencyPercent: 90,
+    alwaysOnTop: true,
+    showQuickSettings: true,
+    showBattery: true,
+    showPresetPicker: true,
+    activeLayer: 1,
+    totalLayers: 2,
+    items: [
+      { id: 'controller', name: 'Controller', icon: 'gamepad', type: 'module', layer: 1, order: 0, enabled: true },
+      { id: 'lab', name: 'Lab', icon: 'flask', type: 'module', layer: 1, order: 1, enabled: true },
+      { id: 'audio', name: 'Audio', icon: 'volume', type: 'module', layer: 1, order: 2, enabled: true },
+      { id: 'mic', name: 'Mic', icon: 'mic', type: 'module', layer: 1, order: 3, enabled: true },
+      { id: 'music', name: 'Music', icon: 'music', type: 'module', layer: 1, order: 4, enabled: true },
+      { id: 'screenshot', name: 'Screenshot', icon: 'camera', type: 'module', layer: 1, order: 5, enabled: true }
+    ]
+  },
   gameProfileAutoSwitchEnabled: true,
   gameProfiles: []
 };

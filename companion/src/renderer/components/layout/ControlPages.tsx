@@ -10,6 +10,7 @@ import type { ChordsPageProps } from '../../pages/ChordsPage';
 import type { SystemPageProps } from '../../pages/SystemPage';
 import type { GyroPageProps } from '../../pages/GyroPage';
 import type { MultiActionsPageProps } from '../../pages/MultiActionsPage';
+import type { KitsuneBarPageProps } from '../../pages/KitsuneBarPage';
 import type { ControlTab } from '../../types/app-types';
 import { ErrorBoundary, TabErrorFallback } from '../common/ErrorBoundary';
 import { OverviewPage } from '../../pages/OverviewPage';
@@ -24,6 +25,7 @@ import { ChordsPage } from '../../pages/ChordsPage';
 import { GyroPage } from '../../pages/GyroPage';
 import { MultiActionsPage } from '../../pages/MultiActionsPage';
 import { SystemPage } from '../../pages/SystemPage';
+import { KitsuneBarPage } from '../../pages/KitsuneBarPage';
 
 export interface ControlPagesProps {
   activeControlTab: ControlTab;
@@ -39,6 +41,7 @@ export interface ControlPagesProps {
   remappingProps: RemappingPageProps;
   chordsProps: ChordsPageProps;
   systemProps: SystemPageProps;
+  kitsuneBarProps: KitsuneBarPageProps;
 }
 
 export function ControlPages({
@@ -54,7 +57,8 @@ export function ControlPages({
   lightingProps,
   remappingProps,
   chordsProps,
-  systemProps
+  systemProps,
+  kitsuneBarProps
 }: ControlPagesProps) {
   return (
     <section className="control-panel flat-control-panel">
@@ -72,6 +76,7 @@ export function ControlPages({
           <RemappingPage {...remappingProps} />
           <ChordsPage {...chordsProps} />
           <SystemPage {...systemProps} />
+          <KitsuneBarPage {...kitsuneBarProps} />
         </ErrorBoundary>
       </div>
     </section>

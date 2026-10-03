@@ -194,6 +194,7 @@ enum ShortcutEvent : uint8_t {
     ShortcutEventSleepController = 0x03,
     ShortcutEventMicMuteOn = 0x04,
     ShortcutEventMicMuteOff = 0x05,
+    ShortcutEventPsButton = 0x06,
 };
 
 enum ShortcutSetting : uint8_t {
@@ -1919,6 +1920,8 @@ void execute_dynamic_chord_standalone(const DynamicChordBinding &binding) {
                 turbo_controller_set_config(!cfg.enabled, cfg.speed_cps, cfg.humanize, cfg.mask);
                 break;
             }
+            case ChordCtrlToggleKitsuneBar:
+                break;
             default:
                 break;
         }
@@ -3632,6 +3635,25 @@ void companion_process_controller_report(uint8_t *report, uint16_t len) {
     // Process Turbo rapid-fire
     const bool home_raw_for_turbo = home_pressed;
     turbo_controller_process_report(report, len, now, home_raw_for_turbo);
+
+    // PS Home button standalone tap -> queue ShortcutEventPsButton
+    static bool s_home_button_last_pressed = false;
+    static bool s_home_chord_consumed_latched = false;
+
+    if (home_pressed) {
+        if (!s_home_button_last_pressed) {
+            s_home_chord_consumed_latched = false;
+        }
+        if (home_chord_consumed || s_laptop_mode_chord_latched || (home_pressed && dpad_pressed)) {
+            s_home_chord_consumed_latched = true;
+        }
+    } else if (s_home_button_last_pressed) {
+        if (!s_home_chord_consumed_latched && !s_laptop_mode_chord_latched) {
+            queue_shortcut_event(ShortcutEventPsButton);
+        }
+        s_home_chord_consumed_latched = false;
+    }
+    s_home_button_last_pressed = home_pressed;
 
     // Process Touchpad modes (Laptop Touchpad vs 4-Zone Remapping)
     if (touchpad_mouse_is_active() && len >= 40) {

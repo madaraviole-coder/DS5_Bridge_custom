@@ -1,5 +1,5 @@
 import { app, BrowserWindow, Menu, Notification, Tray, dialog, globalShortcut, ipcMain, nativeImage, powerMonitor, screen, shell } from 'electron';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -61,12 +61,15 @@ const PICO_UNIVERSAL_FLASH_NUKE_SHA256_RELATIVE_PATH = path.join('firmware', PIC
 const BASE_WINDOW_WIDTH = 1120;
 const BASE_WINDOW_HEIGHT = 630;
 const START_IN_TRAY_ARG = '--start-in-tray';
-const ALLOW_PARALLEL_AUTOMATION_INSTANCE = process.env.DS5_BRIDGE_ALLOW_PARALLEL_AUTOMATION_INSTANCE === '1';
+const ALLOW_PARALLEL_AUTOMATION_INSTANCE =
+  process.env.DS5_BRIDGE_ALLOW_PARALLEL_AUTOMATION_INSTANCE === '1'
+  || process.argv.includes('--allow-parallel');
 let mainWindow: BrowserWindow | null = null;
 let kitsuneBarWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let trayDefaultIcon: Electron.NativeImage | null = null;
 let bridgeService: BridgeService | null = null;
+let settingsStore: SettingsStore | null = null;
 let modsApiServer: ModsApiServer | null = null;
 let isQuitting = false;
 let shutdownComplete = false;
@@ -84,10 +87,16 @@ function windowsAppUserModelId(): string {
 }
 
 if (process.platform === 'win32') {
+  app.commandLine.appendSwitch('disable-direct-composition');
   app.setAppUserModelId(windowsAppUserModelId());
 }
 
+if (process.argv.includes('--disable-gpu') || process.env.DS5_BRIDGE_DISABLE_GPU === '1') {
+  app.disableHardwareAcceleration();
+}
+
 if (!hasSingleInstanceLock) {
+  console.log('[DS5 Bridge] Another instance of DS5 Bridge is already running. Exiting.');
   app.quit();
 }
 
@@ -108,12 +117,16 @@ function createRuntimeIcon(): Electron.NativeImage {
   return createImageAsset(APP_MARK_PNG);
 }
 
-function sendToMainWindow(channel: string, ...args: unknown[]): void {
-  const window = mainWindow;
-  if (!window || window.isDestroyed() || window.webContents.isDestroyed()) {
-    return;
+function broadcastToWindows(channel: string, ...args: unknown[]): void {
+  for (const window of [mainWindow, kitsuneBarWindow]) {
+    if (window && !window.isDestroyed() && !window.webContents.isDestroyed()) {
+      window.webContents.send(channel, ...args);
+    }
   }
-  window.webContents.send(channel, ...args);
+}
+
+function sendToMainWindow(channel: string, ...args: unknown[]): void {
+  broadcastToWindows(channel, ...args);
 }
 
 async function createTrayIcon(): Promise<Electron.NativeImage> {
@@ -503,8 +516,8 @@ function createWindow(uiScalePercent: UiScalePercent): BrowserWindow {
 
 function createKitsuneBarWindow(): BrowserWindow {
   const display = screen.getPrimaryDisplay();
-  const barWidth = 640;
-  const barHeight = 60;
+  const barWidth = 780;
+  const barHeight = 64;
   const x = Math.round(display.workArea.x + (display.workArea.width - barWidth) / 2);
   const y = display.workArea.y + 24;
 
@@ -518,7 +531,7 @@ function createKitsuneBarWindow(): BrowserWindow {
     transparent: true,
     alwaysOnTop: true,
     skipTaskbar: true,
-    resizable: false,
+    resizable: true,
     maximizable: false,
     fullscreenable: false,
     focusable: true,
@@ -534,8 +547,10 @@ function createKitsuneBarWindow(): BrowserWindow {
 
   window.setAlwaysOnTop(true, 'screen-saver');
 
-  const rendererIndexPath = path.join(__dirname, '..', 'renderer', 'index.html');
-  window.loadFile(rendererIndexPath, { hash: 'kitsune-bar' });
+  const rendererIndexPath = path.join(__dirname, '..', '..', 'renderer', 'index.html');
+  window.loadFile(rendererIndexPath, { hash: 'kitsune-bar' }).catch((err) => {
+    console.error('[KitsuneBar] Failed to load index.html:', err);
+  });
 
   window.on('close', (event) => {
     if (!isQuitting) {
@@ -547,6 +562,22 @@ function createKitsuneBarWindow(): BrowserWindow {
   return window;
 }
 
+function resizeKitsuneBar(width: number, height: number): boolean {
+  if (!kitsuneBarWindow || kitsuneBarWindow.isDestroyed()) return false;
+  const newWidth = Math.max(780, width || 780);
+  const newHeight = Math.max(64, height || 64);
+  const currentBounds = kitsuneBarWindow.getBounds();
+  const diffWidth = newWidth - currentBounds.width;
+  const newX = Math.round(currentBounds.x - diffWidth / 2);
+  kitsuneBarWindow.setBounds({
+    x: newX,
+    y: currentBounds.y,
+    width: newWidth,
+    height: newHeight
+  });
+  return true;
+}
+
 function toggleKitsuneBar(): boolean {
   if (!kitsuneBarWindow || kitsuneBarWindow.isDestroyed()) {
     kitsuneBarWindow = createKitsuneBarWindow();
@@ -554,11 +585,43 @@ function toggleKitsuneBar(): boolean {
 
   if (kitsuneBarWindow.isVisible()) {
     kitsuneBarWindow.hide();
+    resizeKitsuneBar(780, 64);
     return false;
   } else {
+    resizeKitsuneBar(780, 64);
     kitsuneBarWindow.show();
     kitsuneBarWindow.focus();
     return true;
+  }
+}
+
+let registeredKitsuneBarShortcut: string | null = null;
+
+function syncKitsuneBarGlobalShortcut(): void {
+  const kbSettings = settingsStore?.get().kitsuneBarSettings;
+  const hotkey = kbSettings?.customHotkey || 'Control+Shift+K';
+  const shouldRegister = kbSettings?.enabled !== false && kbSettings?.toggleShortcut !== 'chord';
+
+  if (registeredKitsuneBarShortcut) {
+    try {
+      globalShortcut.unregister(registeredKitsuneBarShortcut);
+    } catch {
+      // ignore unregister errors
+    }
+    registeredKitsuneBarShortcut = null;
+  }
+
+  if (shouldRegister && hotkey) {
+    try {
+      const ok = globalShortcut.register(hotkey, () => {
+        toggleKitsuneBar();
+      });
+      if (ok) {
+        registeredKitsuneBarShortcut = hotkey;
+      }
+    } catch (err) {
+      console.error('[KitsuneBar] Failed to register global shortcut:', err);
+    }
   }
 }
 
@@ -1374,10 +1437,50 @@ function registerIpc(service: BridgeService): void {
     }
     return snap;
   });
-  ipcMain.handle('bridge:setKitsuneBarSettings', (_event, kitsuneBarSettings: KitsuneBarSettings) => (
-    service.setKitsuneBarSettings(kitsuneBarSettings)
-  ));
+  ipcMain.handle('bridge:setKitsuneBarSettings', async (_event, kitsuneBarSettings: KitsuneBarSettings) => {
+    const snap = await service.setKitsuneBarSettings(kitsuneBarSettings);
+    syncKitsuneBarGlobalShortcut();
+    return snap;
+  });
   ipcMain.handle('bridge:toggleKitsuneBar', () => toggleKitsuneBar());
+  ipcMain.handle('bridge:resizeKitsuneBar', (_event, width: number, height: number) => (
+    resizeKitsuneBar(width, height)
+  ));
+  ipcMain.handle('bridge:triggerScreenshot', async () => {
+    try {
+      await shell.openExternal('ms-screenclip:');
+      return { ok: true, message: 'Opened Snipping Tool' };
+    } catch {
+      try {
+        spawn('powershell.exe', ['-NoProfile', '-Command', 'Start-Process ms-screenclip:'], { detached: true, stdio: 'ignore' });
+        return { ok: true, message: 'Triggered snipping tool' };
+      } catch (err) {
+        return { ok: false, message: err instanceof Error ? err.message : String(err) };
+      }
+    }
+  });
+  ipcMain.handle('bridge:openScreenshotsFolder', async () => {
+    try {
+      const picturesPath = app.getPath('pictures');
+      const screenshotsPath = path.join(picturesPath, 'Screenshots');
+      if (fs.existsSync(screenshotsPath)) {
+        await shell.openPath(screenshotsPath);
+      } else {
+        await shell.openPath(picturesPath);
+      }
+      return { ok: true, message: 'Screenshots folder opened' };
+    } catch (err) {
+      return { ok: false, message: err instanceof Error ? err.message : String(err) };
+    }
+  });
+  ipcMain.handle('bridge:openOnScreenKeyboard', async () => {
+    try {
+      spawn('cmd.exe', ['/c', 'start', 'osk.exe'], { detached: true, stdio: 'ignore' });
+      return { ok: true, message: 'On-Screen Keyboard opened' };
+    } catch (err) {
+      return { ok: false, message: err instanceof Error ? err.message : String(err) };
+    }
+  });
   ipcMain.handle('bridge:exportSettingsBackup', async () => {
     const snapshot = service.getSnapshot();
     const backup: SettingsBackupPackage = {
@@ -1460,6 +1563,7 @@ function registerIpc(service: BridgeService): void {
     }
   });
   ipcMain.handle('window:isMaximized', () => Boolean(mainWindow?.isMaximized()));
+  ipcMain.handle('window:show', () => showWindowCentered());
   ipcMain.handle('window:hide', () => mainWindow?.hide());
   ipcMain.handle('window:openExternal', (_event, url: string) => {
     if (!isAllowedExternalUrl(url)) {
@@ -1477,7 +1581,7 @@ app.whenReady().then(async () => {
   app.setName(APP_NAME);
   ensureWindowsNotificationShortcut();
   Menu.setApplicationMenu(null);
-  const settingsStore = new SettingsStore(app.getPath('userData'));
+  settingsStore = new SettingsStore(app.getPath('userData'));
   applyLaunchAtStartup(settingsStore.get().launchAtStartupEnabled);
   bridgeService = new BridgeService(settingsStore);
   registerIpc(bridgeService);
@@ -1488,11 +1592,18 @@ app.whenReady().then(async () => {
   mainWindow.on('show', () => scheduleMainWindowScaleRestore(false));
   mainWindow.on('restore', () => scheduleMainWindowScaleRestore(false));
   mainWindow.on('focus', () => scheduleMainWindowScaleRestore(false));
-  mainWindow.once('ready-to-show', () => {
-    if (!shouldStartInTray()) {
+  let hasShownWindow = false;
+  const ensureWindowShown = () => {
+    if (!hasShownWindow && !shouldStartInTray()) {
+      hasShownWindow = true;
       showWindowCentered();
     }
+  };
+  mainWindow.once('ready-to-show', ensureWindowShown);
+  mainWindow.webContents.once('did-finish-load', () => {
+    setTimeout(ensureWindowShown, 300);
   });
+  setTimeout(ensureWindowShown, 1200);
   powerMonitor.on('resume', () => scheduleMainWindowScaleRestore(true));
   powerMonitor.on('unlock-screen', () => scheduleMainWindowScaleRestore(true));
   screen.on('display-metrics-changed', () => scheduleMainWindowScaleRestore(true));
@@ -1518,17 +1629,21 @@ app.whenReady().then(async () => {
   }
 
   // Register global shortcut for Kitsune Bar
-  const kitsuneBarSettings = settingsStore.get().kitsuneBarSettings;
-  const kitsuneBarShortcut = kitsuneBarSettings?.customHotkey || 'Control+Shift+K';
-  if (kitsuneBarSettings?.toggleShortcut === 'keyboard' || !kitsuneBarSettings?.toggleShortcut) {
-    try {
-      globalShortcut.register(kitsuneBarShortcut, () => {
-        toggleKitsuneBar();
-      });
-    } catch (err) {
-      console.error('[KitsuneBar] Failed to register global shortcut:', err);
+  syncKitsuneBarGlobalShortcut();
+
+  bridgeService.on('ps-button', () => {
+    const kbSettings = settingsStore?.get().kitsuneBarSettings;
+    if (kbSettings?.enabled !== false && kbSettings?.toggleShortcut !== 'chord') {
+      toggleKitsuneBar();
     }
-  }
+  });
+
+  bridgeService.on('toggle-kitsune-bar', () => {
+    const kbSettings = settingsStore?.get().kitsuneBarSettings;
+    if (kbSettings?.enabled !== false) {
+      toggleKitsuneBar();
+    }
+  });
 
   bridgeService.on('snapshot', (snapshot) => {
     updateTrayPresentation(snapshot);

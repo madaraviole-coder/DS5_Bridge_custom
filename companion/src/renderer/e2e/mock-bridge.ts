@@ -729,6 +729,30 @@ export class MockBridgeApi implements BridgeApi {
     return true;
   }
 
+  async resizeKitsuneBar(width: number, height: number): Promise<boolean> {
+    this.recordCall('resizeKitsuneBar', width, height);
+    return true;
+  }
+
+  async showMainWindow(): Promise<void> {
+    this.recordCall('showMainWindow');
+  }
+
+  async triggerScreenshot(): Promise<{ ok: boolean; message: string }> {
+    this.recordCall('triggerScreenshot');
+    return { ok: true, message: 'Screenshot triggered (mock)' };
+  }
+
+  async openScreenshotsFolder(): Promise<{ ok: boolean; message: string }> {
+    this.recordCall('openScreenshotsFolder');
+    return { ok: true, message: 'Screenshots folder opened (mock)' };
+  }
+
+  async openOnScreenKeyboard(): Promise<{ ok: boolean; message: string }> {
+    this.recordCall('openOnScreenKeyboard');
+    return { ok: true, message: 'OSK opened (mock)' };
+  }
+
   async exportSettingsBackup(): Promise<{ ok: boolean; message: string }> {
     this.recordCall('exportSettingsBackup');
     return { ok: true, message: 'Settings exported successfully (mock).' };

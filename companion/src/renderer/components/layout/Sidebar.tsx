@@ -1,4 +1,4 @@
-import type { Dispatch, RefObject, SetStateAction } from 'react';
+import { useState, type Dispatch, type RefObject, type SetStateAction } from 'react';
 import {
   IconBluetooth,
   IconChevronDown as ChevronDown,
@@ -7,7 +7,10 @@ import {
   IconRefresh as RefreshCcw,
   IconSettings as SettingsIcon,
   IconUsb,
-  IconBolt as Zap
+  IconBolt as Zap,
+  IconCards,
+  IconBooks,
+  IconLayoutNavbar
 } from '@tabler/icons-react';
 import type { BridgeSnapshot } from '../../../shared/types';
 import { CustomSelect, type CustomSelectOption } from '../ui/CustomSelect';
@@ -40,6 +43,7 @@ export interface SidebarProps {
   showBridgeSettings: boolean;
   setShowBridgeSettings: (show: boolean | ((prev: boolean) => boolean)) => void;
   controllerImage: string;
+  onOpenLibrary?: () => void;
 }
 
 export function Sidebar({
@@ -65,8 +69,10 @@ export function Sidebar({
   kofiBadgeUrl,
   showBridgeSettings,
   setShowBridgeSettings,
-  controllerImage
+  controllerImage,
+  onOpenLibrary
 }: SidebarProps) {
+  const [gamesOverlayExpanded, setGamesOverlayExpanded] = useState(true);
   return (
     <section className={`hero-card status-${statusTone}`}>
       <div className="sidebar-section-label">Device</div>
@@ -273,6 +279,54 @@ export function Sidebar({
               </div>
             );
           })}
+          <div
+            className={`control-tab-group ${gamesOverlayExpanded ? 'expanded' : ''} ${
+              activeControlTab === 'kitsune-bar' ? 'contains-active' : ''
+            }`}
+          >
+            <button
+              id="control-group-games-overlay"
+              type="button"
+              className="control-tab-group-trigger"
+              aria-expanded={gamesOverlayExpanded}
+              aria-controls="control-group-panel-games-overlay"
+              onClick={() => setGamesOverlayExpanded((current) => !current)}
+            >
+              <IconCards size={18} stroke={2} />
+              <span>Games &amp; Overlay</span>
+              <ChevronDown className="control-tab-group-chevron" size={16} stroke={2} aria-hidden="true" />
+            </button>
+            <div id="control-group-panel-games-overlay" className="control-tab-group-panel" aria-hidden={!gamesOverlayExpanded}>
+              <div className="control-tab-group-clip">
+                <div className="control-tab-group-items" role="group" aria-labelledby="control-group-games-overlay">
+                  <button
+                    id="control-tab-library"
+                    type="button"
+                    role="tab"
+                    tabIndex={gamesOverlayExpanded ? undefined : -1}
+                    className="control-tab-button nested"
+                    onClick={() => onOpenLibrary?.()}
+                  >
+                    <IconBooks size={18} stroke={2} />
+                    <span>Library</span>
+                  </button>
+                  <button
+                    id="control-tab-kitsune-bar"
+                    type="button"
+                    role="tab"
+                    tabIndex={gamesOverlayExpanded ? undefined : -1}
+                    aria-selected={activeControlTab === 'kitsune-bar'}
+                    aria-controls={controlPanelIdFor('kitsune-bar')}
+                    className={`control-tab-button nested ${activeControlTab === 'kitsune-bar' ? 'active' : ''}`}
+                    onClick={() => selectControlTab('kitsune-bar')}
+                  >
+                    <IconLayoutNavbar size={18} stroke={2} />
+                    <span>Kitsune Bar</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         </nav>
       </div>
       <div className="sidebar-actions">

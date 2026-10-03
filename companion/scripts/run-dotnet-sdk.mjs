@@ -32,6 +32,11 @@ for (const candidate of uniqueCandidates) {
 }
 
 if (!selected) {
+  const prebuiltExe = path.resolve('native/AudioHelper/bin/publish/win-x64/AudioHelper.exe');
+  if (process.argv.includes('publish') && existsSync(prebuiltExe)) {
+    console.warn('[run-dotnet-sdk] No .NET SDK found, but pre-built AudioHelper binary exists. Skipping compilation.');
+    process.exit(0);
+  }
   console.error(
     'No .NET SDK was found. Install an SDK or set DOTNET_ROOT to a directory containing an SDK-enabled dotnet executable.'
   );

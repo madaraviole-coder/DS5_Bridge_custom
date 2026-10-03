@@ -44,6 +44,7 @@ import type {
   CompanionSettings,
   GameProfile,
   GyroSettings,
+  KitsuneBarItemConfig,
   KitsuneBarSettings,
   ModsServerSettings,
   MultiActionsSettings,
@@ -128,15 +129,27 @@ export const DEFAULT_MODS_SERVER_SETTINGS: ModsServerSettings = {
   corsAllowedOrigins: ['*']
 };
 
+export const DEFAULT_KITSUNE_BAR_ITEMS: KitsuneBarItemConfig[] = [
+  { id: 'controller', name: 'Controller', icon: 'gamepad', type: 'module', layer: 1, order: 0, enabled: true },
+  { id: 'lab', name: 'Lab', icon: 'flask', type: 'module', layer: 1, order: 1, enabled: true },
+  { id: 'audio', name: 'Audio', icon: 'volume', type: 'module', layer: 1, order: 2, enabled: true },
+  { id: 'mic', name: 'Mic', icon: 'mic', type: 'module', layer: 1, order: 3, enabled: true },
+  { id: 'music', name: 'Music', icon: 'music', type: 'module', layer: 1, order: 4, enabled: true },
+  { id: 'screenshot', name: 'Screenshot', icon: 'camera', type: 'module', layer: 1, order: 5, enabled: true }
+];
+
 export const DEFAULT_KITSUNE_BAR_SETTINGS: KitsuneBarSettings = {
   enabled: true,
-  toggleShortcut: 'keyboard',
+  toggleShortcut: 'ps-button',
   customHotkey: 'Control+Shift+K',
   transparencyPercent: 90,
   alwaysOnTop: true,
   showQuickSettings: true,
   showBattery: true,
-  showPresetPicker: true
+  showPresetPicker: true,
+  activeLayer: 1,
+  totalLayers: 2,
+  items: [...DEFAULT_KITSUNE_BAR_ITEMS]
 };
 
 export const DEFAULT_TURBO_SETTINGS: TurboSettings = {
@@ -982,7 +995,10 @@ function cloneSettings(settings: CompanionSettings): CompanionSettings {
       ...settings.modsServerSettings,
       corsAllowedOrigins: [...settings.modsServerSettings.corsAllowedOrigins]
     } : undefined,
-    kitsuneBarSettings: settings.kitsuneBarSettings ? { ...settings.kitsuneBarSettings } : undefined
+    kitsuneBarSettings: settings.kitsuneBarSettings ? {
+      ...settings.kitsuneBarSettings,
+      items: settings.kitsuneBarSettings.items ? settings.kitsuneBarSettings.items.map((item) => ({ ...item })) : undefined
+    } : undefined
   };
 }
 
@@ -1237,7 +1253,10 @@ function normalizeSettings(value: Partial<CompanionSettings> | null | undefined)
     } : DEFAULT_MODS_SERVER_SETTINGS,
     kitsuneBarSettings: value?.kitsuneBarSettings ? {
       ...DEFAULT_KITSUNE_BAR_SETTINGS,
-      ...value.kitsuneBarSettings
+      ...value.kitsuneBarSettings,
+      items: Array.isArray(value.kitsuneBarSettings.items)
+        ? value.kitsuneBarSettings.items.map((it: any) => ({ ...it }))
+        : [...DEFAULT_KITSUNE_BAR_ITEMS]
     } : DEFAULT_KITSUNE_BAR_SETTINGS,
     gameProfileAutoSwitchEnabled: typeof value?.gameProfileAutoSwitchEnabled === 'boolean'
       ? value.gameProfileAutoSwitchEnabled

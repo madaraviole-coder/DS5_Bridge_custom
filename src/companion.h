@@ -68,6 +68,7 @@ enum ChordControllerAction : uint8_t {
     ChordCtrlPersonaDs4 = 19,
     ChordCtrlPersonaXbox = 20,
     ChordCtrlToggleTurbo = 21,
+    ChordCtrlToggleKitsuneBar = 22,
 };
 
 enum ChordMediaActionCode : uint8_t {

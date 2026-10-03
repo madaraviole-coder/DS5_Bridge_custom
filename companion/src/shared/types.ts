@@ -202,6 +202,16 @@ export interface ModsServerSettings {
   corsAllowedOrigins: string[];
 }
 
+export interface KitsuneBarItemConfig {
+  id: string;
+  name: string;
+  icon: string;
+  type: 'module' | 'folder' | 'core';
+  layer: number;
+  order: number;
+  enabled: boolean;
+}
+
 export interface KitsuneBarSettings {
   enabled: boolean;
   toggleShortcut: 'ps-button' | 'chord' | 'keyboard';
@@ -211,6 +221,9 @@ export interface KitsuneBarSettings {
   showQuickSettings: boolean;
   showBattery: boolean;
   showPresetPicker: boolean;
+  activeLayer?: number;
+  totalLayers?: number;
+  items?: KitsuneBarItemConfig[];
 }
 
 export interface SettingsBackupPackage {

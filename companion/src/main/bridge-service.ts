@@ -682,6 +682,7 @@ function parseShortcutEvent(event: number): InputShortcutEvent | null {
     case SHORTCUT_EVENT.SLEEP_CONTROLLER:
     case SHORTCUT_EVENT.MIC_MUTE_ON:
     case SHORTCUT_EVENT.MIC_MUTE_OFF:
+    case SHORTCUT_EVENT.PS_BUTTON:
       return { kind: 'shortcut', event };
     default:
       return null;
@@ -1338,8 +1339,14 @@ export class BridgeService extends EventEmitter {
     [SHORTCUT_EVENT.CONTROLLER_VOLUME_UP]: () => this.applyControllerVolumeShortcut(10),
     [SHORTCUT_EVENT.SLEEP_CONTROLLER]: () => this.applySleepShortcut(),
     [SHORTCUT_EVENT.MIC_MUTE_ON]: () => this.applyControllerMicMuteEvent(true),
-    [SHORTCUT_EVENT.MIC_MUTE_OFF]: () => this.applyControllerMicMuteEvent(false)
+    [SHORTCUT_EVENT.MIC_MUTE_OFF]: () => this.applyControllerMicMuteEvent(false),
+    [SHORTCUT_EVENT.PS_BUTTON]: () => this.handlePsButtonShortcut()
   };
+
+  private async handlePsButtonShortcut(): Promise<void> {
+    this.emit('ps-button');
+    this.emit('toggle-kitsune-bar');
+  }
 
   constructor(private readonly settingsStore: SettingsStore) {
     super();
@@ -2949,6 +2956,9 @@ export class BridgeService extends EventEmitter {
         return;
       case 'lighting-up':
         await this.stepLightbarBrightness(step);
+        return;
+      case 'toggle-kitsune-bar':
+        this.emit('toggle-kitsune-bar');
         return;
     }
   }

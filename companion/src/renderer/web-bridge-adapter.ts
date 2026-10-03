@@ -976,6 +976,24 @@ export class WebBridgeAdapter extends WebBridgeTransport implements BridgeApi {
     return false;
   }
 
+  async resizeKitsuneBar(_width: number, _height: number): Promise<boolean> {
+    return false;
+  }
+
+  async showMainWindow(): Promise<void> {}
+
+  async triggerScreenshot(): Promise<{ ok: boolean; message: string }> {
+    return { ok: false, message: 'Screenshot requires desktop companion.' };
+  }
+
+  async openScreenshotsFolder(): Promise<{ ok: boolean; message: string }> {
+    return { ok: false, message: 'Opening folders requires desktop companion.' };
+  }
+
+  async openOnScreenKeyboard(): Promise<{ ok: boolean; message: string }> {
+    return { ok: false, message: 'Opening OSK requires desktop companion.' };
+  }
+
   async exportSettingsBackup(): Promise<{ ok: boolean; message: string }> {
     try {
       const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(this.settings, null, 2));

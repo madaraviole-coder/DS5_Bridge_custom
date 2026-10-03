@@ -771,6 +771,7 @@ export function App() {
           showBridgeSettings={showBridgeSettings}
           setShowBridgeSettings={setShowBridgeSettings}
           controllerImage={controllerImage}
+          onOpenLibrary={() => gameProfiles.setIsGameProfilesModalOpen(true)}
         />
         <ControlPages
           activeControlTab={activeControlTab}
@@ -798,6 +799,14 @@ export function App() {
           triggersProps={inputMediaPages.triggersProps}
           remappingProps={inputMediaPages.remappingProps}
           chordsProps={inputMediaPages.chordsProps}
+          kitsuneBarProps={{
+            active: activeControlTab === 'kitsune-bar',
+            snapshot,
+            connected,
+            pendingAction,
+            runAction,
+            onOpenLibrary: () => gameProfiles.setIsGameProfilesModalOpen(true)
+          }}
         />
       </main>
       <AppModals

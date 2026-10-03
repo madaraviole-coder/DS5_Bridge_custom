@@ -26,6 +26,7 @@ export const SHORTCUT_EVENT = {
   SLEEP_CONTROLLER: 0x03,
   MIC_MUTE_ON: 0x04,
   MIC_MUTE_OFF: 0x05,
+  PS_BUTTON: 0x06,
   TOUCHPAD_GESTURE_BASE: 0x50
 } as const;
 
@@ -348,7 +349,8 @@ export type ChordControllerSettingAction =
   | 'triggers-down'
   | 'triggers-up'
   | 'lighting-down'
-  | 'lighting-up';
+  | 'lighting-up'
+  | 'toggle-kitsune-bar';
 export interface ChordKeyboardFunction {
   id: ChordFunctionId;
   name: string;
@@ -553,6 +555,7 @@ export const CHORD_CONTROLLER_ACTION_CODE_MAP: Record<ChordControllerSettingActi
   'persona-dualsense-edge': 18,
   'persona-ds4': 19,
   'persona-xbox': 20,
+  'toggle-kitsune-bar': 22,
 };
 
 export const CHORD_MEDIA_ACTION_CODE_MAP: Record<ChordMediaAction, number> = {

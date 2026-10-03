@@ -1876,6 +1876,27 @@ describe('BridgeService', () => {
     expect(device.sentReports.at(-1)?.[9]).toBe(0);
   });
 
+  it('emits ps-button and toggle-kitsune-bar when PS button shortcut event is received', async () => {
+    const service = serviceFixture();
+    const device = new MockHidDevice();
+    device.status = statusReport({ controllerConnected: true });
+    hidMock.state.devicesList = [companionDeviceInfo()];
+    hidMock.state.openDevices.set('companion-path', device);
+
+    await poll(service);
+
+    let psEmitted = false;
+    let toggleEmitted = false;
+    service.on('ps-button', () => { psEmitted = true; });
+    service.on('toggle-kitsune-bar', () => { toggleEmitted = true; });
+
+    device.queueShortcutEvent(SHORTCUT_EVENT.PS_BUTTON);
+    await pollShortcut(service);
+
+    expect(psEmitted).toBe(true);
+    expect(toggleEmitted).toBe(true);
+  });
+
   it('sends and stores speaker volume shortcut settings', async () => {
     const service = serviceFixture();
     const device = new MockHidDevice();

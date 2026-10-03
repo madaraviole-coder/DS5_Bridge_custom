@@ -13,7 +13,8 @@ import {
   IconViewfinder,
   IconVolume,
   IconCrosshair,
-  IconLayersSubtract
+  IconLayersSubtract,
+  IconLayoutNavbar
 } from '@tabler/icons-react';
 import remappingEdgeLayoutImage from '../../../../assets/controllers/dualsense-edge-remapping-layout.svg';
 import remappingLayoutImage from '../../../../assets/controllers/dualsense-remapping-layout.svg';
@@ -697,7 +698,8 @@ export const CONTROL_TAB_DEFINITIONS: Record<SidebarControlTab, ControlTabDefini
   'multi-actions': { id: 'multi-actions', label: 'Multi-Actions & Cursor', Icon: IconLayersSubtract },
   remapping: { id: 'remapping', label: 'Button Remapping', Icon: IconDeviceGamepad3 },
   chords: { id: 'chords', label: 'Chords', Icon: IconReplace },
-  system: { id: 'system', label: 'System', Icon: IconCpu }
+  system: { id: 'system', label: 'System', Icon: IconCpu },
+  'kitsune-bar': { id: 'kitsune-bar', label: 'Kitsune Bar', Icon: IconLayoutNavbar }
 };
 
 export const CONTROL_TAB_GROUPS: readonly ControlTabGroupDefinition[] = [

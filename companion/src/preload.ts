@@ -297,6 +297,19 @@ const api = {
     ipcRenderer.invoke('bridge:setKitsuneBarSettings', kitsuneBarSettings)
   ),
   toggleKitsuneBar: (): Promise<boolean> => ipcRenderer.invoke('bridge:toggleKitsuneBar'),
+  resizeKitsuneBar: (width: number, height: number): Promise<boolean> => (
+    ipcRenderer.invoke('bridge:resizeKitsuneBar', width, height)
+  ),
+  showMainWindow: (): Promise<void> => ipcRenderer.invoke('window:show'),
+  triggerScreenshot: (): Promise<{ ok: boolean; message: string }> => (
+    ipcRenderer.invoke('bridge:triggerScreenshot')
+  ),
+  openScreenshotsFolder: (): Promise<{ ok: boolean; message: string }> => (
+    ipcRenderer.invoke('bridge:openScreenshotsFolder')
+  ),
+  openOnScreenKeyboard: (): Promise<{ ok: boolean; message: string }> => (
+    ipcRenderer.invoke('bridge:openOnScreenKeyboard')
+  ),
   exportSettingsBackup: (): Promise<{ ok: boolean; message: string }> => ipcRenderer.invoke('bridge:exportSettingsBackup'),
   importSettingsBackup: (): Promise<{ ok: boolean; message: string }> => ipcRenderer.invoke('bridge:importSettingsBackup'),
   repairWindowsDeviceCache: (): Promise<WindowsDeviceCleanupResult> => (

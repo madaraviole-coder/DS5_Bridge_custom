@@ -23,7 +23,8 @@ export type ControlTab =
   | 'multi-actions'
   | 'remapping'
   | 'chords'
-  | 'system';
+  | 'system'
+  | 'kitsune-bar';
 
 export type SidebarControlTab = ControlTab;
 
