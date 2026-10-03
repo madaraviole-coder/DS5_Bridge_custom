@@ -104,9 +104,9 @@ describe('companion layout CSS', () => {
   });
 
   it('content-sizes the system profile panel so summary rows stay inside its border', () => {
-    const systemPage = cssBlock('.system-page', 'grid-template-rows: auto minmax(0, 1fr) 148px;');
-    expect(systemPage).toContain('height: 100%;');
-    expect(systemPage).toContain('min-height: 0;');
+    const systemPage = cssBlock('.system-page', 'grid-template-rows: auto auto minmax(148px, auto);');
+    expect(systemPage).toContain('height: auto;');
+    expect(systemPage).toContain('min-height: 100%;');
     const profilePanel = cssBlock('.system-profile-panel', 'grid-template-rows: auto minmax(0, 1fr);');
     expect(profilePanel).toContain('gap: 8px;');
     expect(cssBlock('.system-profile-summary-group', 'align-content: start;')).toContain('align-content: start;');
@@ -337,8 +337,11 @@ describe('companion layout CSS', () => {
   });
 
   it('keeps the remapping profile strip aligned with shared feature headers', () => {
-    expect(cssBlock('.remapping-page', 'height: 100%;')).toContain('height: 100%;');
-    expect(cssBlock('.remapping-page', 'min-height: 0;')).toContain('min-height: 0;');
+    expect(cssBlock('.remapping-page', 'height: auto;')).toContain('height: auto;');
+    expect(cssBlock('.remapping-page', 'min-height: 100%;')).toContain('min-height: 100%;');
+    expect(cssBlock('.remapping-page', 'grid-template-rows: auto auto minmax(0, 1fr);')).toContain(
+      'grid-template-rows: auto auto minmax(0, 1fr);'
+    );
     expect(cssBlock('.remapping-card', 'min-height: 0;')).toContain('min-height: 0;');
     expect(cssBlock('.remapping-card', '--remapping-profile-strip-height: var(--feature-card-header-height);')).toContain(
       '--remapping-profile-strip-height: var(--feature-card-header-height);'
@@ -346,6 +349,16 @@ describe('companion layout CSS', () => {
     expect(cssBlock('.remapping-profile-strip', 'min-height: var(--remapping-profile-strip-height);')).toContain(
       'min-height: var(--remapping-profile-strip-height);'
     );
+  });
+
+  it('prevents overlapping UI across overview, deadzones, system, and remapping pages', () => {
+    expect(cssBlock('.overview-page', 'grid-template-rows: auto auto 1fr auto;')).toContain('grid-template-rows: auto auto 1fr auto;');
+    expect(cssBlock('.overview-persona-button', 'min-height: 58px;')).toContain('min-height: 58px;');
+    expect(cssBlock('.overview-status-panel', 'repeat(3, minmax(0, 1fr)) minmax(0, 1.7fr)')).toContain('repeat(3, minmax(0, 1fr)) minmax(0, 1.7fr)');
+    expect(cssBlock('.deadzones-page', 'grid-template-rows: auto auto minmax(132px, auto);')).toContain('grid-template-rows: auto auto minmax(132px, auto);');
+    expect(cssBlock('.deadzone-card', 'grid-auto-rows: auto;')).toContain('grid-auto-rows: auto;');
+    expect(cssBlock('.system-page .feature-card-grid', 'grid-auto-rows: auto;')).toContain('grid-auto-rows: auto;');
+    expect(cssBlock('.range-control-header', 'justify-content: space-between;')).toContain('justify-content: space-between;');
   });
 
   it('keeps autosave indicators aligned with profile action button styling', () => {
