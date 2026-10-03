@@ -8,9 +8,9 @@ import kitsuneInputLogoUrl from '../../assets/kitsune-input-logo.svg';
 
 export function KitsuneInputWordmark() {
   return (
-    <span className="kitsune-promotion-wordmark" aria-label="Kitsune Input">
-      <span className="kitsune-promotion-wordmark-kitsune">Kitsune</span>
-      <span className="kitsune-promotion-wordmark-input">Input</span>
+    <span className="kitsune-promotion-wordmark" aria-label="DS5 Bridge">
+      <span className="kitsune-promotion-wordmark-kitsune">DS5</span>
+      <span className="kitsune-promotion-wordmark-input">Bridge</span>
     </span>
   );
 }
@@ -42,7 +42,7 @@ export function KitsuneInputPromotionDialog({
         <button
           className="modal-close-button kitsune-promotion-close"
           type="button"
-          aria-label="Close Kitsune Input promotion"
+          aria-label="Close DS5 Bridge promotion"
           onClick={onClose}
         >
           <X size={18} />
@@ -103,7 +103,7 @@ export function KitsuneInputPromotionDialog({
             onClick={onDismissForever}
           >
             <IconEyeOff size={16} />
-            {dismissing ? 'Dismissing…' : "Don't show Kitsune Input promotions again"}
+            {dismissing ? 'Dismissing…' : "Don't show DS5 Bridge promotions again"}
           </button>
         </footer>
       </section>

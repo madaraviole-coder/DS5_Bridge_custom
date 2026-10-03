@@ -79,7 +79,7 @@ export function Header({
         <button
           className="kitsune-promotion-banner"
           type="button"
-          aria-label="Explore Kitsune Input"
+          aria-label="Explore DS5 Bridge"
           aria-haspopup="dialog"
           aria-expanded={showKitsuneInputPromotion}
           onClick={() => {

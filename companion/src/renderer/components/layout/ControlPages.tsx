@@ -8,6 +8,8 @@ import type { LightingPageProps } from '../../pages/LightingPage';
 import type { RemappingPageProps } from '../../pages/RemappingPage';
 import type { ChordsPageProps } from '../../pages/ChordsPage';
 import type { SystemPageProps } from '../../pages/SystemPage';
+import type { GyroPageProps } from '../../pages/GyroPage';
+import type { MultiActionsPageProps } from '../../pages/MultiActionsPage';
 import type { ControlTab } from '../../types/app-types';
 import { ErrorBoundary, TabErrorFallback } from '../common/ErrorBoundary';
 import { OverviewPage } from '../../pages/OverviewPage';
@@ -19,6 +21,8 @@ import { TriggersPage } from '../../pages/TriggersPage';
 import { LightingPage } from '../../pages/LightingPage';
 import { RemappingPage } from '../../pages/RemappingPage';
 import { ChordsPage } from '../../pages/ChordsPage';
+import { GyroPage } from '../../pages/GyroPage';
+import { MultiActionsPage } from '../../pages/MultiActionsPage';
 import { SystemPage } from '../../pages/SystemPage';
 
 export interface ControlPagesProps {
@@ -26,6 +30,8 @@ export interface ControlPagesProps {
   overviewProps: OverviewPageProps;
   devicesProps: ControllerDevicesPageProps;
   deadzonesProps: DeadzonesPageProps;
+  gyroProps: GyroPageProps;
+  multiActionsProps: MultiActionsPageProps;
   hapticsProps: HapticsPageProps;
   audioProps: AudioPageProps;
   triggersProps: TriggersPageProps;
@@ -40,6 +46,8 @@ export function ControlPages({
   overviewProps,
   devicesProps,
   deadzonesProps,
+  gyroProps,
+  multiActionsProps,
   hapticsProps,
   audioProps,
   triggersProps,
@@ -55,6 +63,8 @@ export function ControlPages({
           <OverviewPage {...overviewProps} />
           <ControllerDevicesPage {...devicesProps} />
           <DeadzonesPage {...deadzonesProps} />
+          <GyroPage {...gyroProps} />
+          <MultiActionsPage {...multiActionsProps} />
           <HapticsPage {...hapticsProps} />
           <AudioPage {...audioProps} />
           <TriggersPage {...triggersProps} />

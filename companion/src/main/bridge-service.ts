@@ -97,7 +97,14 @@ import type {
   TurboSettings,
   ActiveGameInfo,
   GameProfile,
-  RunningProcessInfo
+  RunningProcessInfo,
+  GyroSettings,
+  StickCurveSettings,
+  MultiActionsSettings,
+  VirtualCursorSettings,
+  PcWakeSettings,
+  ModsServerSettings,
+  KitsuneBarSettings
 } from '../shared/types';
 import { GameProfileMonitor, type ForegroundProcessEvent } from './game-profile-monitor';
 import {
@@ -3697,6 +3704,48 @@ export class BridgeService extends EventEmitter {
     if (this.snapshot.state === 'connected') {
       await this.applyTurboSettings(this.snapshot.settings, true);
     }
+    this.emitSnapshot();
+    return this.getSnapshot();
+  }
+
+  async setGyroSettings(gyroSettings: GyroSettings): Promise<BridgeSnapshot> {
+    this.snapshot.settings = this.settingsStore.update({ gyroSettings });
+    this.emitSnapshot();
+    return this.getSnapshot();
+  }
+
+  async setStickCurveSettings(stickCurveSettings: StickCurveSettings): Promise<BridgeSnapshot> {
+    this.snapshot.settings = this.settingsStore.update({ stickCurveSettings });
+    this.emitSnapshot();
+    return this.getSnapshot();
+  }
+
+  async setMultiActionsSettings(multiActionsSettings: MultiActionsSettings): Promise<BridgeSnapshot> {
+    this.snapshot.settings = this.settingsStore.update({ multiActionsSettings });
+    this.emitSnapshot();
+    return this.getSnapshot();
+  }
+
+  async setVirtualCursorSettings(virtualCursorSettings: VirtualCursorSettings): Promise<BridgeSnapshot> {
+    this.snapshot.settings = this.settingsStore.update({ virtualCursorSettings });
+    this.emitSnapshot();
+    return this.getSnapshot();
+  }
+
+  async setPcWakeSettings(pcWakeSettings: PcWakeSettings): Promise<BridgeSnapshot> {
+    this.snapshot.settings = this.settingsStore.update({ pcWakeSettings });
+    this.emitSnapshot();
+    return this.getSnapshot();
+  }
+
+  async setModsServerSettings(modsServerSettings: ModsServerSettings): Promise<BridgeSnapshot> {
+    this.snapshot.settings = this.settingsStore.update({ modsServerSettings });
+    this.emitSnapshot();
+    return this.getSnapshot();
+  }
+
+  async setKitsuneBarSettings(kitsuneBarSettings: KitsuneBarSettings): Promise<BridgeSnapshot> {
+    this.snapshot.settings = this.settingsStore.update({ kitsuneBarSettings });
     this.emitSnapshot();
     return this.getSnapshot();
   }

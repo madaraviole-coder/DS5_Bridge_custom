@@ -777,6 +777,20 @@ export function App() {
           overviewProps={overviewPages.overviewProps}
           devicesProps={overviewPages.devicesProps}
           deadzonesProps={overviewPages.deadzonesProps}
+          gyroProps={{
+            active: activeControlTab === 'gyro',
+            snapshot,
+            connected,
+            pendingAction,
+            runAction
+          }}
+          multiActionsProps={{
+            active: activeControlTab === 'multi-actions',
+            snapshot,
+            connected,
+            pendingAction,
+            runAction
+          }}
           lightingProps={overviewPages.lightingProps}
           systemProps={overviewPages.systemProps}
           hapticsProps={inputMediaPages.hapticsProps}

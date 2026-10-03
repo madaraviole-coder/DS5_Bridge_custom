@@ -40,8 +40,104 @@ import type {
   HostPersonaMode,
   RemapButtonId
 } from '../shared/protocol';
-import type { CompanionSettings, GameProfile, TurboSettings, UiScalePercent, UiThemePreset } from '../shared/types';
+import type {
+  CompanionSettings,
+  GameProfile,
+  GyroSettings,
+  KitsuneBarSettings,
+  ModsServerSettings,
+  MultiActionsSettings,
+  PcWakeSettings,
+  StickCurveSettings,
+  TurboSettings,
+  UiScalePercent,
+  UiThemePreset,
+  VirtualCursorSettings
+} from '../shared/types';
 import { DEFAULT_TOUCHPAD_SETTINGS, type TouchpadSettings } from '../shared/touchpad-gestures';
+
+export const DEFAULT_GYRO_SETTINGS: GyroSettings = {
+  enabled: false,
+  sensitivityYaw: 1.0,
+  sensitivityPitch: 1.0,
+  deadzone: 2,
+  smoothFilter: 4,
+  activationMode: 'always-on',
+  activationButton: 'l2',
+  triggerThresholdPercent: 10,
+  flickStickEnabled: false,
+  flickStickThresholdPercent: 85,
+  flickStickSnapDegrees: 45,
+  flickStickTurnMode: 'smooth',
+  flickStickSmoothDurationMs: 100,
+  invertPitch: false,
+  invertYaw: false
+};
+
+export const DEFAULT_STICK_CURVE_SETTINGS: StickCurveSettings = {
+  left: {
+    curveType: 'linear',
+    innerDeadzonePercent: 0,
+    outerDeadzonePercent: 0,
+    antiDeadzonePercent: 0,
+    exponent: 1.0,
+    maxRangePercent: 100
+  },
+  right: {
+    curveType: 'linear',
+    innerDeadzonePercent: 0,
+    outerDeadzonePercent: 0,
+    antiDeadzonePercent: 0,
+    exponent: 1.0,
+    maxRangePercent: 100
+  }
+};
+
+export const DEFAULT_MULTI_ACTIONS_SETTINGS: MultiActionsSettings = {
+  enabled: false,
+  sequences: []
+};
+
+export const DEFAULT_VIRTUAL_CURSOR_SETTINGS: VirtualCursorSettings = {
+  enabled: false,
+  controlStick: 'left',
+  pointerSpeed: 12,
+  scrollSpeed: 10,
+  deadzonePercent: 15,
+  leftClickButton: 'cross',
+  rightClickButton: 'circle',
+  middleClickButton: 'square',
+  scrollUpButton: 'dpad-up',
+  scrollDownButton: 'dpad-down',
+  virtualKeyboardShortcut: 'options'
+};
+
+export const DEFAULT_PC_WAKE_SETTINGS: PcWakeSettings = {
+  enabled: false,
+  targetMacAddress: '',
+  broadcastIpAddress: '255.255.255.255',
+  udpPort: 9,
+  wakeOnControllerConnect: false
+};
+
+export const DEFAULT_MODS_SERVER_SETTINGS: ModsServerSettings = {
+  enabled: false,
+  port: 45454,
+  authToken: 'kitsune-local-key',
+  allowMCP: true,
+  corsAllowedOrigins: ['*']
+};
+
+export const DEFAULT_KITSUNE_BAR_SETTINGS: KitsuneBarSettings = {
+  enabled: true,
+  toggleShortcut: 'keyboard',
+  customHotkey: 'Control+Shift+K',
+  transparencyPercent: 90,
+  alwaysOnTop: true,
+  showQuickSettings: true,
+  showBattery: true,
+  showPresetPicker: true
+};
 
 export const DEFAULT_TURBO_SETTINGS: TurboSettings = {
   enabled: false,
@@ -225,6 +321,13 @@ export const DEFAULT_SETTINGS: CompanionSettings = {
   chordAssignments: [],
   touchpadSettings: { ...DEFAULT_TOUCHPAD_SETTINGS },
   turboSettings: { ...DEFAULT_TURBO_SETTINGS },
+  gyroSettings: { ...DEFAULT_GYRO_SETTINGS },
+  stickCurveSettings: { ...DEFAULT_STICK_CURVE_SETTINGS },
+  multiActionsSettings: { ...DEFAULT_MULTI_ACTIONS_SETTINGS },
+  virtualCursorSettings: { ...DEFAULT_VIRTUAL_CURSOR_SETTINGS },
+  pcWakeSettings: { ...DEFAULT_PC_WAKE_SETTINGS },
+  modsServerSettings: { ...DEFAULT_MODS_SERVER_SETTINGS },
+  kitsuneBarSettings: { ...DEFAULT_KITSUNE_BAR_SETTINGS },
   gameProfileAutoSwitchEnabled: true,
   gameProfiles: []
 };
@@ -860,7 +963,26 @@ function cloneSettings(settings: CompanionSettings): CompanionSettings {
     buttonRemappingDraft: cloneRemapMap(settings.buttonRemappingDraft),
     chordFunctions: settings.chordFunctions.map((func) => ({ ...func })),
     chordAssignments: settings.chordAssignments.map((assignment) => ({ ...assignment })),
-    gameProfiles: (settings.gameProfiles ?? []).map((profile) => ({ ...profile }))
+    gameProfiles: (settings.gameProfiles ?? []).map((profile) => ({ ...profile })),
+    gyroSettings: settings.gyroSettings ? { ...settings.gyroSettings } : undefined,
+    stickCurveSettings: settings.stickCurveSettings ? {
+      left: { ...settings.stickCurveSettings.left },
+      right: { ...settings.stickCurveSettings.right }
+    } : undefined,
+    multiActionsSettings: settings.multiActionsSettings ? {
+      enabled: settings.multiActionsSettings.enabled,
+      sequences: settings.multiActionsSettings.sequences.map((s) => ({
+        ...s,
+        steps: s.steps.map((st) => ({ ...st }))
+      }))
+    } : undefined,
+    virtualCursorSettings: settings.virtualCursorSettings ? { ...settings.virtualCursorSettings } : undefined,
+    pcWakeSettings: settings.pcWakeSettings ? { ...settings.pcWakeSettings } : undefined,
+    modsServerSettings: settings.modsServerSettings ? {
+      ...settings.modsServerSettings,
+      corsAllowedOrigins: [...settings.modsServerSettings.corsAllowedOrigins]
+    } : undefined,
+    kitsuneBarSettings: settings.kitsuneBarSettings ? { ...settings.kitsuneBarSettings } : undefined
   };
 }
 
@@ -1086,6 +1208,37 @@ function normalizeSettings(value: Partial<CompanionSettings> | null | undefined)
       humanize: typeof value.turboSettings.humanize === 'boolean' ? value.turboSettings.humanize : DEFAULT_TURBO_SETTINGS.humanize,
       buttonsMask: typeof value.turboSettings.buttonsMask === 'number' ? value.turboSettings.buttonsMask & 0xff : DEFAULT_TURBO_SETTINGS.buttonsMask
     } : DEFAULT_SETTINGS.turboSettings,
+    gyroSettings: value?.gyroSettings ? {
+      ...DEFAULT_GYRO_SETTINGS,
+      ...value.gyroSettings,
+      sensitivityYaw: Number.isFinite(value.gyroSettings.sensitivityYaw) ? Math.max(0.1, Math.min(10, value.gyroSettings.sensitivityYaw)) : DEFAULT_GYRO_SETTINGS.sensitivityYaw,
+      sensitivityPitch: Number.isFinite(value.gyroSettings.sensitivityPitch) ? Math.max(0.1, Math.min(10, value.gyroSettings.sensitivityPitch)) : DEFAULT_GYRO_SETTINGS.sensitivityPitch
+    } : DEFAULT_GYRO_SETTINGS,
+    stickCurveSettings: value?.stickCurveSettings ? {
+      left: { ...DEFAULT_STICK_CURVE_SETTINGS.left, ...(value.stickCurveSettings.left || {}) },
+      right: { ...DEFAULT_STICK_CURVE_SETTINGS.right, ...(value.stickCurveSettings.right || {}) }
+    } : DEFAULT_STICK_CURVE_SETTINGS,
+    multiActionsSettings: value?.multiActionsSettings ? {
+      enabled: Boolean(value.multiActionsSettings.enabled),
+      sequences: Array.isArray(value.multiActionsSettings.sequences) ? value.multiActionsSettings.sequences : []
+    } : DEFAULT_MULTI_ACTIONS_SETTINGS,
+    virtualCursorSettings: value?.virtualCursorSettings ? {
+      ...DEFAULT_VIRTUAL_CURSOR_SETTINGS,
+      ...value.virtualCursorSettings
+    } : DEFAULT_VIRTUAL_CURSOR_SETTINGS,
+    pcWakeSettings: value?.pcWakeSettings ? {
+      ...DEFAULT_PC_WAKE_SETTINGS,
+      ...value.pcWakeSettings
+    } : DEFAULT_PC_WAKE_SETTINGS,
+    modsServerSettings: value?.modsServerSettings ? {
+      ...DEFAULT_MODS_SERVER_SETTINGS,
+      ...value.modsServerSettings,
+      port: Number.isFinite(value.modsServerSettings.port) ? Math.max(1024, Math.min(65535, value.modsServerSettings.port)) : DEFAULT_MODS_SERVER_SETTINGS.port
+    } : DEFAULT_MODS_SERVER_SETTINGS,
+    kitsuneBarSettings: value?.kitsuneBarSettings ? {
+      ...DEFAULT_KITSUNE_BAR_SETTINGS,
+      ...value.kitsuneBarSettings
+    } : DEFAULT_KITSUNE_BAR_SETTINGS,
     gameProfileAutoSwitchEnabled: typeof value?.gameProfileAutoSwitchEnabled === 'boolean'
       ? value.gameProfileAutoSwitchEnabled
       : DEFAULT_SETTINGS.gameProfileAutoSwitchEnabled,

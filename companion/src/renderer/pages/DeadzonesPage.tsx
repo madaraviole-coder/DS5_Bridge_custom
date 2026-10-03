@@ -1,7 +1,8 @@
 import { type CSSProperties, type MutableRefObject } from 'react';
-import { IconViewfinder } from '@tabler/icons-react';
-import type { BridgeSnapshot } from '../../shared/types';
+import { IconViewfinder, IconChartLine } from '@tabler/icons-react';
+import type { BridgeSnapshot, StickCurveConfig, StickCurveType } from '../../shared/types';
 import { FeatureTipsPanel } from '../components/ui/FeatureTipsPanel';
+import { CustomSelect } from '../components/ui/CustomSelect';
 import { radialDeadzonePreview, stickPositionPercent } from '../radial-deadzone-preview';
 
 export interface DeadzonesPageProps {
@@ -167,6 +168,90 @@ export function DeadzonesPage({
                     {preset === 0 ? 'Off' : `${preset}%`}
                   </button>
                 ))}
+              </div>
+
+              {/* Extended Stick Response Curve & Range (DS5 Bridge) */}
+              <div className="stick-curve-settings" style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                  <IconChartLine size={18} style={{ color: 'var(--accent)' }} />
+                  <h4 style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>Response Curve & Range</h4>
+                </div>
+
+                {(() => {
+                  const curveConfig: StickCurveConfig = snapshot?.settings.stickCurveSettings?.[side] ?? {
+                    curveType: 'linear',
+                    innerDeadzonePercent: value,
+                    outerDeadzonePercent: 0,
+                    antiDeadzonePercent: 0,
+                    exponent: 1.0,
+                    maxRangePercent: 100
+                  };
+
+                  const handleUpdateCurve = (updates: Partial<StickCurveConfig>) => {
+                    const currentSettings = snapshot?.settings.stickCurveSettings ?? {
+                      left: { curveType: 'linear', innerDeadzonePercent: 0, outerDeadzonePercent: 0, antiDeadzonePercent: 0, exponent: 1.0, maxRangePercent: 100 },
+                      right: { curveType: 'linear', innerDeadzonePercent: 0, outerDeadzonePercent: 0, antiDeadzonePercent: 0, exponent: 1.0, maxRangePercent: 100 }
+                    };
+                    const next = {
+                      ...currentSettings,
+                      [side]: { ...curveConfig, ...updates }
+                    };
+                    void window.bridge.setStickCurveSettings(next);
+                  };
+
+                  const curveOptions: Array<[string, StickCurveType]> = [
+                    ['Linear (Standard 1:1)', 'linear'],
+                    ['Exponential (Fine center)', 'exponential'],
+                    ['Instant (Fast trigger)', 'instant'],
+                    ['Wide (Smooth outer)', 'wide'],
+                    ['Dynamic (S-Curve)', 'dynamic']
+                  ];
+
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      <div className="control-row">
+                        <label style={{ fontSize: 12 }}>Curve Profile</label>
+                        <div style={{ minWidth: 160 }}>
+                          <CustomSelect
+                            value={curveConfig.curveType}
+                            options={curveOptions}
+                            onChange={(val) => handleUpdateCurve({ curveType: val as StickCurveType })}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="slider-container">
+                        <label style={{ fontSize: 12 }}>
+                          <span>Anti-Deadzone ({curveConfig.antiDeadzonePercent}%)</span>
+                          <input
+                            type="range"
+                            min={0}
+                            max={40}
+                            step={1}
+                            value={curveConfig.antiDeadzonePercent}
+                            disabled={disabled}
+                            onChange={(e) => handleUpdateCurve({ antiDeadzonePercent: parseInt(e.target.value, 10) })}
+                          />
+                        </label>
+                      </div>
+
+                      <div className="slider-container">
+                        <label style={{ fontSize: 12 }}>
+                          <span>Max Stick Range ({curveConfig.maxRangePercent}%)</span>
+                          <input
+                            type="range"
+                            min={50}
+                            max={120}
+                            step={1}
+                            value={curveConfig.maxRangePercent}
+                            disabled={disabled}
+                            onChange={(e) => handleUpdateCurve({ maxRangePercent: parseInt(e.target.value, 10) })}
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             </section>
           );

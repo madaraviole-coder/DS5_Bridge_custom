@@ -20,13 +20,13 @@ export function KitsuneBarModal({ isOpen, onClose }: KitsuneBarModalProps) {
         className="settings-menu bridge-settings-modal kitsune-bar-modal"
         role="dialog"
         aria-modal="true"
-        aria-label="Kitsune Bar Quick Overlay"
+        aria-label="DS5 Bar Quick Overlay"
         onMouseDown={(event) => event.stopPropagation()}
       >
         <div className="settings-menu-heading bridge-settings-modal-heading">
           <div className="modal-heading-copy">
             <img src={kitsuneInputLogoUrl} alt="" className="kitsune-card-logo" />
-            <span>Kitsune Bar Quick Overlay</span>
+            <span>DS5 Bar Quick Overlay</span>
           </div>
           <button
             className="modal-close-button"

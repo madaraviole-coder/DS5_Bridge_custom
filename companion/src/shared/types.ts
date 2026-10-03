@@ -100,8 +100,124 @@ export interface CompanionSettings {
   chordAssignments: ChordAssignment[];
   touchpadSettings?: TouchpadSettings;
   turboSettings?: TurboSettings;
+  gyroSettings?: GyroSettings;
+  stickCurveSettings?: StickCurveSettings;
+  multiActionsSettings?: MultiActionsSettings;
+  virtualCursorSettings?: VirtualCursorSettings;
+  pcWakeSettings?: PcWakeSettings;
+  modsServerSettings?: ModsServerSettings;
+  kitsuneBarSettings?: KitsuneBarSettings;
   gameProfileAutoSwitchEnabled: boolean;
   gameProfiles: GameProfile[];
+}
+
+export type GyroActivationMode = 'always-on' | 'button-hold' | 'button-toggle' | 'touchpad-touch' | 'trigger-press';
+export type FlickStickTurnMode = 'smooth' | 'instant';
+
+export interface GyroSettings {
+  enabled: boolean;
+  sensitivityYaw: number;
+  sensitivityPitch: number;
+  deadzone: number;
+  smoothFilter: number;
+  activationMode: GyroActivationMode;
+  activationButton?: string;
+  triggerThresholdPercent?: number;
+  flickStickEnabled: boolean;
+  flickStickThresholdPercent: number;
+  flickStickSnapDegrees: number;
+  flickStickTurnMode: FlickStickTurnMode;
+  flickStickSmoothDurationMs: number;
+  invertPitch: boolean;
+  invertYaw: boolean;
+}
+
+export type StickCurveType = 'linear' | 'exponential' | 'instant' | 'wide' | 'dynamic';
+
+export interface StickCurveConfig {
+  curveType: StickCurveType;
+  innerDeadzonePercent: number;
+  outerDeadzonePercent: number;
+  antiDeadzonePercent: number;
+  exponent: number;
+  maxRangePercent: number;
+}
+
+export interface StickCurveSettings {
+  left: StickCurveConfig;
+  right: StickCurveConfig;
+}
+
+export interface MultiActionStep {
+  id: string;
+  type: 'key-press' | 'button-press' | 'delay' | 'mouse-click';
+  key?: string;
+  button?: string;
+  delayMs?: number;
+}
+
+export interface MultiActionSequence {
+  id: string;
+  name: string;
+  triggerButton: string;
+  holdThresholdMs: number;
+  repeatMode: 'none' | 'while-holding' | 'fixed-count';
+  repeatCount?: number;
+  repeatIntervalMs?: number;
+  steps: MultiActionStep[];
+}
+
+export interface MultiActionsSettings {
+  enabled: boolean;
+  sequences: MultiActionSequence[];
+}
+
+export interface VirtualCursorSettings {
+  enabled: boolean;
+  controlStick: 'left' | 'right';
+  pointerSpeed: number;
+  scrollSpeed: number;
+  deadzonePercent: number;
+  leftClickButton: string;
+  rightClickButton: string;
+  middleClickButton: string;
+  scrollUpButton: string;
+  scrollDownButton: string;
+  virtualKeyboardShortcut: string;
+}
+
+export interface PcWakeSettings {
+  enabled: boolean;
+  targetMacAddress: string;
+  broadcastIpAddress: string;
+  udpPort: number;
+  wakeOnControllerConnect: boolean;
+}
+
+export interface ModsServerSettings {
+  enabled: boolean;
+  port: number;
+  authToken: string;
+  allowMCP: boolean;
+  corsAllowedOrigins: string[];
+}
+
+export interface KitsuneBarSettings {
+  enabled: boolean;
+  toggleShortcut: 'ps-button' | 'chord' | 'keyboard';
+  customHotkey?: string;
+  transparencyPercent: number;
+  alwaysOnTop: boolean;
+  showQuickSettings: boolean;
+  showBattery: boolean;
+  showPresetPicker: boolean;
+}
+
+export interface SettingsBackupPackage {
+  app: 'DS5 Companion / Kitsune';
+  version: string;
+  exportedAt: string;
+  settings: CompanionSettings;
 }
 
 export interface GameProfile {

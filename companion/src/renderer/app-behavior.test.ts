@@ -433,7 +433,6 @@ describe('renderer behavior guards', () => {
     expect(appSource).not.toContain('responseCurve');
     expect(appSource).not.toContain('zoneRotation');
     expect(appSource).not.toContain('zoneOuterLimits');
-    expect(appSource).not.toContain('maxRangePercent');
   });
 
   it('keeps all four abbreviated personas on the overview quick-actions row', () => {
@@ -450,8 +449,8 @@ describe('renderer behavior guards', () => {
     expect(appSource).toContain("import '@fontsource/montserrat/latin-500.css';");
     expect(appSource).toContain("import kitsuneInputLogoUrl from './assets/kitsune-input-logo.svg';");
     expect(appSource).toContain('!snapshot.settings.kitsuneInputPromotionDismissed');
-    expect(appSource).toContain('aria-label="Explore Kitsune Input"');
-    expect(appSource).toContain('aria-label="Close Kitsune Input promotion"');
+    expect(appSource).toContain('aria-label="Explore DS5 Bridge"');
+    expect(appSource).toContain('aria-label="Close DS5 Bridge promotion"');
     expect(appSource).toContain('Take controller customization further');
     expect(appSource).toContain('Deeper tuning, smarter profiles, and controller-first tools.');
     expect(appSource).not.toContain('Shape every movement.');
@@ -475,7 +474,7 @@ describe('renderer behavior guards', () => {
     expect(appSource).toContain('Learn More');
     expect(appSource).toContain('secondary-action kitsune-promotion-learn');
     expect(appSource).toContain('<ArrowRight size={16} />');
-    expect(appSource).toContain("Don't show Kitsune Input promotions again");
+    expect(appSource).toContain("Don't show DS5 Bridge promotions again");
     expect(appSource).toContain("const KITSUNE_INPUT_URL = 'https://kitsuneinput.com/';");
     expect(appSource).toContain("const KITSUNE_INPUT_PURCHASE_URL = 'https://ko-fi.com/s/d1f0a3b26f';");
     expect(appSource).toContain('window.bridge.setKitsuneInputPromotionDismissed(true)');

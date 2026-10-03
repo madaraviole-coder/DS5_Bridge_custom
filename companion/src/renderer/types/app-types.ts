@@ -19,6 +19,8 @@ export type ControlTab =
   | 'trigger-lab'
   | 'lighting'
   | 'deadzones'
+  | 'gyro'
+  | 'multi-actions'
   | 'remapping'
   | 'chords'
   | 'system';

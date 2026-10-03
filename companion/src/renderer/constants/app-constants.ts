@@ -11,7 +11,9 @@ import {
   IconSparkles as Sparkles,
   IconBluetooth,
   IconViewfinder,
-  IconVolume
+  IconVolume,
+  IconCrosshair,
+  IconLayersSubtract
 } from '@tabler/icons-react';
 import remappingEdgeLayoutImage from '../../../../assets/controllers/dualsense-edge-remapping-layout.svg';
 import remappingLayoutImage from '../../../../assets/controllers/dualsense-remapping-layout.svg';
@@ -691,6 +693,8 @@ export const CONTROL_TAB_DEFINITIONS: Record<SidebarControlTab, ControlTabDefini
   'trigger-lab': { id: 'trigger-lab', label: 'Trigger Lab', Icon: IconFlask2 },
   lighting: { id: 'lighting', label: 'Lighting', Icon: IconBulb },
   deadzones: { id: 'deadzones', label: 'Stick Deadzones', Icon: IconViewfinder },
+  gyro: { id: 'gyro', label: 'Gyro Aim & Flick', Icon: IconCrosshair },
+  'multi-actions': { id: 'multi-actions', label: 'Multi-Actions & Cursor', Icon: IconLayersSubtract },
   remapping: { id: 'remapping', label: 'Button Remapping', Icon: IconDeviceGamepad3 },
   chords: { id: 'chords', label: 'Chords', Icon: IconReplace },
   system: { id: 'system', label: 'System', Icon: IconCpu }
@@ -715,6 +719,8 @@ export const CONTROL_TAB_GROUPS: readonly ControlTabGroupDefinition[] = [
     Icon: IconReplace,
     tabs: [
       CONTROL_TAB_DEFINITIONS.deadzones,
+      CONTROL_TAB_DEFINITIONS.gyro,
+      CONTROL_TAB_DEFINITIONS['multi-actions'],
       CONTROL_TAB_DEFINITIONS.remapping,
       CONTROL_TAB_DEFINITIONS.chords
     ]

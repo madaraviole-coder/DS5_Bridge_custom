@@ -3279,7 +3279,7 @@ button {
 .control-page {
   grid-area: 1 / 1;
   width: min(100%, 800px);
-  display: grid;
+  display: none;
   grid-template-rows: auto minmax(var(--feature-card-height), auto);
   align-content: start;
   gap: 18px;
@@ -3295,6 +3295,7 @@ button {
 }
 
 .control-page.active {
+  display: grid;
   visibility: visible;
   opacity: 1;
   pointer-events: auto;
@@ -4229,7 +4230,7 @@ button {
   border-radius: var(--card-radius);
   padding: 14px 16px;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
   background: var(--surface-panel);
   box-shadow: var(--shadow-panel);
@@ -11266,6 +11267,165 @@ input[type="color"]::-webkit-color-swatch {
 .tester-pulse-count strong {
   color: var(--text-primary);
   font-size: 13.5px;
+}
+
+/* ==========================================================================
+   Kitsune Bar Quick Overlay
+   ========================================================================== */
+
+.kitsune-bar-overlay-root {
+  width: 100vw;
+  height: 100vh;
+  margin: 0;
+  padding: 4px;
+  box-sizing: border-box;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  overflow: hidden;
+}
+
+.kitsune-bar-overlay-bar {
+  width: 100%;
+  height: 100%;
+  max-height: 52px;
+  background: rgba(12, 19, 29, 0.94);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 122, 0, 0.4);
+  border-radius: 28px;
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  gap: 14px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 14px rgba(255, 122, 0, 0.2);
+  color: var(--text-primary);
+}
+
+.kitsune-bar-drag-handle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: grab;
+  -webkit-app-region: drag;
+}
+
+.kitsune-bar-logo {
+  width: 22px;
+  height: 22px;
+}
+
+.kitsune-bar-title {
+  font-size: 13px;
+  font-weight: 750;
+  color: #ff8a00;
+  letter-spacing: -0.01em;
+}
+
+.kitsune-bar-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  -webkit-app-region: no-drag;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.status-dot.connected {
+  background: #2ed573;
+  box-shadow: 0 0 8px #2ed573;
+}
+
+.status-dot.disconnected {
+  background: #ff4757;
+}
+
+.controller-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.battery-badge {
+  font-size: 11px;
+  padding: 1px 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  color: var(--text-secondary);
+}
+
+.profile-section {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.profile-label {
+  max-width: 90px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.sliders-section {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+}
+
+.mini-slider-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.mini-slider-group input[type="range"] {
+  width: 70px;
+  height: 4px;
+}
+
+.kitsune-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  -webkit-app-region: no-drag;
+}
+
+.kitsune-bar-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.kitsune-bar-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: var(--text-primary);
+}
+
+.kitsune-bar-btn.close-btn:hover {
+  background: rgba(255, 71, 87, 0.3);
+  border-color: #ff4757;
+  color: #ff4757;
 }
 
 

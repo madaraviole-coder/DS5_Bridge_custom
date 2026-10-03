@@ -1,9 +1,11 @@
-import { app, BrowserWindow, Menu, Notification, Tray, dialog, ipcMain, nativeImage, powerMonitor, screen, shell } from 'electron';
+import { app, BrowserWindow, Menu, Notification, Tray, dialog, globalShortcut, ipcMain, nativeImage, powerMonitor, screen, shell } from 'electron';
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { BridgeService } from './bridge-service';
+import { sendWakeOnLan } from './wake-on-lan';
+import { ModsApiServer } from './mods-api-server';
 import {
   PICO_UNIVERSAL_FLASH_NUKE_FILE,
   PICO_UNIVERSAL_FLASH_NUKE_SHA256_FILE,
@@ -35,7 +37,15 @@ import type {
   UiScalePercent,
   UiThemePreset,
   TurboSettings,
-  GameProfile
+  GameProfile,
+  GyroSettings,
+  StickCurveSettings,
+  MultiActionsSettings,
+  VirtualCursorSettings,
+  PcWakeSettings,
+  ModsServerSettings,
+  KitsuneBarSettings,
+  SettingsBackupPackage
 } from '../shared/types';
 import type { TouchpadGesture, TouchpadSettings } from '../shared/touchpad-gestures';
 
@@ -53,9 +63,11 @@ const BASE_WINDOW_HEIGHT = 630;
 const START_IN_TRAY_ARG = '--start-in-tray';
 const ALLOW_PARALLEL_AUTOMATION_INSTANCE = process.env.DS5_BRIDGE_ALLOW_PARALLEL_AUTOMATION_INSTANCE === '1';
 let mainWindow: BrowserWindow | null = null;
+let kitsuneBarWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let trayDefaultIcon: Electron.NativeImage | null = null;
 let bridgeService: BridgeService | null = null;
+let modsApiServer: ModsApiServer | null = null;
 let isQuitting = false;
 let shutdownComplete = false;
 const hasSingleInstanceLock = ALLOW_PARALLEL_AUTOMATION_INSTANCE || app.requestSingleInstanceLock();
@@ -487,6 +499,67 @@ function createWindow(uiScalePercent: UiScalePercent): BrowserWindow {
     applyWindowScale(window, uiScalePercent, false);
   });
   return window;
+}
+
+function createKitsuneBarWindow(): BrowserWindow {
+  const display = screen.getPrimaryDisplay();
+  const barWidth = 640;
+  const barHeight = 60;
+  const x = Math.round(display.workArea.x + (display.workArea.width - barWidth) / 2);
+  const y = display.workArea.y + 24;
+
+  const window = new BrowserWindow({
+    width: barWidth,
+    height: barHeight,
+    x,
+    y,
+    show: false,
+    frame: false,
+    transparent: true,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    resizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    focusable: true,
+    hasShadow: false,
+    backgroundColor: '#00000000',
+    webPreferences: {
+      preload: path.join(__dirname, '..', 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true
+    }
+  });
+
+  window.setAlwaysOnTop(true, 'screen-saver');
+
+  const rendererIndexPath = path.join(__dirname, '..', 'renderer', 'index.html');
+  window.loadFile(rendererIndexPath, { hash: 'kitsune-bar' });
+
+  window.on('close', (event) => {
+    if (!isQuitting) {
+      event.preventDefault();
+      window.hide();
+    }
+  });
+
+  return window;
+}
+
+function toggleKitsuneBar(): boolean {
+  if (!kitsuneBarWindow || kitsuneBarWindow.isDestroyed()) {
+    kitsuneBarWindow = createKitsuneBarWindow();
+  }
+
+  if (kitsuneBarWindow.isVisible()) {
+    kitsuneBarWindow.hide();
+    return false;
+  } else {
+    kitsuneBarWindow.show();
+    kitsuneBarWindow.focus();
+    return true;
+  }
 }
 
 function sendWindowMaximizedState(): void {
@@ -1272,6 +1345,101 @@ function registerIpc(service: BridgeService): void {
   ipcMain.handle('bridge:setChordAssignments', (_event, assignments: ChordAssignment[]) => (
     service.setChordAssignments(assignments)
   ));
+  ipcMain.handle('bridge:setGyroSettings', (_event, gyroSettings: GyroSettings) => (
+    service.setGyroSettings(gyroSettings)
+  ));
+  ipcMain.handle('bridge:setStickCurveSettings', (_event, stickCurveSettings: StickCurveSettings) => (
+    service.setStickCurveSettings(stickCurveSettings)
+  ));
+  ipcMain.handle('bridge:setMultiActionsSettings', (_event, multiActionsSettings: MultiActionsSettings) => (
+    service.setMultiActionsSettings(multiActionsSettings)
+  ));
+  ipcMain.handle('bridge:setVirtualCursorSettings', (_event, virtualCursorSettings: VirtualCursorSettings) => (
+    service.setVirtualCursorSettings(virtualCursorSettings)
+  ));
+  ipcMain.handle('bridge:setPcWakeSettings', (_event, pcWakeSettings: PcWakeSettings) => (
+    service.setPcWakeSettings(pcWakeSettings)
+  ));
+  ipcMain.handle('bridge:sendWakeOnLanPacket', async (_event, macAddress?: string, broadcastAddress?: string, port?: number) => {
+    const current = service.getSnapshot().settings.pcWakeSettings;
+    const targetMac = macAddress || current?.targetMacAddress || '';
+    const targetBroadcast = broadcastAddress || current?.broadcastIpAddress || '255.255.255.255';
+    const targetPort = port || current?.udpPort || 9;
+    return sendWakeOnLan(targetMac, targetBroadcast, targetPort);
+  });
+  ipcMain.handle('bridge:setModsServerSettings', async (_event, modsServerSettings: ModsServerSettings) => {
+    const snap = await service.setModsServerSettings(modsServerSettings);
+    if (modsApiServer) {
+      modsApiServer.updateSettings(modsServerSettings);
+    }
+    return snap;
+  });
+  ipcMain.handle('bridge:setKitsuneBarSettings', (_event, kitsuneBarSettings: KitsuneBarSettings) => (
+    service.setKitsuneBarSettings(kitsuneBarSettings)
+  ));
+  ipcMain.handle('bridge:toggleKitsuneBar', () => toggleKitsuneBar());
+  ipcMain.handle('bridge:exportSettingsBackup', async () => {
+    const snapshot = service.getSnapshot();
+    const backup: SettingsBackupPackage = {
+      app: 'DS5 Companion / Kitsune',
+      version: '1.0.0',
+      exportedAt: new Date().toISOString(),
+      settings: snapshot.settings
+    };
+
+    const options: Electron.SaveDialogOptions = {
+      title: 'Export Settings Backup',
+      defaultPath: `kitsune-ds5-backup-${new Date().toISOString().slice(0, 10)}.json`,
+      filters: [{ name: 'JSON Backup', extensions: ['json'] }]
+    };
+
+    const result = mainWindow && !mainWindow.isDestroyed()
+      ? await dialog.showSaveDialog(mainWindow, options)
+      : await dialog.showSaveDialog(options);
+
+    if (result.canceled || !result.filePath) {
+      return { ok: false, message: 'Export cancelled' };
+    }
+
+    try {
+      fs.writeFileSync(result.filePath, JSON.stringify(backup, null, 2), 'utf-8');
+      return { ok: true, message: `Backup saved to ${result.filePath}` };
+    } catch (err) {
+      return { ok: false, message: err instanceof Error ? err.message : String(err) };
+    }
+  });
+  ipcMain.handle('bridge:importSettingsBackup', async () => {
+    const options: Electron.OpenDialogOptions = {
+      title: 'Import Settings Backup',
+      properties: ['openFile'],
+      filters: [{ name: 'JSON Backup', extensions: ['json'] }]
+    };
+
+    const result = mainWindow && !mainWindow.isDestroyed()
+      ? await dialog.showOpenDialog(mainWindow, options)
+      : await dialog.showOpenDialog(options);
+
+    if (result.canceled || !result.filePaths[0]) {
+      return { ok: false, message: 'Import cancelled' };
+    }
+
+    try {
+      const content = fs.readFileSync(result.filePaths[0], 'utf-8');
+      const parsed = JSON.parse(content);
+      const importedSettings = parsed.settings ?? parsed;
+      await service.applyPreset('custom');
+      // Update with the imported settings
+      const settingsStore = (service as any).settingsStore as SettingsStore;
+      const updated = settingsStore.update(importedSettings);
+      service.getSnapshot().settings = updated;
+      if (modsApiServer && updated.modsServerSettings) {
+        modsApiServer.updateSettings(updated.modsServerSettings);
+      }
+      return { ok: true, message: 'Settings successfully restored from backup' };
+    } catch (err) {
+      return { ok: false, message: `Failed to import settings: ${err instanceof Error ? err.message : String(err)}` };
+    }
+  });
   ipcMain.handle('bridge:repairWindowsDeviceCache', () => service.repairWindowsDeviceCache());
   ipcMain.handle('bridge:selectFirmwareLogDirectory', async () => {
     const currentDirectory = service.getSnapshot().settings.firmwareLogDirectory;
@@ -1339,6 +1507,29 @@ app.whenReady().then(async () => {
   ]));
   tray.on('click', showWindowCentered);
 
+  const initialModsSettings = settingsStore.get().modsServerSettings;
+  if (initialModsSettings) {
+    modsApiServer = new ModsApiServer(bridgeService, initialModsSettings);
+    if (initialModsSettings.enabled) {
+      modsApiServer.start().catch((err) => {
+        console.error('[ModsApiServer] failed to start:', err);
+      });
+    }
+  }
+
+  // Register global shortcut for Kitsune Bar
+  const kitsuneBarSettings = settingsStore.get().kitsuneBarSettings;
+  const kitsuneBarShortcut = kitsuneBarSettings?.customHotkey || 'Control+Shift+K';
+  if (kitsuneBarSettings?.toggleShortcut === 'keyboard' || !kitsuneBarSettings?.toggleShortcut) {
+    try {
+      globalShortcut.register(kitsuneBarShortcut, () => {
+        toggleKitsuneBar();
+      });
+    } catch (err) {
+      console.error('[KitsuneBar] Failed to register global shortcut:', err);
+    }
+  }
+
   bridgeService.on('snapshot', (snapshot) => {
     updateTrayPresentation(snapshot);
     sendToMainWindow('bridge:snapshot', snapshot);
@@ -1365,10 +1556,14 @@ app.on('before-quit', (event) => {
   }
   event.preventDefault();
   isQuitting = true;
+  globalShortcut.unregisterAll();
   const service = bridgeService;
   bridgeService = null;
+  const mods = modsApiServer;
+  modsApiServer = null;
   void (async () => {
     try {
+      await mods?.stop();
       await service?.stop();
     } finally {
       shutdownComplete = true;

@@ -14,7 +14,12 @@ import {
   IconStethoscope,
   IconTool,
   IconTrash as Trash2,
-  IconVolumeOff as VolumeX
+  IconVolumeOff as VolumeX,
+  IconBolt,
+  IconServer,
+  IconFileExport,
+  IconFileImport,
+  IconLayoutNavbar
 } from '@tabler/icons-react';
 import playStationLogoUrl from '../../../../assets/brand/playstation-logo.svg';
 import type { BridgeSnapshot } from '../../shared/types';
@@ -515,6 +520,97 @@ export function SystemPage({
               </div>
             </div>
           )}
+        </section>
+
+        {/* Kitsune Platform Integrations: PC Wake, Local API & MCP, Backup/Restore */}
+        <section className="feature-card" style={{ gridColumn: 'span 2' }}>
+          <div className="feature-card-title">
+            <span className="feature-icon"><IconBolt size={20} /></span>
+            <div className="title-copy">
+              <h3>PC Remote Wake (Wake-on-LAN)</h3>
+              <p>Broadcast magic UDP packet to wake your gaming PC across local network.</p>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 12 }}>
+            <input
+              type="text"
+              className="text-input"
+              style={{ flex: 1 }}
+              placeholder="Target MAC Address (e.g. AA:BB:CC:DD:EE:FF)"
+              defaultValue={snapshot?.settings.pcWakeSettings?.targetMacAddress || ''}
+              id="pc-wake-mac-input"
+            />
+            <button
+              type="button"
+              className="action-pill primary"
+              onClick={async () => {
+                const input = document.getElementById('pc-wake-mac-input') as HTMLInputElement | null;
+                const mac = input?.value.trim();
+                if (mac) {
+                  const res = await window.bridge.sendWakeOnLan(mac);
+                  alert(res.success ? 'Wake packet broadcasted successfully!' : `Failed to wake PC: ${res.error}`);
+                } else {
+                  alert('Please enter a valid MAC address');
+                }
+              }}
+            >
+              <IconBolt size={16} /> Send Wake Packet
+            </button>
+          </div>
+        </section>
+
+        <section className="feature-card">
+          <div className="feature-card-title">
+            <span className="feature-icon"><IconServer size={20} /></span>
+            <div className="title-copy">
+              <h3>DS5 Mods Local API & MCP</h3>
+              <p>Local HTTP JSON-RPC server on port 48880 for game mods & AI agent tools.</p>
+            </div>
+          </div>
+          <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 8 }}>
+            Endpoint: <code style={{ color: 'var(--accent)' }}>http://127.0.0.1:48880/v1/</code>
+            <br />
+            Status: <span className="status-badge good" style={{ marginLeft: 6 }}>Running & Ready</span>
+          </div>
+        </section>
+
+        <section className="feature-card">
+          <div className="feature-card-title">
+            <span className="feature-icon"><IconLayoutNavbar size={20} /></span>
+            <div className="title-copy">
+              <h3>In-Game Quick Bar & Backup</h3>
+              <p>Transparent floating toolbar & full profile export/import.</p>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className="action-pill"
+              onClick={() => void window.bridge.toggleKitsuneBar()}
+            >
+              <IconLayoutNavbar size={15} /> Toggle Quick Bar
+            </button>
+            <button
+              type="button"
+              className="action-pill"
+              onClick={async () => {
+                const res = await window.bridge.exportBackup();
+                if (res.success) alert(`Settings exported to: ${res.filePath}`);
+              }}
+            >
+              <IconFileExport size={15} /> Export Backup
+            </button>
+            <button
+              type="button"
+              className="action-pill"
+              onClick={async () => {
+                const res = await window.bridge.importBackup();
+                if (res.success) alert('Settings restored successfully! Reloading profile...');
+              }}
+            >
+              <IconFileImport size={15} /> Import Backup
+            </button>
+          </div>
         </section>
       </div>
 

@@ -22,7 +22,14 @@ import type {
   WindowsDeviceCleanupResult,
   TurboSettings,
   GameProfile,
-  RunningProcessInfo
+  RunningProcessInfo,
+  GyroSettings,
+  StickCurveSettings,
+  MultiActionsSettings,
+  VirtualCursorSettings,
+  PcWakeSettings,
+  ModsServerSettings,
+  KitsuneBarSettings
 } from './shared/types';
 import type { TouchpadGesture, TouchpadSettings } from './shared/touchpad-gestures';
 
@@ -265,6 +272,33 @@ const api = {
   setChordAssignments: (assignments: ChordAssignment[]): Promise<BridgeSnapshot> => (
     ipcRenderer.invoke('bridge:setChordAssignments', assignments)
   ),
+  setGyroSettings: (gyroSettings: GyroSettings): Promise<BridgeSnapshot> => (
+    ipcRenderer.invoke('bridge:setGyroSettings', gyroSettings)
+  ),
+  setStickCurveSettings: (stickCurveSettings: StickCurveSettings): Promise<BridgeSnapshot> => (
+    ipcRenderer.invoke('bridge:setStickCurveSettings', stickCurveSettings)
+  ),
+  setMultiActionsSettings: (multiActionsSettings: MultiActionsSettings): Promise<BridgeSnapshot> => (
+    ipcRenderer.invoke('bridge:setMultiActionsSettings', multiActionsSettings)
+  ),
+  setVirtualCursorSettings: (virtualCursorSettings: VirtualCursorSettings): Promise<BridgeSnapshot> => (
+    ipcRenderer.invoke('bridge:setVirtualCursorSettings', virtualCursorSettings)
+  ),
+  setPcWakeSettings: (pcWakeSettings: PcWakeSettings): Promise<BridgeSnapshot> => (
+    ipcRenderer.invoke('bridge:setPcWakeSettings', pcWakeSettings)
+  ),
+  sendWakeOnLanPacket: (macAddress?: string, broadcastAddress?: string, port?: number): Promise<{ ok: boolean; message: string }> => (
+    ipcRenderer.invoke('bridge:sendWakeOnLanPacket', macAddress, broadcastAddress, port)
+  ),
+  setModsServerSettings: (modsServerSettings: ModsServerSettings): Promise<BridgeSnapshot> => (
+    ipcRenderer.invoke('bridge:setModsServerSettings', modsServerSettings)
+  ),
+  setKitsuneBarSettings: (kitsuneBarSettings: KitsuneBarSettings): Promise<BridgeSnapshot> => (
+    ipcRenderer.invoke('bridge:setKitsuneBarSettings', kitsuneBarSettings)
+  ),
+  toggleKitsuneBar: (): Promise<boolean> => ipcRenderer.invoke('bridge:toggleKitsuneBar'),
+  exportSettingsBackup: (): Promise<{ ok: boolean; message: string }> => ipcRenderer.invoke('bridge:exportSettingsBackup'),
+  importSettingsBackup: (): Promise<{ ok: boolean; message: string }> => ipcRenderer.invoke('bridge:importSettingsBackup'),
   repairWindowsDeviceCache: (): Promise<WindowsDeviceCleanupResult> => (
     ipcRenderer.invoke('bridge:repairWindowsDeviceCache')
   ),
