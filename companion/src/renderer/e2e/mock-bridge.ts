@@ -34,7 +34,14 @@ import type {
   TurboSettings,
   UiScalePercent,
   UiThemePreset,
-  WindowsDeviceCleanupResult
+  WindowsDeviceCleanupResult,
+  GyroSettings,
+  StickCurveSettings,
+  MultiActionsSettings,
+  VirtualCursorSettings,
+  PcWakeSettings,
+  ModsServerSettings,
+  KitsuneBarSettings
 } from '../../shared/types';
 
 import {
@@ -668,6 +675,68 @@ export class MockBridgeApi implements BridgeApi {
     this.recordCall('setChordAssignments', assignments);
     this.snapshot.settings.chordAssignments = assignments;
     return this.getCurrentSnapshot();
+  }
+
+  async setGyroSettings(gyroSettings: GyroSettings): Promise<BridgeSnapshot> {
+    this.recordCall('setGyroSettings', gyroSettings);
+    this.snapshot.settings.gyroSettings = gyroSettings;
+    return this.getCurrentSnapshot();
+  }
+
+  async setStickCurveSettings(stickCurveSettings: StickCurveSettings): Promise<BridgeSnapshot> {
+    this.recordCall('setStickCurveSettings', stickCurveSettings);
+    this.snapshot.settings.stickCurveSettings = stickCurveSettings;
+    return this.getCurrentSnapshot();
+  }
+
+  async setMultiActionsSettings(multiActionsSettings: MultiActionsSettings): Promise<BridgeSnapshot> {
+    this.recordCall('setMultiActionsSettings', multiActionsSettings);
+    this.snapshot.settings.multiActionsSettings = multiActionsSettings;
+    return this.getCurrentSnapshot();
+  }
+
+  async setVirtualCursorSettings(virtualCursorSettings: VirtualCursorSettings): Promise<BridgeSnapshot> {
+    this.recordCall('setVirtualCursorSettings', virtualCursorSettings);
+    this.snapshot.settings.virtualCursorSettings = virtualCursorSettings;
+    return this.getCurrentSnapshot();
+  }
+
+  async setPcWakeSettings(pcWakeSettings: PcWakeSettings): Promise<BridgeSnapshot> {
+    this.recordCall('setPcWakeSettings', pcWakeSettings);
+    this.snapshot.settings.pcWakeSettings = pcWakeSettings;
+    return this.getCurrentSnapshot();
+  }
+
+  async sendWakeOnLanPacket(macAddress?: string, broadcastAddress?: string, port?: number): Promise<{ ok: boolean; message: string }> {
+    this.recordCall('sendWakeOnLanPacket', macAddress, broadcastAddress, port);
+    return { ok: true, message: 'Magic packet sent successfully (mock).' };
+  }
+
+  async setModsServerSettings(modsServerSettings: ModsServerSettings): Promise<BridgeSnapshot> {
+    this.recordCall('setModsServerSettings', modsServerSettings);
+    this.snapshot.settings.modsServerSettings = modsServerSettings;
+    return this.getCurrentSnapshot();
+  }
+
+  async setKitsuneBarSettings(kitsuneBarSettings: KitsuneBarSettings): Promise<BridgeSnapshot> {
+    this.recordCall('setKitsuneBarSettings', kitsuneBarSettings);
+    this.snapshot.settings.kitsuneBarSettings = kitsuneBarSettings;
+    return this.getCurrentSnapshot();
+  }
+
+  async toggleKitsuneBar(): Promise<boolean> {
+    this.recordCall('toggleKitsuneBar');
+    return true;
+  }
+
+  async exportSettingsBackup(): Promise<{ ok: boolean; message: string }> {
+    this.recordCall('exportSettingsBackup');
+    return { ok: true, message: 'Settings exported successfully (mock).' };
+  }
+
+  async importSettingsBackup(): Promise<{ ok: boolean; message: string }> {
+    this.recordCall('importSettingsBackup');
+    return { ok: true, message: 'Settings imported successfully (mock).' };
   }
 
   async repairWindowsDeviceCache(): Promise<WindowsDeviceCleanupResult> {

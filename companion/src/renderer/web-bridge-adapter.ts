@@ -35,7 +35,14 @@ import type {
   RunningProcessInfo,
   TurboSettings,
   UiThemePreset,
-  WindowsDeviceCleanupResult
+  WindowsDeviceCleanupResult,
+  GyroSettings,
+  StickCurveSettings,
+  MultiActionsSettings,
+  VirtualCursorSettings,
+  PcWakeSettings,
+  ModsServerSettings,
+  KitsuneBarSettings
 } from '../shared/types';
 import {
   DEFAULT_TURBO_SETTINGS,
@@ -910,6 +917,82 @@ export class WebBridgeAdapter extends WebBridgeTransport implements BridgeApi {
     saveWebSettings(this.settings);
     this.emitSnapshot();
     return this.snapshot;
+  }
+
+  async setGyroSettings(gyroSettings: GyroSettings): Promise<BridgeSnapshot> {
+    this.settings.gyroSettings = gyroSettings;
+    saveWebSettings(this.settings);
+    this.emitSnapshot();
+    return this.snapshot;
+  }
+
+  async setStickCurveSettings(stickCurveSettings: StickCurveSettings): Promise<BridgeSnapshot> {
+    this.settings.stickCurveSettings = stickCurveSettings;
+    saveWebSettings(this.settings);
+    this.emitSnapshot();
+    return this.snapshot;
+  }
+
+  async setMultiActionsSettings(multiActionsSettings: MultiActionsSettings): Promise<BridgeSnapshot> {
+    this.settings.multiActionsSettings = multiActionsSettings;
+    saveWebSettings(this.settings);
+    this.emitSnapshot();
+    return this.snapshot;
+  }
+
+  async setVirtualCursorSettings(virtualCursorSettings: VirtualCursorSettings): Promise<BridgeSnapshot> {
+    this.settings.virtualCursorSettings = virtualCursorSettings;
+    saveWebSettings(this.settings);
+    this.emitSnapshot();
+    return this.snapshot;
+  }
+
+  async setPcWakeSettings(pcWakeSettings: PcWakeSettings): Promise<BridgeSnapshot> {
+    this.settings.pcWakeSettings = pcWakeSettings;
+    saveWebSettings(this.settings);
+    this.emitSnapshot();
+    return this.snapshot;
+  }
+
+  async sendWakeOnLanPacket(_macAddress?: string, _broadcastAddress?: string, _port?: number): Promise<{ ok: boolean; message: string }> {
+    return { ok: false, message: 'Wake-on-LAN is not supported in web browser mode.' };
+  }
+
+  async setModsServerSettings(modsServerSettings: ModsServerSettings): Promise<BridgeSnapshot> {
+    this.settings.modsServerSettings = modsServerSettings;
+    saveWebSettings(this.settings);
+    this.emitSnapshot();
+    return this.snapshot;
+  }
+
+  async setKitsuneBarSettings(kitsuneBarSettings: KitsuneBarSettings): Promise<BridgeSnapshot> {
+    this.settings.kitsuneBarSettings = kitsuneBarSettings;
+    saveWebSettings(this.settings);
+    this.emitSnapshot();
+    return this.snapshot;
+  }
+
+  async toggleKitsuneBar(): Promise<boolean> {
+    return false;
+  }
+
+  async exportSettingsBackup(): Promise<{ ok: boolean; message: string }> {
+    try {
+      const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(this.settings, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute('href', dataStr);
+      downloadAnchor.setAttribute('download', `ds5-bridge-backup-${Date.now()}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+      return { ok: true, message: 'Settings exported successfully.' };
+    } catch (err: any) {
+      return { ok: false, message: err.message || 'Export failed' };
+    }
+  }
+
+  async importSettingsBackup(): Promise<{ ok: boolean; message: string }> {
+    return { ok: false, message: 'Import backup via web dialog is not implemented yet.' };
   }
 
   async repairWindowsDeviceCache(): Promise<WindowsDeviceCleanupResult> {

@@ -215,6 +215,7 @@ export function DeadzonesPage({
                           <CustomSelect
                             value={curveConfig.curveType}
                             options={curveOptions}
+                            ariaLabel="Stick Response Curve Profile"
                             onChange={(val) => handleUpdateCurve({ curveType: val as StickCurveType })}
                           />
                         </div>

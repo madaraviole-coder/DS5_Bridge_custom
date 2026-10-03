@@ -547,8 +547,8 @@ export function SystemPage({
                 const input = document.getElementById('pc-wake-mac-input') as HTMLInputElement | null;
                 const mac = input?.value.trim();
                 if (mac) {
-                  const res = await window.bridge.sendWakeOnLan(mac);
-                  alert(res.success ? 'Wake packet broadcasted successfully!' : `Failed to wake PC: ${res.error}`);
+                  const res = await window.bridge.sendWakeOnLanPacket(mac);
+                  alert(res.ok ? 'Wake packet broadcasted successfully!' : `Failed to wake PC: ${res.message}`);
                 } else {
                   alert('Please enter a valid MAC address');
                 }
@@ -594,8 +594,8 @@ export function SystemPage({
               type="button"
               className="action-pill"
               onClick={async () => {
-                const res = await window.bridge.exportBackup();
-                if (res.success) alert(`Settings exported to: ${res.filePath}`);
+                const res = await window.bridge.exportSettingsBackup();
+                if (res.ok) alert(res.message);
               }}
             >
               <IconFileExport size={15} /> Export Backup
@@ -604,8 +604,8 @@ export function SystemPage({
               type="button"
               className="action-pill"
               onClick={async () => {
-                const res = await window.bridge.importBackup();
-                if (res.success) alert('Settings restored successfully! Reloading profile...');
+                const res = await window.bridge.importSettingsBackup();
+                if (res.ok) alert(res.message);
               }}
             >
               <IconFileImport size={15} /> Import Backup

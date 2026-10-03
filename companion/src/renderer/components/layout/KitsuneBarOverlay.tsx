@@ -21,7 +21,7 @@ export function KitsuneBarOverlay() {
     void window.bridge.getStatus().then((s) => {
       if (!unmounted && s) {
         setSnapshot(s);
-        setHaptics(s.settings.hapticsIntensityPercent);
+        setHaptics(s.settings.hapticsGainPercent);
         setVolume(s.settings.speakerVolumePercent);
       }
     });
@@ -29,7 +29,7 @@ export function KitsuneBarOverlay() {
     const unsubscribe = window.bridge.onSnapshot((s) => {
       if (!unmounted && s) {
         setSnapshot(s);
-        setHaptics(s.settings.hapticsIntensityPercent);
+        setHaptics(s.settings.hapticsGainPercent);
         setVolume(s.settings.speakerVolumePercent);
       }
     });
@@ -46,7 +46,7 @@ export function KitsuneBarOverlay() {
 
   const handleHapticsChange = (val: number) => {
     setHaptics(val);
-    void window.bridge.setHapticsIntensity(val);
+    void window.bridge.setHapticsGain(val);
   };
 
   const handleVolumeChange = (val: number) => {
