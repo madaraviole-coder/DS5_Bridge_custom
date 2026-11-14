@@ -212,9 +212,9 @@ export function ChordButtonGlyphOption({
 
 export function ThemeOption({ label, value }: { label: string; value: UiThemePreset }) {
   return (
-    <span className="theme-option">
+    <span className="theme-option" data-theme-preview={value}>
       <span className="theme-option-swatches" aria-hidden="true">
-        {UI_THEME_PREVIEW_SWATCHES[value].map((swatch) => (
+        {UI_THEME_PREVIEW_SWATCHES.map((swatch) => (
           <span key={`${value}-${swatch.role}`} title={swatch.role} style={{ background: swatch.color }} />
         ))}
       </span>

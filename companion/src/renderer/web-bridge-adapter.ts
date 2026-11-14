@@ -44,6 +44,12 @@ import type {
   ModsServerSettings,
   KitsuneBarSettings
 } from '../shared/types';
+import type {
+  WakeOnLanConfigurationInput,
+  WakeOnLanMetadata,
+  WakeOnLanReadiness,
+  WakeOnLanTarget
+} from '../shared/wake-on-lan-types';
 import {
   DEFAULT_TURBO_SETTINGS,
   DEFAULT_WEB_SETTINGS,
@@ -675,6 +681,20 @@ export class WebBridgeAdapter extends WebBridgeTransport implements BridgeApi {
     return this.snapshot;
   }
 
+  async setNotifyPersonaChange(value: boolean): Promise<BridgeSnapshot> {
+    this.settings.notifyPersonaChange = value;
+    saveWebSettings(this.settings);
+    this.emitSnapshot();
+    return this.snapshot;
+  }
+
+  async setNotifyMicMute(value: boolean): Promise<BridgeSnapshot> {
+    this.settings.notifyMicMute = value;
+    saveWebSettings(this.settings);
+    this.emitSnapshot();
+    return this.snapshot;
+  }
+
   async testNotification(): Promise<BridgeSnapshot> {
     return this.snapshot;
   }
@@ -1032,6 +1052,113 @@ export class WebBridgeAdapter extends WebBridgeTransport implements BridgeApi {
 
   async getDiagnostics(): Promise<BridgeDiagnostics> {
     return this.snapshot.diagnostics;
+  }
+
+  async setCloseButtonQuits(value: boolean): Promise<BridgeSnapshot> {
+    this.settings.closeButtonQuits = value;
+    saveWebSettings(this.settings);
+    this.emitSnapshot();
+    return this.snapshot;
+  }
+
+  async markKitsuneInputLaunchOfferShown(): Promise<BridgeSnapshot> {
+    this.settings.kitsuneInputLaunchOfferShown = true;
+    saveWebSettings(this.settings);
+    this.emitSnapshot();
+    return this.snapshot;
+  }
+
+  async setUiTextScalePercent(value: any): Promise<BridgeSnapshot> {
+    this.settings.uiTextScalePercent = value;
+    saveWebSettings(this.settings);
+    this.emitSnapshot();
+    return this.snapshot;
+  }
+
+  async setUiLocale(value: any): Promise<BridgeSnapshot> {
+    this.settings.uiLocale = value;
+    saveWebSettings(this.settings);
+    this.emitSnapshot();
+    return this.snapshot;
+  }
+
+  async cancelBootloaderConfirmation(): Promise<BridgeSnapshot> {
+    this.snapshot.bootloaderConfirmation = null;
+    this.emitSnapshot();
+    return this.snapshot;
+  }
+
+  async getWakeOnLan(): Promise<WakeOnLanMetadata> {
+    return {
+      bridgeId: '',
+      supported: false,
+      availableCountries: [],
+      configured: false,
+      enabled: false,
+      credentialPresent: false,
+      ssid: '',
+      country: '',
+      targetMac: '',
+      targetOwnedByThisPc: null,
+      generation: 0,
+      stage: 'unsupported',
+      busy: false,
+      controllerConnected: false,
+      error: null,
+      lastOperationError: null,
+      packetCount: 0,
+      elapsedMs: 0
+    };
+  }
+
+  async getWakeOnLanTargets(_refresh = false): Promise<WakeOnLanTarget[]> {
+    return [];
+  }
+
+  async getWakeOnLanReadiness(targetMac: string, _refresh = false): Promise<WakeOnLanReadiness> {
+    return {
+      available: false,
+      targetMac,
+      checkedAt: 0,
+      modernStandby: null,
+      sleepS3: null,
+      hibernate: null,
+      fastStartup: 'unknown',
+      adapterPresent: null,
+      adapterConnected: null,
+      adapterBus: 'unknown',
+      adapterInternal: null,
+      adapterDefaultRoute: null,
+      magicPacket: 'unknown',
+      shutdownWake: 'unknown',
+      modernStandbyMagicPacket: 'unknown',
+      energyEfficientEthernet: 'unknown',
+      windowsWakeArmed: null,
+      driverProvider: null,
+      driverVersion: null,
+      lastWakeSource: 'unknown',
+      lastWakeBootType: 'unknown',
+      lastWakeAt: null,
+      lastBootAt: null
+    };
+  }
+
+  async configureWakeOnLan(_input: WakeOnLanConfigurationInput): Promise<WakeOnLanMetadata> {
+    return this.getWakeOnLan();
+  }
+
+  async setWakeOnLanEnabled(_enabled: boolean): Promise<WakeOnLanMetadata> {
+    return this.getWakeOnLan();
+  }
+
+  async forgetWakeOnLan(): Promise<WakeOnLanMetadata> {
+    return this.getWakeOnLan();
+  }
+
+  async cancelWakeOnLan(): Promise<void> {}
+
+  async getAppVersion(): Promise<string> {
+    return '2.0.1-web';
   }
 
   async minimizeWindow(): Promise<void> {}

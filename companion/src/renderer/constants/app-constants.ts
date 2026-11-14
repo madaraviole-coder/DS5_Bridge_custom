@@ -330,10 +330,10 @@ export const IDLE_DISCONNECT_TIMEOUT_OPTIONS: Array<[string, number]> = [
 ];
 
 export const UI_SCALE_OPTIONS: Array<[string, UiScalePercent]> = [
-  ['75%', 75],
+  ['60%', 60],
+  ['80%', 80],
   ['100%', 100],
-  ['125%', 125],
-  ['150%', 150]
+  ['120%', 120]
 ];
 
 export const REMAP_BUTTONS: Record<RemapButtonId, RemapButtonDefinition> = {

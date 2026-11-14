@@ -201,10 +201,6 @@ export function AppModals({
           onLearnMore={() => void window.bridge.openExternal(KITSUNE_INPUT_URL)}
           onDismissForever={() => {
             setShowKitsuneInputPromotion(false);
-            void runAction(
-              'dismiss-kitsune-input-promotion',
-              () => window.bridge.setKitsuneInputPromotionDismissed(true)
-            );
           }}
         />
       )}

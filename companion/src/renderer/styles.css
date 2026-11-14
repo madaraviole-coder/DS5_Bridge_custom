@@ -1,3 +1,31 @@
+@import './styles/theme-tokens.css';
+@import './styles/base.css';
+@import './styles/startup.css';
+@import './styles/app-shell.css';
+@import './styles/modal-surfaces.css';
+@import './styles/floating-surfaces.css';
+@import './styles/settings-controls.css';
+@import './styles/control-pages.css';
+@import './styles/devices.css';
+@import './styles/page-layouts.css';
+@import './styles/overview.css';
+@import './styles/feature-headings.css';
+@import './styles/feature-cards.css';
+@import './styles/deadzones.css';
+@import './styles/feature-card-titles.css';
+@import './styles/profiles-remapping.css';
+@import './styles/feature-controls.css';
+@import './styles/audio.css';
+@import './styles/feature-tests.css';
+@import './styles/trigger-lab.css';
+@import './styles/lighting.css';
+@import './styles/system-heading.css';
+@import './styles/chords.css';
+@import './styles/system-surfaces.css';
+@import './styles/custom-select.css';
+@import './styles/shared-controls.css';
+@import './styles/bridge-selector.css';
+
 :root {
   color: var(--text-primary);
   background: var(--app-bg-flat);
@@ -12501,6 +12529,7 @@ input[type="color"]::-webkit-color-swatch {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
   z-index: 1000;
 }
+
 
 
 

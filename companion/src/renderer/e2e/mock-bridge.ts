@@ -43,6 +43,12 @@ import type {
   ModsServerSettings,
   KitsuneBarSettings
 } from '../../shared/types';
+import type {
+  WakeOnLanConfigurationInput,
+  WakeOnLanMetadata,
+  WakeOnLanReadiness,
+  WakeOnLanTarget
+} from '../../shared/wake-on-lan-types';
 
 import {
   DEFAULT_MOCK_CONTROLLER_SETTINGS,
@@ -503,6 +509,18 @@ export class MockBridgeApi implements BridgeApi {
     return this.getCurrentSnapshot();
   }
 
+  async setNotifyPersonaChange(value: boolean): Promise<BridgeSnapshot> {
+    this.recordCall('setNotifyPersonaChange', value);
+    this.snapshot.settings.notifyPersonaChange = value;
+    return this.getCurrentSnapshot();
+  }
+
+  async setNotifyMicMute(value: boolean): Promise<BridgeSnapshot> {
+    this.recordCall('setNotifyMicMute', value);
+    this.snapshot.settings.notifyMicMute = value;
+    return this.getCurrentSnapshot();
+  }
+
   async testNotification(): Promise<BridgeSnapshot> {
     this.recordCall('testNotification');
     return this.getCurrentSnapshot();
@@ -801,6 +819,120 @@ export class MockBridgeApi implements BridgeApi {
   async isWindowMaximized(): Promise<boolean> {
     this.recordCall('isWindowMaximized');
     return false;
+  }
+
+  async setCloseButtonQuits(value: boolean): Promise<BridgeSnapshot> {
+    this.recordCall('setCloseButtonQuits', value);
+    this.snapshot.settings.closeButtonQuits = value;
+    return this.snapshot;
+  }
+
+  async markKitsuneInputLaunchOfferShown(): Promise<BridgeSnapshot> {
+    this.recordCall('markKitsuneInputLaunchOfferShown');
+    this.snapshot.settings.kitsuneInputLaunchOfferShown = true;
+    return this.snapshot;
+  }
+
+  async setUiTextScalePercent(value: any): Promise<BridgeSnapshot> {
+    this.recordCall('setUiTextScalePercent', value);
+    this.snapshot.settings.uiTextScalePercent = value;
+    return this.snapshot;
+  }
+
+  async setUiLocale(value: any): Promise<BridgeSnapshot> {
+    this.recordCall('setUiLocale', value);
+    this.snapshot.settings.uiLocale = value;
+    return this.snapshot;
+  }
+
+  async cancelBootloaderConfirmation(): Promise<BridgeSnapshot> {
+    this.recordCall('cancelBootloaderConfirmation');
+    this.snapshot.bootloaderConfirmation = null;
+    return this.snapshot;
+  }
+
+  async getWakeOnLan(): Promise<WakeOnLanMetadata> {
+    this.recordCall('getWakeOnLan');
+    return {
+      bridgeId: 'mock-bridge',
+      supported: true,
+      availableCountries: ['US', 'JP', 'GB', 'DE'],
+      configured: false,
+      enabled: false,
+      credentialPresent: false,
+      ssid: '',
+      country: 'US',
+      targetMac: '',
+      targetOwnedByThisPc: null,
+      generation: 1,
+      stage: 'not-configured',
+      busy: false,
+      controllerConnected: false,
+      error: null,
+      lastOperationError: null,
+      packetCount: 0,
+      elapsedMs: 0
+    };
+  }
+
+  async getWakeOnLanTargets(_refresh = false): Promise<WakeOnLanTarget[]> {
+    this.recordCall('getWakeOnLanTargets', _refresh);
+    return [];
+  }
+
+  async getWakeOnLanReadiness(targetMac: string, _refresh = false): Promise<WakeOnLanReadiness> {
+    this.recordCall('getWakeOnLanReadiness', targetMac, _refresh);
+    return {
+      available: false,
+      targetMac,
+      checkedAt: Date.now(),
+      modernStandby: null,
+      sleepS3: null,
+      hibernate: null,
+      fastStartup: 'unknown',
+      adapterPresent: null,
+      adapterConnected: null,
+      adapterBus: 'unknown',
+      adapterInternal: null,
+      adapterDefaultRoute: null,
+      magicPacket: 'unknown',
+      shutdownWake: 'unknown',
+      modernStandbyMagicPacket: 'unknown',
+      energyEfficientEthernet: 'unknown',
+      windowsWakeArmed: null,
+      driverProvider: null,
+      driverVersion: null,
+      lastWakeSource: 'unknown',
+      lastWakeBootType: 'unknown',
+      lastWakeAt: null,
+      lastBootAt: null
+    };
+  }
+
+  async configureWakeOnLan(input: WakeOnLanConfigurationInput): Promise<WakeOnLanMetadata> {
+    this.recordCall('configureWakeOnLan', input);
+    return this.getWakeOnLan();
+  }
+
+  async setWakeOnLanEnabled(enabled: boolean): Promise<WakeOnLanMetadata> {
+    this.recordCall('setWakeOnLanEnabled', enabled);
+    const wol = await this.getWakeOnLan();
+    wol.enabled = enabled;
+    return wol;
+  }
+
+  async forgetWakeOnLan(): Promise<WakeOnLanMetadata> {
+    this.recordCall('forgetWakeOnLan');
+    return this.getWakeOnLan();
+  }
+
+  async cancelWakeOnLan(): Promise<void> {
+    this.recordCall('cancelWakeOnLan');
+  }
+
+  async getAppVersion(): Promise<string> {
+    this.recordCall('getAppVersion');
+    return '2.0.1';
   }
 
   async hideWindow(): Promise<void> {
