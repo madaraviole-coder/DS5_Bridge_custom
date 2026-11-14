@@ -36,6 +36,7 @@ export function KitsuneBarOverlay() {
   const [activeLayer, setActiveLayer] = useState(1);
   const [activeFlyout, setActiveFlyout] = useState<string | null>(null);
   const [virtualText, setVirtualText] = useState('');
+  const [focusedIndex, setFocusedIndex] = useState(0);
 
   useEffect(() => {
     let unmounted = false;
@@ -142,6 +143,35 @@ export function KitsuneBarOverlay() {
     }
   };
 
+  useEffect(() => {
+    const unsubscribe = window.bridge.onKitsuneNav?.((nav) => {
+      if (nav === 'left') {
+        setFocusedIndex((prev) => (layerItems.length > 0 ? (prev > 0 ? prev - 1 : layerItems.length - 1) : 0));
+      } else if (nav === 'right') {
+        setFocusedIndex((prev) => (layerItems.length > 0 ? (prev < layerItems.length - 1 ? prev + 1 : 0) : 0));
+      } else if (nav === 'up') {
+        cycleLayer('up');
+      } else if (nav === 'down') {
+        cycleLayer('down');
+      } else if (nav === 'select') {
+        const item = layerItems[focusedIndex];
+        if (item) {
+          setActiveFlyout((cur) => (cur === item.id ? null : item.id));
+        }
+      } else if (nav === 'cancel') {
+        if (activeFlyout) {
+          setActiveFlyout(null);
+        } else {
+          handleClose();
+        }
+      }
+    });
+
+    return () => {
+      unsubscribe?.();
+    };
+  }, [layerItems, focusedIndex, activeFlyout]);
+
   const connected = Boolean(snapshot?.status?.controllerConnected);
   const activeProfile = snapshot?.settings.controllerProfiles.find(
     (p) => p.id === snapshot.settings.selectedControllerProfileId
@@ -230,13 +260,16 @@ export function KitsuneBarOverlay() {
 
         {/* Dynamic Layer Modules */}
         <div className="kitsune-dock-group layer-modules">
-          {layerItems.map((item) => (
+          {layerItems.map((item, index) => (
             <button
               key={item.id}
               type="button"
-              className={`dock-item module-item ${activeFlyout === item.id ? 'active' : ''}`}
+              className={`dock-item module-item ${activeFlyout === item.id ? 'active' : ''} ${focusedIndex === index ? 'gamepad-focused' : ''}`}
               title={`${item.name}`}
-              onClick={() => setActiveFlyout(activeFlyout === item.id ? null : item.id)}
+              onClick={() => {
+                setFocusedIndex(index);
+                setActiveFlyout(activeFlyout === item.id ? null : item.id);
+              }}
             >
               {renderIcon(item.icon, 18)}
             </button>

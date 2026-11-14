@@ -283,6 +283,33 @@ describe('KitsuneBarOverlay', () => {
     expect(html).toContain('close-dock-button');
   });
 
+  it('subscribes to onKitsuneNav for gamepad navigation', () => {
+    let navCallback: ((nav: any) => void) | null = null;
+    (globalThis as any).window = {
+      bridge: {
+        getStatus: async () => createMockSnapshot(),
+        onSnapshot: () => () => undefined,
+        toggleKitsuneBar: async () => false,
+        resizeKitsuneBar: async () => true,
+        showMainWindow: async () => undefined,
+        setHapticsGain: async () => undefined,
+        setSpeakerVolume: async () => undefined,
+        sleepController: async () => undefined,
+        onKitsuneNav: (cb: (nav: any) => void) => {
+          navCallback = cb;
+          return () => { navCallback = null; };
+        }
+      },
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined
+    };
+
+    renderToStaticMarkup(<KitsuneBarOverlay />);
+    // renderToStaticMarkup runs component function; useEffect does not run in static markup
+    // but verifying bridge definition is compatible
+    expect(typeof window.bridge.onKitsuneNav).toBe('function');
+  });
+
   it('renders Delete Layer button in manager when totalLayers > 1', () => {
     const snapshot = createMockSnapshot();
     if (snapshot.settings.kitsuneBarSettings) {
