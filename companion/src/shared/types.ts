@@ -216,6 +216,7 @@ export interface KitsuneBarSettings {
   enabled: boolean;
   toggleShortcut: 'ps-button' | 'chord' | 'keyboard';
   customHotkey?: string;
+  debounceMs?: number;
   transparencyPercent: number;
   alwaysOnTop: boolean;
   showQuickSettings: boolean;

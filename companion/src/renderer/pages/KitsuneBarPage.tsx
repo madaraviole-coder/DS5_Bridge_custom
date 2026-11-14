@@ -199,6 +199,28 @@ export function KitsuneBarPage({
     );
   };
 
+  const handleUpdateDebounce = async (debounceMs: number) => {
+    const updated: KitsuneBarSettings = {
+      ...(rawSettings ?? {
+        enabled: true,
+        toggleShortcut: 'ps-button',
+        customHotkey: 'Control+Shift+K',
+        transparencyPercent: 90,
+        alwaysOnTop: true,
+        showQuickSettings: true,
+        showBattery: true,
+        showPresetPicker: true
+      }),
+      enabled: isEnabled,
+      toggleShortcut: rawSettings?.toggleShortcut ?? 'ps-button',
+      debounceMs,
+      totalLayers,
+      activeLayer: activePreviewLayer,
+      items
+    };
+    await runAction('update-kitsune-bar-debounce', () => window.bridge.setKitsuneBarSettings(updated));
+  };
+
   const updateItems = async (newItems: KitsuneBarItemConfig[]) => {
     const updated: KitsuneBarSettings = {
       ...(rawSettings ?? {
@@ -478,27 +500,72 @@ export function KitsuneBarPage({
 
           {/* Shortcut Trigger Settings Card */}
           <div className="kitsune-bar-card kitsune-trigger-card">
-            <div className="kitsune-trigger-left">
-              <div className="kitsune-trigger-icon-wrap">
-                <img src={psHomeGlyphUrl} alt="PS Home" className="kitsune-trigger-glyph" />
+            <div className="kitsune-trigger-row">
+              <div className="kitsune-trigger-left">
+                <div className="kitsune-trigger-icon-wrap">
+                  <img src={psHomeGlyphUrl} alt="PS Home" className="kitsune-trigger-glyph" />
+                </div>
+                <div className="kitsune-trigger-copy">
+                  <h4>Overlay Shortcut</h4>
+                  <p>Summon Kitsune Bar with PS Home Button on your controller or keyboard hotkey.</p>
+                </div>
               </div>
-              <div className="kitsune-trigger-copy">
-                <h4>Overlay Shortcut</h4>
-                <p>Summon Kitsune Bar with PS Home Button on your controller or keyboard hotkey.</p>
+              <div className="kitsune-trigger-right">
+                <select
+                  className="kitsune-select"
+                  value={rawSettings?.toggleShortcut ?? 'ps-button'}
+                  onChange={(e) => handleUpdateToggleShortcut(e.target.value as any)}
+                  aria-label="Select Kitsune Bar Shortcut"
+                >
+                  <option value="ps-button">PS Home Button (Controller)</option>
+                  <option value="keyboard">Keyboard ({rawSettings?.customHotkey ?? 'Ctrl+Shift+K'})</option>
+                  <option value="chord">Controller Chord Combo</option>
+                </select>
               </div>
             </div>
-            <div className="kitsune-trigger-right">
-              <select
-                className="kitsune-select"
-                value={rawSettings?.toggleShortcut ?? 'ps-button'}
-                onChange={(e) => handleUpdateToggleShortcut(e.target.value as any)}
-                aria-label="Select Kitsune Bar Shortcut"
-              >
-                <option value="ps-button">PS Home Button (Controller)</option>
-                <option value="keyboard">Keyboard ({rawSettings?.customHotkey ?? 'Ctrl+Shift+K'})</option>
-                <option value="chord">Controller Chord Combo</option>
-              </select>
-            </div>
+
+            {(rawSettings?.toggleShortcut ?? 'ps-button') === 'ps-button' && (
+              <div className="kitsune-debounce-control">
+                <div className="kitsune-debounce-header">
+                  <span className="kitsune-debounce-title">
+                    Debounce Filter (Anti-Chatter): <strong>{rawSettings?.debounceMs ?? 350} ms</strong>
+                  </span>
+                  <div className="kitsune-debounce-presets">
+                    {[
+                      { label: 'Fast (250ms)', val: 250 },
+                      { label: 'Balanced (350ms)', val: 350 },
+                      { label: 'Safe (500ms)', val: 500 }
+                    ].map((preset) => (
+                      <button
+                        key={preset.val}
+                        type="button"
+                        className={`kitsune-preset-chip ${(rawSettings?.debounceMs ?? 350) === preset.val ? 'active' : ''}`}
+                        onClick={() => void handleUpdateDebounce(preset.val)}
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="kitsune-debounce-slider-row">
+                  <span className="slider-min">150ms</span>
+                  <input
+                    type="range"
+                    min="150"
+                    max="800"
+                    step="25"
+                    className="kitsune-slider"
+                    aria-label="PS Button Debounce ms"
+                    value={rawSettings?.debounceMs ?? 350}
+                    onChange={(e) => void handleUpdateDebounce(Number(e.target.value))}
+                  />
+                  <span className="slider-max">800ms</span>
+                </div>
+                <p className="kitsune-debounce-hint">
+                  Single tap activates Kitsune Bar instantly. This debounce window prevents contact bounce or accidental double-toggling.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Quick Overlay Visual Dock Preview */}
@@ -662,7 +729,7 @@ export function KitsuneBarPage({
                     </div>
                   </div>
                 )}
-                {(activeFlyout === 'screenshot' || activeFlyout === 'camera') && (
+                {(activeFlyout === 'screenshot' || activeFlyout === 'camera' || items.find((i) => i.id === activeFlyout)?.icon === 'camera') && (
                   <div className="flyout-card">
                     <h4>Screen Capture</h4>
                     <p className="flyout-sub">Take instantaneous game screenshot</p>
@@ -692,7 +759,7 @@ export function KitsuneBarPage({
                     </div>
                   </div>
                 )}
-                {(activeFlyout === 'virtual-keyboard' || activeFlyout === 'keyboard') && (
+                {(activeFlyout === 'virtual-keyboard' || activeFlyout === 'keyboard' || items.find((i) => i.id === activeFlyout)?.icon === 'keyboard') && (
                   <div className="flyout-card">
                     <h4>Gamepad Virtual Keyboard</h4>
                     <p className="flyout-sub">Windows On-Screen Keyboard & typing</p>

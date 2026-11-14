@@ -142,6 +142,7 @@ export const DEFAULT_KITSUNE_BAR_SETTINGS: KitsuneBarSettings = {
   enabled: true,
   toggleShortcut: 'ps-button',
   customHotkey: 'Control+Shift+K',
+  debounceMs: 350,
   transparencyPercent: 90,
   alwaysOnTop: true,
   showQuickSettings: true,
@@ -1254,6 +1255,9 @@ function normalizeSettings(value: Partial<CompanionSettings> | null | undefined)
     kitsuneBarSettings: value?.kitsuneBarSettings ? {
       ...DEFAULT_KITSUNE_BAR_SETTINGS,
       ...value.kitsuneBarSettings,
+      debounceMs: typeof value.kitsuneBarSettings.debounceMs === 'number' && Number.isFinite(value.kitsuneBarSettings.debounceMs)
+        ? Math.max(150, Math.min(800, Math.round(value.kitsuneBarSettings.debounceMs)))
+        : (DEFAULT_KITSUNE_BAR_SETTINGS.debounceMs ?? 350),
       items: Array.isArray(value.kitsuneBarSettings.items)
         ? value.kitsuneBarSettings.items.map((it: any) => ({ ...it }))
         : [...DEFAULT_KITSUNE_BAR_ITEMS]

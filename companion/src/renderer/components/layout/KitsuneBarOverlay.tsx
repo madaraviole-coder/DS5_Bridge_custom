@@ -649,7 +649,8 @@ export function KitsuneBarOverlay() {
             </div>
           )}
 
-          {!['controller', 'profiles', 'ps', 'audio', 'mic', 'music', 'lab', 'screenshot', 'virtual-keyboard', 'keyboard', 'discord-overlay', 'discord', 'performance-hud', 'activity', 'spotify-widget', 'spotify', 'obs-controller', 'video', 'battery-health', 'bolt'].includes(activeFlyout) && (
+          {!['controller', 'profiles', 'ps', 'audio', 'mic', 'music', 'lab', 'screenshot', 'virtual-keyboard', 'keyboard', 'discord-overlay', 'discord', 'performance-hud', 'activity', 'spotify-widget', 'spotify', 'obs-controller', 'video', 'battery-health', 'bolt'].includes(activeFlyout) &&
+           !['camera', 'keyboard', 'video', 'spotify', 'activity', 'discord', 'bolt', 'volume', 'mic', 'music', 'flask', 'gamepad'].includes(currentItem?.icon || '') && (
             <div className="overlay-flyout-card">
               <div className="overlay-flyout-header">
                 <strong>{currentItem?.name || 'Custom Module'}</strong>

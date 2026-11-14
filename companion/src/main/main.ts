@@ -14,6 +14,7 @@ import {
   nukePicoFlash as copyPicoFlashNuke
 } from './pico-firmware-updater';
 import { SettingsStore } from './settings-store';
+import { ControllerShortcutService } from './controller-shortcut-service';
 import type {
   AdaptiveTriggerPreviewEffect,
   AudioReactiveHapticsConfig,
@@ -69,6 +70,7 @@ let kitsuneBarWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let trayDefaultIcon: Electron.NativeImage | null = null;
 let bridgeService: BridgeService | null = null;
+let controllerShortcutService: ControllerShortcutService | null = null;
 let settingsStore: SettingsStore | null = null;
 let modsApiServer: ModsApiServer | null = null;
 let isQuitting = false;
@@ -578,7 +580,16 @@ function resizeKitsuneBar(width: number, height: number): boolean {
   return true;
 }
 
+let lastKitsuneToggleTime = 0;
+
 function toggleKitsuneBar(): boolean {
+  const now = Date.now();
+  const debounceWindow = settingsStore?.get().kitsuneBarSettings?.debounceMs ?? 350;
+  if (now - lastKitsuneToggleTime < debounceWindow) {
+    return kitsuneBarWindow?.isVisible() ?? false;
+  }
+  lastKitsuneToggleTime = now;
+
   if (!kitsuneBarWindow || kitsuneBarWindow.isDestroyed()) {
     kitsuneBarWindow = createKitsuneBarWindow();
   }
@@ -1440,6 +1451,7 @@ function registerIpc(service: BridgeService): void {
   ipcMain.handle('bridge:setKitsuneBarSettings', async (_event, kitsuneBarSettings: KitsuneBarSettings) => {
     const snap = await service.setKitsuneBarSettings(kitsuneBarSettings);
     syncKitsuneBarGlobalShortcut();
+    controllerShortcutService?.updateSettings(kitsuneBarSettings);
     return snap;
   });
   ipcMain.handle('bridge:toggleKitsuneBar', () => toggleKitsuneBar());
@@ -1631,6 +1643,24 @@ app.whenReady().then(async () => {
   // Register global shortcut for Kitsune Bar
   syncKitsuneBarGlobalShortcut();
 
+  const initialKbSettings = settingsStore.get().kitsuneBarSettings;
+  if (initialKbSettings?.enabled !== false) {
+    try {
+      kitsuneBarWindow = createKitsuneBarWindow();
+    } catch (err) {
+      console.error('[KitsuneBar] Failed to pre-warm window:', err);
+    }
+  }
+
+  controllerShortcutService = new ControllerShortcutService(initialKbSettings);
+  controllerShortcutService.on('ps-button', () => {
+    const kbSettings = settingsStore?.get().kitsuneBarSettings;
+    if (kbSettings?.enabled !== false && kbSettings?.toggleShortcut !== 'chord') {
+      toggleKitsuneBar();
+    }
+  });
+  controllerShortcutService.start();
+
   bridgeService.on('ps-button', () => {
     const kbSettings = settingsStore?.get().kitsuneBarSettings;
     if (kbSettings?.enabled !== false && kbSettings?.toggleShortcut !== 'chord') {
@@ -1672,6 +1702,9 @@ app.on('before-quit', (event) => {
   event.preventDefault();
   isQuitting = true;
   globalShortcut.unregisterAll();
+  const ctrlService = controllerShortcutService;
+  controllerShortcutService = null;
+  ctrlService?.stop();
   const service = bridgeService;
   bridgeService = null;
   const mods = modsApiServer;
