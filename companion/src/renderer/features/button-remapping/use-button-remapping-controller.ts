@@ -24,6 +24,7 @@ import {
   type RemapCalloutLayout
 } from './remap-layout';
 import { readLastCustomRemapProfileId, remapProfileToggle, writeLastCustomRemapProfileId } from './remap-profile-toggle';
+import { useButtonRemappingSubTabs } from './use-button-remapping-subtabs';
 
 type RemapProfileDialogMode = 'save' | 'rename' | 'delete';
 
@@ -34,6 +35,7 @@ type RemapProfileDialogMode = 'save' | 'rename' | 'delete';
  */
 export function useButtonRemappingController(runtime: AppRuntime, active: boolean) {
   const { snapshot, runAction } = runtime;
+  const subtabs = useButtonRemappingSubTabs(runtime);
   const [remapDraft, setRemapDraft] = useState<Record<RemapButtonId, RemapButtonId>>(DEFAULT_REMAP_DRAFT);
   const [remapProfileDialogMode, setRemapProfileDialogMode] = useState<RemapProfileDialogMode | null>(null);
   const [remapProfileNameDraft, setRemapProfileNameDraft] = useState('');
@@ -323,6 +325,7 @@ export function useButtonRemappingController(runtime: AppRuntime, active: boolea
   }
 
   return {
+    subtabs,
     remapDraft,
     remapProfileDialogMode,
     remapProfileNameDraft,

@@ -107,7 +107,7 @@ git commit -m "feat(remapping): add subtabs state controller hook for touchpad a
 - Consumes: `useButtonRemappingSubTabs` from Task 1
 - Produces: Rendered sub-tab navigation (`Buttons`, `Touchpad`, `Turbo`) and view switching in `ButtonRemappingPage`
 
-- [ ] **Step 1: Write test for ButtonRemappingPage sub-tab switching**
+- [x] **Step 1: Write test for ButtonRemappingPage sub-tab switching**
 
 Add test assertions in `companion/src/renderer/features/button-remapping/ButtonRemappingPage.rendered.test.tsx`:
 ```typescript
@@ -116,12 +116,12 @@ it('renders subtab buttons and displays Turbo / Touchpad views on click', async 
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run companion/src/renderer/features/button-remapping/ButtonRemappingPage.rendered.test.tsx`
 Expected: FAIL (subtabs not rendered yet).
 
-- [ ] **Step 3: Implement Sub-Tabs in `ButtonRemappingPage.tsx`**
+- [x] **Step 3: Implement Sub-Tabs in `ButtonRemappingPage.tsx`**
 
 Integrate:
 - Sub-tab pill selector (`Buttons`, `Touchpad`, `Turbo`) under the feature heading.
@@ -130,12 +130,12 @@ Integrate:
   - `remappingSubTab === 'touchpad'`: `<RemappingTouchpadSubTab {...touchpadProps} />`.
   - `remappingSubTab === 'turbo'`: `<RemappingTurboSubTab {...turboProps} />`.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run companion/src/renderer/features/button-remapping/ButtonRemappingPage.rendered.test.tsx`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add companion/src/renderer/features/button-remapping/ButtonRemappingPage.tsx

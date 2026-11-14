@@ -3,12 +3,16 @@ import {
   IconArrowRight as ArrowRight,
   IconDeviceFloppy as Save,
   IconDeviceGamepad3,
+  IconFlame,
   IconPencil as Pencil,
   IconRefresh as RefreshCcw,
   IconTrash as Trash2
 } from '@tabler/icons-react';
 import { ProfileSaveStatus } from '../../common/ProfileSaveStatus';
 import { InlineSelect as CustomSelect } from '../../components/InlineSelect';
+import { IconTouchpadHand } from '../../components/ui/GlyphOptions';
+import { RemappingTouchpadSubTab } from '../../pages/remapping/RemappingTouchpadSubTab';
+import { RemappingTurboSubTab } from '../../pages/remapping/RemappingTurboSubTab';
 import {
   REMAP_BUTTONS,
   REMAP_EDGE_BUTTON_IDS,
@@ -30,6 +34,7 @@ export interface ButtonRemappingPageProps {
 
 export function ButtonRemappingPage({ active, controller, pendingAction }: ButtonRemappingPageProps) {
   const {
+    subtabs,
     remapDraft,
     remapCalloutLayout,
     edgeRemapControlLayout,
@@ -53,6 +58,7 @@ export function ButtonRemappingPage({ active, controller, pendingAction }: Butto
     saveButtonRemappingProfile,
     deleteButtonRemappingProfile
   } = controller;
+  const { remappingSubTab, setRemappingSubTab, touchpadProps, turboProps } = subtabs;
 
   return (
     <div
@@ -100,6 +106,41 @@ export function ButtonRemappingPage({ active, controller, pendingAction }: Butto
             </button>
           </div>
         </div>
+        <div className="remapping-subtabs-bar">
+          <div className="remapping-subtabs" role="tablist" aria-label="Remapping Categories">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={remappingSubTab === 'buttons'}
+              className={`remapping-subtab ${remappingSubTab === 'buttons' ? 'active' : ''}`}
+              onClick={() => setRemappingSubTab('buttons')}
+            >
+              <IconDeviceGamepad3 size={16} />
+              <span>Buttons</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={remappingSubTab === 'touchpad'}
+              className={`remapping-subtab touchpad-subtab ${remappingSubTab === 'touchpad' ? 'active' : ''}`}
+              onClick={() => setRemappingSubTab('touchpad')}
+            >
+              <IconTouchpadHand size={16} />
+              <span>Touchpad</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={remappingSubTab === 'turbo'}
+              className={`remapping-subtab turbo-subtab ${remappingSubTab === 'turbo' ? 'active' : ''}`}
+              onClick={() => setRemappingSubTab('turbo')}
+            >
+              <IconFlame size={16} />
+              <span>Turbo</span>
+            </button>
+          </div>
+        </div>
+        {remappingSubTab === 'buttons' && (
         <section className="feature-card remapping-card">
           <div className="remapping-profile-strip">
             <ProfileSaveStatus />
@@ -302,6 +343,9 @@ export function ButtonRemappingPage({ active, controller, pendingAction }: Butto
             </div>
           </div>
         </section>
+      )}
+      {remappingSubTab === 'touchpad' && <RemappingTouchpadSubTab {...touchpadProps} />}
+      {remappingSubTab === 'turbo' && <RemappingTurboSubTab {...turboProps} />}
     </div>
   );
 }

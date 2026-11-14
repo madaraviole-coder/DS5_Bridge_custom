@@ -163,4 +163,37 @@ describe('Button Remapping page', () => {
     expect(icon.disabled).toBe(true);
     expect(icon.title).toBe('Default button mapping profile active. No previous custom profile available.');
   });
+
+  it('renders subtab buttons and displays Touchpad and Turbo views on click', async () => {
+    installBridgeMock(fixtureSnapshot());
+    const host = await renderApp();
+    const page = await openPage(host, 'remapping');
+
+    expect(page.querySelector('.remapping-subtabs')).not.toBeNull();
+    const buttonsTab = buttonByText(page, 'Buttons');
+    const touchpadTab = buttonByText(page, 'Touchpad');
+    const turboTab = buttonByText(page, 'Turbo');
+
+    expect(buttonsTab).toBeDefined();
+    expect(touchpadTab).toBeDefined();
+    expect(turboTab).toBeDefined();
+    expect(buttonsTab?.classList.contains('active')).toBe(true);
+    expect(page.querySelector('.remapping-card')).not.toBeNull();
+    expect(page.querySelector('.touchpad-remapping-card')).toBeNull();
+    expect(page.querySelector('.turbo-remapping-card')).toBeNull();
+
+    await click(touchpadTab!);
+    expect(touchpadTab?.classList.contains('active')).toBe(true);
+    expect(page.querySelector('.remapping-card')).toBeNull();
+    expect(page.querySelector('.touchpad-remapping-card')).not.toBeNull();
+
+    await click(turboTab!);
+    expect(turboTab?.classList.contains('active')).toBe(true);
+    expect(page.querySelector('.touchpad-remapping-card')).toBeNull();
+    expect(page.querySelector('.turbo-remapping-card')).not.toBeNull();
+
+    await click(buttonsTab!);
+    expect(buttonsTab?.classList.contains('active')).toBe(true);
+    expect(page.querySelector('.remapping-card')).not.toBeNull();
+  });
 });
