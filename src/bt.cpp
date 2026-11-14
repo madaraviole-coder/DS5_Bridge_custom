@@ -2364,7 +2364,6 @@ void bt_save_lightbar_color(uint8_t red, uint8_t green, uint8_t blue, uint8_t br
     saved_lightbar_blue = blue;
     saved_lightbar_brightness = brightness_percent > 100 ? 100 : brightness_percent;
 }
-}
 
 void bt_lightbar_loop() {
     if (!lightbar_restore_enabled || !lightbar_restore_pending || hid_interrupt_cid == 0) {
