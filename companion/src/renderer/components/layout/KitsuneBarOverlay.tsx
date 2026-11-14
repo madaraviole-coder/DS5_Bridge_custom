@@ -23,11 +23,10 @@ import {
   IconBolt,
   IconFolder
 } from '@tabler/icons-react';
-import type { BridgeSnapshot, KitsuneBarItemConfig } from '../../../shared/types';
+import { type BridgeSnapshot, type KitsuneBarItemConfig, DEFAULT_KITSUNE_BAR_MODULES } from '../../../shared/types';
 import kitsuneInputLogoUrl from '../../assets/kitsune-input-logo.svg';
 import psHomeGlyphUrl from '../../../../../assets/glyphs/ps5-buttons-outline-white/svg/Home.svg';
 import { batteryLabel, isChargingPowerState } from '../../utils/controller-status';
-import { DEFAULT_KITSUNE_BAR_MODULES } from '../../pages/KitsuneBarPage';
 
 export function KitsuneBarOverlay() {
   const [snapshot, setSnapshot] = useState<BridgeSnapshot | null>(null);

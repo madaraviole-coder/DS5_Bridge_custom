@@ -100,7 +100,7 @@ describe('MainAppShell', () => {
     const groups = [...nav.querySelectorAll('.control-tab-group-trigger')].map((button) => button.textContent);
     expect(groups).toEqual(['Controller', 'Input', 'Tools']);
     const topLevel = [...nav.querySelectorAll('.control-tab-list > .control-tab-button')].map((button) => button.textContent);
-    expect(topLevel).toEqual(['Overview']);
+    expect(topLevel).toEqual(['Overview', 'Kitsune Bar']);
     expect(nav.lastElementChild?.id).toBe('control-tab-settings');
     expect(nav.querySelector('.shell-kofi-link')).toBeNull();
     const kofi = host.querySelector('.window-bar .bridge-tools .shell-kofi-link');

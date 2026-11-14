@@ -43,6 +43,7 @@ const completeCatalogs = new Map([
 const allowedSourceIdenticalPhrases = [
   /^DS5 Bridge$/,
   /^Kitsune Input$/,
+  /^Kitsune Bar$/,
   /^(?:DualSense|DualSense Edge|DualShock 4|Xbox|Pico LED|Pico 2 W|Ko-fi|GitHub|Discord)$/,
   /^(?:Bubble Gum|Kiwi|Pomegranate)$/,
   // USB vendor and product IDs are written the same way in every language.

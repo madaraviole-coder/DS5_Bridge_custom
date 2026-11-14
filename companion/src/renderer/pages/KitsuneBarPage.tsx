@@ -32,7 +32,12 @@ import {
 } from '@tabler/icons-react';
 import kitsuneInputLogoUrl from '../assets/kitsune-input-logo.svg';
 import psHomeGlyphUrl from '../../../../assets/glyphs/ps5-buttons-outline-white/svg/Home.svg';
-import type { BridgeSnapshot, KitsuneBarItemConfig, KitsuneBarSettings } from '../../shared/types';
+import {
+  type BridgeSnapshot,
+  type KitsuneBarItemConfig,
+  type KitsuneBarSettings,
+  DEFAULT_KITSUNE_BAR_MODULES
+} from '../../shared/types';
 import { batteryLabel, isChargingPowerState } from '../utils/controller-status';
 
 export interface KitsuneBarPageProps {
@@ -44,14 +49,7 @@ export interface KitsuneBarPageProps {
   onOpenLibrary?: () => void;
 }
 
-export const DEFAULT_KITSUNE_BAR_MODULES: KitsuneBarItemConfig[] = [
-  { id: 'controller', name: 'Controller', icon: 'gamepad', type: 'module', layer: 1, order: 0, enabled: true },
-  { id: 'lab', name: 'Lab', icon: 'flask', type: 'module', layer: 1, order: 1, enabled: true },
-  { id: 'audio', name: 'Audio', icon: 'volume', type: 'module', layer: 1, order: 2, enabled: true },
-  { id: 'mic', name: 'Mic', icon: 'mic', type: 'module', layer: 1, order: 3, enabled: true },
-  { id: 'music', name: 'Music', icon: 'music', type: 'module', layer: 1, order: 4, enabled: true },
-  { id: 'screenshot', name: 'Screenshot', icon: 'camera', type: 'module', layer: 1, order: 5, enabled: true }
-];
+export { DEFAULT_KITSUNE_BAR_MODULES };
 
 interface WorkshopModule {
   id: string;
