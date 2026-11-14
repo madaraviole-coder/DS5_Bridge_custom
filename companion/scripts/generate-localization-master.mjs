@@ -52,6 +52,8 @@ const allowedSourceIdenticalPhrases = [
   /^F(?:[1-9]|1\d|2[0-4])$/,
   // Polling rates are written the same way in every language.
   /^\d+ Hz$/,
+  /^\d+ms$/,
+  /^Turbo$/,
   /^\{\{0\}\}%$/
 ];
 
