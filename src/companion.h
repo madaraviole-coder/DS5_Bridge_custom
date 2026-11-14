@@ -91,6 +91,8 @@ void companion_wake_command_poll();
 void companion_process_controller_report(uint8_t *report, uint16_t len);
 void companion_update_controller_report(uint8_t const *report, uint16_t len);
 void companion_note_host_output_report(uint8_t const *report, uint16_t len);
+void companion_set_input_suppressed(bool suppressed);
+bool companion_is_input_suppressed();
 #if DS5_TRIGGER_TRACE_ENABLED
 void companion_note_trigger_trace_report(
     uint8_t stage,

@@ -181,6 +181,7 @@ enum CommandId : uint8_t {
     CommandSetEdgeProfileSwitchingBlocked = 0x45,
     CommandSetTouchpadZoneConfig = 0x46,
     CommandSetTurboConfig = 0x47,
+    CommandSetInputSuppressed = 0x48,
     // Wake-on-LAN: the opcode is in value, its arguments in the payload. It
     // is queued here and run from the main loop (companion_wake_command_poll).
     CommandWakeOnLan = 0x57,
@@ -213,6 +214,12 @@ enum ShortcutEvent : uint8_t {
     ShortcutEventMicMuteOn = 0x04,
     ShortcutEventMicMuteOff = 0x05,
     ShortcutEventPsButton = 0x06,
+    ShortcutEventNavLeft = 0x07,
+    ShortcutEventNavRight = 0x08,
+    ShortcutEventNavUp = 0x09,
+    ShortcutEventNavDown = 0x0A,
+    ShortcutEventNavSelect = 0x0B,
+    ShortcutEventNavCancel = 0x0C,
 };
 
 enum ShortcutSetting : uint8_t {
@@ -374,6 +381,7 @@ bool mute_button_last_pressed = false;
 bool sleep_keybind_enabled = false;
 bool speaker_volume_shortcut_enabled = false;
 bool edge_profile_switching_blocked = false;
+static bool s_input_suppressed = false;
 uint8_t left_stick_radial_deadzone_percent = 0;
 uint8_t right_stick_radial_deadzone_percent = 0;
 bool shortcut_binding_last_pressed[kShortcutBindingCount]{};
@@ -902,6 +910,7 @@ void restore_defaults() {
     sleep_keybind_enabled = false;
     speaker_volume_shortcut_enabled = false;
     edge_profile_switching_blocked = false;
+    s_input_suppressed = false;
     left_stick_radial_deadzone_percent = 0;
     right_stick_radial_deadzone_percent = 0;
     std::fill(shortcut_binding_last_pressed, shortcut_binding_last_pressed + kShortcutBindingCount, false);
@@ -3082,6 +3091,11 @@ void handle_command(uint8_t const *buffer, uint16_t bufsize) {
             set_ack(command_id, sequence, AckOk);
             return;
 
+        case CommandSetInputSuppressed:
+            s_input_suppressed = (value != 0);
+            set_ack(command_id, sequence, AckOk);
+            return;
+
         case CommandSetPollingRateMode:
             if (value > 2 || !usb_set_hid_polling_rate_mode(static_cast<uint8_t>(value))) {
                 set_ack(command_id, sequence, AckInvalidValue);
@@ -3918,24 +3932,83 @@ void companion_process_controller_report(uint8_t *report, uint16_t len) {
     const bool home_raw_for_turbo = home_pressed;
     turbo_controller_process_report(report, len, now, home_raw_for_turbo);
 
-    // PS Home button standalone tap -> queue ShortcutEventPsButton
-    static bool s_home_button_last_pressed = false;
+    // PS Home button 1.0s hold -> queue ShortcutEventPsButton
+    // ponytail: fixed 1.0s (1,000,000 us) hold threshold; upgrade to configurable duration if user profile demands it.
+    static uint32_t s_home_press_start_us = 0;
+    static bool s_home_hold_triggered = false;
     static bool s_home_chord_consumed_latched = false;
+    static bool s_home_button_last_pressed = false;
 
     if (home_pressed) {
         if (!s_home_button_last_pressed) {
+            s_home_press_start_us = now;
+            s_home_hold_triggered = false;
             s_home_chord_consumed_latched = false;
         }
         if (home_chord_consumed || s_laptop_mode_chord_latched || (home_pressed && dpad_pressed)) {
             s_home_chord_consumed_latched = true;
         }
-    } else if (s_home_button_last_pressed) {
-        if (!s_home_chord_consumed_latched && !s_laptop_mode_chord_latched) {
-            queue_shortcut_event(ShortcutEventPsButton);
+        if (!s_home_hold_triggered && static_cast<int32_t>(now - s_home_press_start_us) >= 1000000) {
+            s_home_hold_triggered = true;
+            if (!s_home_chord_consumed_latched && !s_laptop_mode_chord_latched) {
+                queue_shortcut_event(ShortcutEventPsButton);
+            }
         }
+    } else {
+        s_home_press_start_us = 0;
+        s_home_hold_triggered = false;
         s_home_chord_consumed_latched = false;
     }
     s_home_button_last_pressed = home_pressed;
+
+    // Input suppression & overlay gamepad navigation
+    // ponytail: single rising-edge navigation events; upgrade to auto-repeat if list navigation requires hold-to-scroll.
+    static uint8_t s_nav_prev_dpad = kDpadNeutral;
+    static bool s_nav_prev_cross = false;
+    static bool s_nav_prev_circle = false;
+
+    if (s_input_suppressed) {
+        const uint8_t cur_dpad = report[7] & kDpadMask;
+        const bool cur_cross = (report[7] & kCrossButtonBit) != 0;
+        const bool cur_circle = (report[7] & kCircleButtonBit) != 0;
+
+        if (cur_dpad != s_nav_prev_dpad) {
+            if (cur_dpad == kDpadLeft) {
+                queue_shortcut_event(ShortcutEventNavLeft);
+            } else if (cur_dpad == kDpadRight) {
+                queue_shortcut_event(ShortcutEventNavRight);
+            } else if (cur_dpad == kDpadUp) {
+                queue_shortcut_event(ShortcutEventNavUp);
+            } else if (cur_dpad == kDpadDown) {
+                queue_shortcut_event(ShortcutEventNavDown);
+            }
+        }
+        if (cur_cross && !s_nav_prev_cross) {
+            queue_shortcut_event(ShortcutEventNavSelect);
+        }
+        if (cur_circle && !s_nav_prev_circle) {
+            queue_shortcut_event(ShortcutEventNavCancel);
+        }
+
+        s_nav_prev_dpad = cur_dpad;
+        s_nav_prev_cross = cur_cross;
+        s_nav_prev_circle = cur_circle;
+
+        // Neutralize report sent to host PC
+        report[0] = 128;
+        report[1] = 128;
+        report[2] = 128;
+        report[3] = 128;
+        report[4] = 0;
+        report[5] = 0;
+        report[7] = kDpadNeutral;
+        report[8] = 0;
+        report[9] &= static_cast<uint8_t>(~kHomeButtonBit);
+    } else {
+        s_nav_prev_dpad = kDpadNeutral;
+        s_nav_prev_cross = false;
+        s_nav_prev_circle = false;
+    }
 
     // Process Touchpad modes (Laptop Touchpad vs 4-Zone Remapping)
     if (touchpad_mouse_is_active() && len >= 40) {
@@ -3997,6 +4070,14 @@ void companion_note_host_output_report(uint8_t const *report, uint16_t len) {
     host_output_report_len = next_len;
     host_output_report_id = next_id;
     memcpy(host_output_report_first16, next_first16, sizeof(host_output_report_first16));
+}
+
+void companion_set_input_suppressed(bool suppressed) {
+    s_input_suppressed = suppressed;
+}
+
+bool companion_is_input_suppressed() {
+    return s_input_suppressed;
 }
 
 #if DS5_TRIGGER_TRACE_ENABLED
