@@ -468,6 +468,13 @@ function createKitsuneBarWindow(): BrowserWindow {
     console.error('[KitsuneBar] Failed to load index.html:', err);
   });
 
+  window.on('show', () => {
+    void bridgeService?.setInputSuppressed(true);
+  });
+  window.on('hide', () => {
+    void bridgeService?.setInputSuppressed(false);
+  });
+
   window.on('close', (event) => {
     if (!isQuitting) {
       event.preventDefault();
@@ -511,11 +518,13 @@ function toggleKitsuneBar(): boolean {
   if (kitsuneBarWindow.isVisible()) {
     kitsuneBarWindow.hide();
     resizeKitsuneBar(780, 64);
+    void bridgeService?.setInputSuppressed(false);
     return false;
   } else {
     resizeKitsuneBar(780, 64);
     kitsuneBarWindow.show();
     kitsuneBarWindow.focus();
+    void bridgeService?.setInputSuppressed(true);
     return true;
   }
 }
@@ -1487,6 +1496,9 @@ function registerIpc(service: BridgeService): void {
     return snap;
   });
   ipcMain.handle('bridge:toggleKitsuneBar', () => toggleKitsuneBar());
+  ipcMain.handle('bridge:setInputSuppressed', async (_event, suppressed: boolean) => (
+    service.setInputSuppressed(suppressed)
+  ));
   ipcMain.handle('bridge:resizeKitsuneBar', (_event, width: number, height: number) => (
     resizeKitsuneBar(width, height)
   ));
@@ -1695,6 +1707,12 @@ app.whenReady().then(async () => {
     const kbSettings = settingsStore?.get().kitsuneBarSettings;
     if (kbSettings?.enabled !== false) {
       toggleKitsuneBar();
+    }
+  });
+
+  bridgeService.on('kitsune-nav', (nav: string) => {
+    if (kitsuneBarWindow && !kitsuneBarWindow.isDestroyed() && kitsuneBarWindow.isVisible()) {
+      kitsuneBarWindow.webContents.send('kitsune:nav', nav);
     }
   });
 

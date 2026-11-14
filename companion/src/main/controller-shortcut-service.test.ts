@@ -76,8 +76,28 @@ describe('ControllerShortcutService', () => {
     });
   });
 
-  describe('Debounce and Edge Detection Engine', () => {
-    it('triggers ps-button on single-tap rising edge', () => {
+  describe('Debounce and Hold Engine', () => {
+    it('does not trigger on tap released before 1000ms', () => {
+      const listener = vi.fn();
+      service.on('ps-button', listener);
+
+      const pressed = Buffer.alloc(64);
+      pressed[0] = 0x01;
+      pressed[10] = 0x01;
+
+      const released = Buffer.alloc(64);
+      released[0] = 0x01;
+      released[10] = 0x00;
+
+      service.handleReport(pressed);
+      vi.advanceTimersByTime(450); // Single tap or turbo double tap released at 450ms
+      service.handleReport(released);
+      vi.advanceTimersByTime(1000);
+
+      expect(listener).not.toHaveBeenCalled();
+    });
+
+    it('triggers ps-button after holding for 1000ms', () => {
       const listener = vi.fn();
       service.on('ps-button', listener);
 
@@ -86,11 +106,15 @@ describe('ControllerShortcutService', () => {
       pressed[10] = 0x01;
 
       service.handleReport(pressed);
+      vi.advanceTimersByTime(999);
+      expect(listener).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(1);
       expect(listener).toHaveBeenCalledTimes(1);
 
-      // Holding the button should NOT trigger again
+      // Holding the button further should NOT trigger again
       service.handleReport(pressed);
-      service.handleReport(pressed);
+      vi.advanceTimersByTime(1000);
       expect(listener).toHaveBeenCalledTimes(1);
     });
 
@@ -106,26 +130,28 @@ describe('ControllerShortcutService', () => {
       released[0] = 0x01;
       released[10] = 0x00;
 
-      // First tap at t = 0
+      // First hold for 1000ms
       service.handleReport(pressed);
+      vi.advanceTimersByTime(1000);
       expect(listener).toHaveBeenCalledTimes(1);
 
-      // Release at t = 50ms
+      // Release at t = 1050ms
       vi.advanceTimersByTime(50);
       service.handleReport(released);
 
-      // Rapid second tap at t = 150ms (within 350ms debounce)
+      // Rapid second press at t = 1150ms (within 350ms debounce)
       vi.advanceTimersByTime(100);
       service.handleReport(pressed);
-      expect(listener).toHaveBeenCalledTimes(1); // Suppressed!
+      vi.advanceTimersByTime(1000);
+      expect(listener).toHaveBeenCalledTimes(1); // Suppressed by debounce!
 
-      // Release at t = 200ms
-      vi.advanceTimersByTime(50);
+      // Release
       service.handleReport(released);
 
-      // Third tap at t = 450ms (> 350ms since first trigger)
-      vi.advanceTimersByTime(250);
+      // Third press after debounce window
+      vi.advanceTimersByTime(500);
       service.handleReport(pressed);
+      vi.advanceTimersByTime(1000);
       expect(listener).toHaveBeenCalledTimes(2); // Allowed!
     });
 
@@ -145,16 +171,22 @@ describe('ControllerShortcutService', () => {
       released[10] = 0x00;
 
       service.handleReport(pressed);
+      vi.advanceTimersByTime(1000);
       expect(listener).toHaveBeenCalledTimes(1);
 
-      vi.advanceTimersByTime(400);
+      vi.advanceTimersByTime(100);
       service.handleReport(released);
+
+      // Second press within 600ms debounce
+      vi.advanceTimersByTime(200);
       service.handleReport(pressed);
+      vi.advanceTimersByTime(1000);
       expect(listener).toHaveBeenCalledTimes(1); // Still suppressed because debounce is 600ms
 
-      vi.advanceTimersByTime(250); // Total 650ms elapsed
       service.handleReport(released);
+      vi.advanceTimersByTime(700);
       service.handleReport(pressed);
+      vi.advanceTimersByTime(1000);
       expect(listener).toHaveBeenCalledTimes(2); // Now triggered!
     });
 

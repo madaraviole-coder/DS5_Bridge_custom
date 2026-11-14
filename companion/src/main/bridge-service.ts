@@ -749,6 +749,12 @@ function parseShortcutEvent(event: number): InputShortcutEvent | null {
     case SHORTCUT_EVENT.MIC_MUTE_ON:
     case SHORTCUT_EVENT.MIC_MUTE_OFF:
     case SHORTCUT_EVENT.PS_BUTTON:
+    case SHORTCUT_EVENT.NAV_LEFT:
+    case SHORTCUT_EVENT.NAV_RIGHT:
+    case SHORTCUT_EVENT.NAV_UP:
+    case SHORTCUT_EVENT.NAV_DOWN:
+    case SHORTCUT_EVENT.NAV_SELECT:
+    case SHORTCUT_EVENT.NAV_CANCEL:
       return { kind: 'shortcut', event };
     default:
       return null;
@@ -1410,7 +1416,13 @@ export class BridgeService extends EventEmitter {
     [SHORTCUT_EVENT.SLEEP_CONTROLLER]: () => this.applySleepShortcut(),
     [SHORTCUT_EVENT.MIC_MUTE_ON]: () => this.applyControllerMicMuteEvent(true),
     [SHORTCUT_EVENT.MIC_MUTE_OFF]: () => this.applyControllerMicMuteEvent(false),
-    [SHORTCUT_EVENT.PS_BUTTON]: () => this.handlePsButtonShortcut()
+    [SHORTCUT_EVENT.PS_BUTTON]: () => this.handlePsButtonShortcut(),
+    [SHORTCUT_EVENT.NAV_LEFT]: () => { this.emit('kitsune-nav', 'left'); return Promise.resolve(); },
+    [SHORTCUT_EVENT.NAV_RIGHT]: () => { this.emit('kitsune-nav', 'right'); return Promise.resolve(); },
+    [SHORTCUT_EVENT.NAV_UP]: () => { this.emit('kitsune-nav', 'up'); return Promise.resolve(); },
+    [SHORTCUT_EVENT.NAV_DOWN]: () => { this.emit('kitsune-nav', 'down'); return Promise.resolve(); },
+    [SHORTCUT_EVENT.NAV_SELECT]: () => { this.emit('kitsune-nav', 'select'); return Promise.resolve(); },
+    [SHORTCUT_EVENT.NAV_CANCEL]: () => { this.emit('kitsune-nav', 'cancel'); return Promise.resolve(); }
   };
 
   private async handlePsButtonShortcut(): Promise<void> {
@@ -4112,6 +4124,22 @@ export class BridgeService extends EventEmitter {
     this.snapshot.settings = this.settingsStore.update({ kitsuneBarSettings });
     this.emitSnapshot();
     return this.getSnapshot();
+  }
+
+  async setInputSuppressed(suppressed: boolean): Promise<boolean> {
+    if (this.snapshot.state !== 'connected') {
+      return false;
+    }
+    try {
+      await this.sendCommand(
+        COMMAND_ID.SET_INPUT_SUPPRESSED,
+        suppressed ? 1 : 0
+      );
+      return true;
+    } catch (err) {
+      console.warn('[BridgeService] Failed to set input suppressed:', err);
+      return false;
+    }
   }
 
   private async applyChordBindings(settings: CompanionSettings): Promise<void> {

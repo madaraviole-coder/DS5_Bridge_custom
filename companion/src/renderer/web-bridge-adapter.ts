@@ -996,6 +996,14 @@ export class WebBridgeAdapter extends WebBridgeTransport implements BridgeApi {
     return false;
   }
 
+  async setInputSuppressed(_suppressed: boolean): Promise<boolean> {
+    return true;
+  }
+
+  onKitsuneNav(_callback: (nav: 'left' | 'right' | 'up' | 'down' | 'select' | 'cancel') => void): () => void {
+    return () => {};
+  }
+
   async resizeKitsuneBar(_width: number, _height: number): Promise<boolean> {
     return false;
   }

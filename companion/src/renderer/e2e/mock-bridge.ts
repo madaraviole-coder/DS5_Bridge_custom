@@ -747,6 +747,15 @@ export class MockBridgeApi implements BridgeApi {
     return true;
   }
 
+  async setInputSuppressed(suppressed: boolean): Promise<boolean> {
+    this.recordCall('setInputSuppressed', suppressed);
+    return true;
+  }
+
+  onKitsuneNav(_callback: (nav: 'left' | 'right' | 'up' | 'down' | 'select' | 'cancel') => void): () => void {
+    return () => {};
+  }
+
   async resizeKitsuneBar(width: number, height: number): Promise<boolean> {
     this.recordCall('resizeKitsuneBar', width, height);
     return true;

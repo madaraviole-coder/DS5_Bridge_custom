@@ -351,6 +351,14 @@ const api = {
     ipcRenderer.invoke('bridge:setKitsuneBarSettings', kitsuneBarSettings)
   ),
   toggleKitsuneBar: (): Promise<boolean> => ipcRenderer.invoke('bridge:toggleKitsuneBar'),
+  setInputSuppressed: (suppressed: boolean): Promise<boolean> => (
+    ipcRenderer.invoke('bridge:setInputSuppressed', suppressed)
+  ),
+  onKitsuneNav: (callback: (nav: 'left' | 'right' | 'up' | 'down' | 'select' | 'cancel') => void): (() => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, nav: 'left' | 'right' | 'up' | 'down' | 'select' | 'cancel') => callback(nav);
+    ipcRenderer.on('kitsune:nav', listener);
+    return () => ipcRenderer.removeListener('kitsune:nav', listener);
+  },
   resizeKitsuneBar: (width: number, height: number): Promise<boolean> => (
     ipcRenderer.invoke('bridge:resizeKitsuneBar', width, height)
   ),

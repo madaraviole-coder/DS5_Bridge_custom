@@ -27,6 +27,8 @@ export class ControllerShortcutService extends EventEmitter {
   private lastTriggerTime = 0;
   private debounceMs = DEFAULT_SHORTCUT_DEBOUNCE_MS;
   private activePid = 0;
+  private psHoldTimer: NodeJS.Timeout | null = null;
+  public static readonly PS_HOLD_DURATION_MS = 1000;
 
   constructor(settings?: KitsuneBarSettings) {
     super();
@@ -73,6 +75,10 @@ export class ControllerShortcutService extends EventEmitter {
     if (this.scanTimer) {
       clearInterval(this.scanTimer);
       this.scanTimer = null;
+    }
+    if (this.psHoldTimer) {
+      clearTimeout(this.psHoldTimer);
+      this.psHoldTimer = null;
     }
     this.disconnectActiveDevice();
   }
@@ -195,10 +201,22 @@ export class ControllerShortcutService extends EventEmitter {
     const isPressed = ControllerShortcutService.parsePsButtonState(data, this.activePid);
 
     if (!this.wasPsPressed && isPressed) {
+      if (this.psHoldTimer) {
+        clearTimeout(this.psHoldTimer);
+        this.psHoldTimer = null;
+      }
       const now = Date.now();
       if (now - this.lastTriggerTime >= this.debounceMs) {
-        this.lastTriggerTime = now;
-        this.emit('ps-button');
+        this.psHoldTimer = setTimeout(() => {
+          this.psHoldTimer = null;
+          this.lastTriggerTime = Date.now();
+          this.emit('ps-button');
+        }, ControllerShortcutService.PS_HOLD_DURATION_MS);
+      }
+    } else if (this.wasPsPressed && !isPressed) {
+      if (this.psHoldTimer) {
+        clearTimeout(this.psHoldTimer);
+        this.psHoldTimer = null;
       }
     }
 
@@ -206,6 +224,10 @@ export class ControllerShortcutService extends EventEmitter {
   }
 
   private disconnectActiveDevice(): void {
+    if (this.psHoldTimer) {
+      clearTimeout(this.psHoldTimer);
+      this.psHoldTimer = null;
+    }
     if (this.activeDevice) {
       try {
         this.activeDevice.close();
