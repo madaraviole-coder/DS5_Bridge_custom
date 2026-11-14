@@ -296,6 +296,13 @@ export interface TurboSettings {
   buttonsMask: number;
 }
 
+export const DEFAULT_TURBO_SETTINGS: TurboSettings = {
+  enabled: false,
+  speedCps: 8,
+  humanize: true,
+  buttonsMask: 0
+};
+
 /**
  * The settings that belong to one bridge, as in Kitsune Input: its profiles,
  * button maps, chords, controller bindings and every controller setting. The

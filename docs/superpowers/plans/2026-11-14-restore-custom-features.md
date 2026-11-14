@@ -28,7 +28,7 @@
 - Consumes: `runtime: AppRuntime` (`snapshot`, `runAction`)
 - Produces: `remappingSubTab`, `setRemappingSubTab`, `touchpadProps`, `turboProps`
 
-- [ ] **Step 1: Write unit test for subtabs controller**
+- [x] **Step 1: Write unit test for subtabs controller**
 
 Create `companion/src/renderer/features/button-remapping/subtabs-controller.test.ts`:
 ```typescript
@@ -74,21 +74,21 @@ describe('useButtonRemappingSubTabs', () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run companion/src/renderer/features/button-remapping/subtabs-controller.test.ts`
 Expected: FAIL due to missing `use-button-remapping-subtabs.ts`.
 
-- [ ] **Step 3: Implement `useButtonRemappingSubTabs`**
+- [x] **Step 3: Implement `useButtonRemappingSubTabs`**
 
 Create `companion/src/renderer/features/button-remapping/use-button-remapping-subtabs.ts` extracting touchpad & turbo state and actions cleanly from `useRemappingState.ts`.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run companion/src/renderer/features/button-remapping/subtabs-controller.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add companion/src/renderer/features/button-remapping/
