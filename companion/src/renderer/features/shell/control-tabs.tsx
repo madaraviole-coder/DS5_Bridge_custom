@@ -8,6 +8,7 @@ import {
   IconDeviceGamepad3,
   IconFlask2,
   IconLayoutDashboard,
+  IconLayoutNavbar,
   IconReplace,
   IconSettings,
   IconSparkles,
@@ -18,6 +19,7 @@ import {
 
 export type ControlTab =
   | 'overview'
+  | 'kitsune-bar'
   | 'devices'
   | 'dualsense'
   | 'audio'
@@ -49,6 +51,7 @@ export type ControlTabGroupDefinition = Readonly<{
 
 export const CONTROL_TAB_DEFINITIONS = {
   overview: { id: 'overview', label: 'Overview', Icon: IconLayoutDashboard },
+  'kitsune-bar': { id: 'kitsune-bar', label: 'Kitsune Bar', Icon: IconLayoutNavbar },
   devices: { id: 'devices', label: 'Devices', Icon: IconBluetooth },
   dualsense: { id: 'dualsense', label: 'DualSense', Icon: IconDeviceGamepad2 },
   audio: { id: 'audio', label: 'Audio', Icon: IconVolume },
@@ -99,6 +102,7 @@ export const CONTROL_TAB_GROUPS: readonly ControlTabGroupDefinition[] = [
 
 export const CONTROL_TABS: readonly ControlTabDefinition[] = [
   CONTROL_TAB_DEFINITIONS.overview,
+  CONTROL_TAB_DEFINITIONS['kitsune-bar'],
   ...CONTROL_TAB_GROUPS.flatMap(({ tabs }) => tabs),
   CONTROL_TAB_DEFINITIONS.settings
 ];

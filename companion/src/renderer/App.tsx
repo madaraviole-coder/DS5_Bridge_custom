@@ -14,6 +14,7 @@ import {
   LazyButtonRemappingPage,
   LazyChordsPage,
   LazyDevicesPage,
+  LazyKitsuneBarPage,
   LazySettingsPage,
   LazyStickDeadzonesPage,
   LazySystemPage
@@ -349,6 +350,16 @@ export function App() {
               onOpenPage={selectControlTab}
               onSettingsFocusRequest={focusBridgeSettings}
               onNotificationFocusRequest={focusNotificationSettings}
+            />
+          </DeferredPage>
+
+          <DeferredPage active={activeControlTab === 'kitsune-bar'}>
+            <LazyKitsuneBarPage
+              active={activeControlTab === 'kitsune-bar'}
+              snapshot={snapshot}
+              connected={connected}
+              pendingAction={pendingAction}
+              runAction={runtime.runAction}
             />
           </DeferredPage>
 

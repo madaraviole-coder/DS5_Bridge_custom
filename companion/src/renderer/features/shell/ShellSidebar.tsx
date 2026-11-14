@@ -83,6 +83,7 @@ export function ShellSidebar({
         <nav className="control-tabs" aria-label="Controls">
           <div className="control-tab-list">
             {renderTabButton(CONTROL_TAB_DEFINITIONS.overview)}
+            {renderTabButton(CONTROL_TAB_DEFINITIONS['kitsune-bar'])}
             {CONTROL_TAB_GROUPS.map(({ id, label, Icon, tabs }) => {
               const expanded = openGroupId === id;
               const containsActiveTab = tabs.some(({ id: tabId }) => tabId === currentTab);

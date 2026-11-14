@@ -5,6 +5,7 @@ import type { DevicesPageProps } from '../features/devices/DevicesPage';
 import type { SettingsPage } from '../features/settings/SettingsPage';
 import type { StickDeadzonesPageProps } from '../features/stick-deadzones/StickDeadzonesPage';
 import type { SystemPageProps } from '../features/system-controls/SystemPage';
+import type { KitsuneBarPageProps } from '../pages/KitsuneBarPage';
 import { lazyPage, pageShell } from './lazy-page';
 
 // Pages outside the everyday Controller pages are separate chunks loaded on
@@ -35,4 +36,8 @@ export const LazySettingsPage = lazyPage<ComponentProps<typeof SettingsPage>>(
 export const LazySystemPage = lazyPage<SystemPageProps>(
   () => import('../features/system-controls/SystemPage').then((module) => module.SystemPage),
   pageShell('system-page', 'control-panel-system')
+);
+export const LazyKitsuneBarPage = lazyPage<KitsuneBarPageProps>(
+  () => import('../pages/KitsuneBarPage').then((module) => module.KitsuneBarPage),
+  pageShell('kitsune-bar-page', 'control-panel-kitsune-bar')
 );
