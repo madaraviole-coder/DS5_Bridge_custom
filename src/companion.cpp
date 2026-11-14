@@ -98,6 +98,7 @@ constexpr uint8_t kDefaultMuteKeyboardUsage = 0x68; // F13
 constexpr uint8_t kMuteKeyboardModifierMask = 0x0F;
 constexpr uint8_t kMuteKeyboardChordStarterFlag = 0x10;
 constexpr uint8_t kMuteKeyboardHoldFlag = 0x80;
+constexpr uint32_t kKeyboardPressDurationUs = 40000;
 constexpr uint32_t kMuteKeyboardChordWindowUs = 250000;
 constexpr uint32_t kMuteLedFlashDurationUs = 120000;
 constexpr uint32_t kClassicRumbleTestDurationUs = 650000;
