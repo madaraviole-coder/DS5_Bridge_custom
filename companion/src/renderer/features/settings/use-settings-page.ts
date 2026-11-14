@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { BridgeSnapshot } from '@shared/types';
+import type { BridgeSnapshot, KitsuneBarSettings } from '@shared/types';
 import { normalizeUiLocalePreference } from '@shared/ui-locale-matching';
 import type { AppRuntime } from '../../composition/app-runtime';
 import type { SettingsFocusTarget } from './settings-navigation';
@@ -135,6 +135,46 @@ export function useSettingsPage(runtime: AppRuntime, { notifications }: Settings
       window.bridge.setSpeakerVolumeShortcutEnabled(!settings.speakerVolumeShortcutEnabled)
     )),
     toggleWakeOnConnect: toggle('wake-on-connect', (settings) => window.bridge.setWakeOnConnectEnabled(!settings.wakeOnConnectEnabled)),
+    toggleKitsuneBarEnabled: () => {
+      if (!snapshot) return;
+      // ponytail: minimal fallback object ceiling, upgrade if full KitsuneBarSettings config is centralized
+      const current = snapshot.settings.kitsuneBarSettings;
+      const isEnabled = current?.enabled ?? true;
+      const updated: KitsuneBarSettings = {
+        ...(current ?? {
+          toggleShortcut: 'ps-button',
+          customHotkey: 'Control+Shift+K',
+          debounceMs: 350,
+          transparencyPercent: 90,
+          alwaysOnTop: true,
+          showQuickSettings: true,
+          showBattery: true,
+          showPresetPicker: true
+        }),
+        enabled: !isEnabled
+      };
+      void runAction('toggle-kitsune-bar', () => window.bridge.setKitsuneBarSettings(updated));
+    },
+    setKitsuneBarDebounceMs: (debounceMs: number) => {
+      if (!snapshot) return;
+      // ponytail: clamp 150-800 ceiling, upgrade to config bounds if needed
+      const clamped = Math.max(150, Math.min(800, Math.round(debounceMs)));
+      const current = snapshot.settings.kitsuneBarSettings;
+      const updated: KitsuneBarSettings = {
+        ...(current ?? {
+          enabled: true,
+          toggleShortcut: 'ps-button',
+          customHotkey: 'Control+Shift+K',
+          transparencyPercent: 90,
+          alwaysOnTop: true,
+          showQuickSettings: true,
+          showBattery: true,
+          showPresetPicker: true
+        }),
+        debounceMs: clamped
+      };
+      void runAction('update-kitsune-bar-debounce', () => window.bridge.setKitsuneBarSettings(updated));
+    },
     mountPicoBootloader: () => void runPicoFirmwareAction('pico-firmware-mount', () => window.bridge.mountPicoBootloader()),
     flashPicoFirmware: () => void runPicoFirmwareAction('pico-firmware-flash', () => window.bridge.flashPicoFirmware()),
     nukePicoFlash: () => void runPicoFirmwareAction('pico-firmware-nuke', () => window.bridge.nukePicoFlash()),

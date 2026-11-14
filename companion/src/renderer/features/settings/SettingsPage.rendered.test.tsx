@@ -67,7 +67,8 @@ function createActions(): SettingsPageActions & Record<string, ReturnType<typeof
     'togglePersonaNotifications', 'toggleMicMuteNotifications', 'setIdleDisconnectTimeout',
     'toggleIdleDisconnect', 'toggleUsbSuspendDisconnect', 'toggleControllerPowerSaving', 'toggleLed', 'togglePlayerLed',
     'toggleLightbarRestore', 'toggleEdgeProfileSwitching', 'toggleSleepShortcut', 'toggleVolumeShortcut',
-    'toggleWakeOnConnect', 'mountPicoBootloader', 'flashPicoFirmware', 'nukePicoFlash', 'openExternal'
+    'toggleWakeOnConnect', 'mountPicoBootloader', 'flashPicoFirmware', 'nukePicoFlash', 'openExternal',
+    'toggleKitsuneBarEnabled', 'setKitsuneBarDebounceMs'
   ];
   const wakeOnLan = {
     getWakeOnLan: vi.fn(async () => ({ supported: false, availableCountries: [], configured: false } as never)),

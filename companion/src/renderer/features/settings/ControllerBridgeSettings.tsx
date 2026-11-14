@@ -25,6 +25,13 @@ export const IDLE_DISCONNECT_TIMEOUT_OPTIONS: Array<[string, number]> = [
   ['30 min', 30]
 ];
 
+// ponytail: fixed presets (250/350/500), upgrade if user-defined presets are needed
+export const PS_DEBOUNCE_PRESETS = [
+  { label: '250ms', val: 250 },
+  { label: '350ms', val: 350 },
+  { label: '500ms', val: 500 }
+] as const;
+
 function ShortcutGlyphs({ label, glyphs }: {
   readonly label: string;
   readonly glyphs: ReadonlyArray<ReadonlyArray<readonly [url: string, name: string]>>;
@@ -196,6 +203,52 @@ export function ShortcutSettings({ model, actions, matchingSettingIds }: Setting
         disabled={!model.connected || model.busy}
         onToggle={actions.toggleEdgeProfileSwitching}
       />
+    </SearchableSetting>
+    <SearchableSetting id="kitsune-bar-enabled" matchingSettingIds={matchingSettingIds}>
+      <ToggleRow
+        label="Kitsune Bar Overlay"
+        description="Enable controller overlay and shortcut bar"
+        checked={settings.kitsuneBarSettings?.enabled ?? false}
+        disabled={model.busy}
+        onToggle={actions.toggleKitsuneBarEnabled}
+      />
+    </SearchableSetting>
+    <SearchableSetting id="kitsune-bar-debounce" matchingSettingIds={matchingSettingIds}>
+      <div className="settings-menu-row">
+        <div className="settings-menu-copy">
+          <strong id="settings-kitsune-bar-debounce-label">PS Button Debounce</strong>
+          <span>Delay in milliseconds to prevent accidental double taps on PS button</span>
+        </div>
+        <div className="settings-menu-controls">
+          <span className="settings-debounce-value" style={{ fontSize: 'var(--font-size-body)', color: 'var(--text-secondary)' }}>
+            {settings.kitsuneBarSettings?.debounceMs ?? 350} ms
+          </span>
+          <div className="kitsune-debounce-presets" role="group" aria-label="PS Button Debounce Presets">
+            {PS_DEBOUNCE_PRESETS.map((preset) => (
+              <button
+                key={preset.val}
+                type="button"
+                className={`kitsune-preset-chip ${(settings.kitsuneBarSettings?.debounceMs ?? 350) === preset.val ? 'active' : ''}`}
+                disabled={model.busy}
+                onClick={() => actions.setKitsuneBarDebounceMs(preset.val)}
+              >
+                {preset.label}
+              </button>
+            ))}
+          </div>
+          <input
+            type="range"
+            min={150}
+            max={800}
+            step={25}
+            aria-label="PS Button Debounce"
+            aria-labelledby="settings-kitsune-bar-debounce-label"
+            value={settings.kitsuneBarSettings?.debounceMs ?? 350}
+            disabled={model.busy}
+            onChange={(e) => actions.setKitsuneBarDebounceMs(Number(e.target.value))}
+          />
+        </div>
+      </div>
     </SearchableSetting>
   </>;
 }

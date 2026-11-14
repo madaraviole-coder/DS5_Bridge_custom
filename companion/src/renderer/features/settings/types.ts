@@ -27,6 +27,7 @@ export interface SettingsPageModel {
     | 'notifyLowBattery'
     | 'notifyPersonaChange'
     | 'notifyMicMute'
+    | 'kitsuneBarSettings'
   >;
   /** The selected bridge is connected and can store settings. */
   readonly connected: boolean;
@@ -90,6 +91,8 @@ export interface SettingsPageActions {
   flashPicoFirmware(): void;
   nukePicoFlash(): void;
   openExternal(url: string): void;
+  toggleKitsuneBarEnabled(): void;
+  setKitsuneBarDebounceMs(debounceMs: number): void;
   /** The bridge's Wake-on-LAN calls; each rejects with a message ready to show. */
   readonly wakeOnLan: WakeOnLanApi;
 }

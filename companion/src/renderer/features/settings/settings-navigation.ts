@@ -69,6 +69,8 @@ export type SettingsSearchEntryId =
   | 'edge-profile-switching'
   | 'sleep-shortcut'
   | 'volume-shortcut'
+  | 'kitsune-bar-enabled'
+  | 'kitsune-bar-debounce'
   | 'remote-wake'
   | 'wake-on-lan'
   | 'pico-tools'
@@ -111,6 +113,8 @@ const SEARCH_ENTRIES: ReadonlyArray<Omit<SettingsSearchResult, 'categoryLabel'>>
   { id: 'edge-profile-switching', label: 'Block Edge Profile Switching', category: 'input', keywords: 'dualsense lfn rfn triangle circle cross square face buttons chords onboard profile' },
   { id: 'sleep-shortcut', label: 'Controller Sleep Shortcut', category: 'input', keywords: 'controller sleep shortcut chord triangle' },
   { id: 'volume-shortcut', label: 'Volume Shortcut', category: 'input', keywords: 'controller chord d-pad speaker' },
+  { id: 'kitsune-bar-enabled', label: 'Kitsune Bar Overlay', category: 'input', keywords: 'kitsune bar overlay shortcut menu controller' },
+  { id: 'kitsune-bar-debounce', label: 'PS Button Debounce', category: 'input', keywords: 'ps home button debounce delay double tap anti chatter' },
   { id: 'remote-wake', label: 'Wake PC via USB', category: 'pc-wake', keywords: 'usb remote wake sleep windows controller reconnect' },
   { id: 'wake-on-lan', label: 'Wake-on-LAN', category: 'pc-wake', keywords: 'wifi wi-fi network ethernet magic packet lan sleep shutdown router' },
   { id: 'pico-tools', label: 'Bridge Firmware', category: 'maintenance', keywords: 'pico bridge firmware update recovery erase mount flash nuke uf2' },

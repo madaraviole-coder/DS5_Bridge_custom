@@ -156,27 +156,27 @@ git commit -m "feat(remapping): add Touchpad and Turbo sub-tabs to ButtonRemappi
 - Consumes: `snapshot.settings.psButtonDebounceMs`, `kitsuneBarEnabled`
 - Produces: Settings controls for Kitsune-Bar overlay and PS button debounce
 
-- [ ] **Step 1: Add unit tests for Kitsune-Bar settings**
+- [x] **Step 1: Add unit tests for Kitsune-Bar settings**
 
 Add test in `companion/src/renderer/features/settings/ControllerBridgeSettings.rendered.test.tsx` verifying Kitsune Bar and PS button debounce toggle rows render and respond to events.
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `npx vitest run companion/src/renderer/features/settings/ControllerBridgeSettings.rendered.test.tsx`
 Expected: FAIL.
 
-- [ ] **Step 3: Implement Kitsune Bar and PS debounce in ControllerBridgeSettings**
+- [x] **Step 3: Implement Kitsune Bar and PS debounce in ControllerBridgeSettings**
 
 Add setting rows:
 - `Kitsune Bar Overlay`: Toggles overlay service.
 - `PS Button Debounce`: Slider or select for debounce ms.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `npx vitest run companion/src/renderer/features/settings/ControllerBridgeSettings.rendered.test.tsx`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add companion/src/renderer/features/settings/

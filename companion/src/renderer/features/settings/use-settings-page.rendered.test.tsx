@@ -101,6 +101,22 @@ describe('Settings page wiring', () => {
     expect(bridge.fn('setUiThemePreset')).toHaveBeenCalledWith('light');
     await act(async () => current.actions.openExternal('https://discord.gg/By5jhh73wr'));
     expect(bridge.fn('openExternal')).toHaveBeenCalledWith('https://discord.gg/By5jhh73wr');
+
+    await act(async () => current.actions.toggleKitsuneBarEnabled());
+    expect(bridge.fn('setKitsuneBarSettings')).toHaveBeenCalledWith(
+      expect.objectContaining({ enabled: false })
+    );
+
+    await act(async () => current.actions.setKitsuneBarDebounceMs(500));
+    expect(bridge.fn('setKitsuneBarSettings')).toHaveBeenCalledWith(
+      expect.objectContaining({ debounceMs: 500 })
+    );
+
+    await act(async () => current.actions.setKitsuneBarDebounceMs(100));
+    expect(bridge.fn('setKitsuneBarSettings')).toHaveBeenCalledWith(
+      expect.objectContaining({ debounceMs: 150 })
+    );
+
     expect(current.actions.toggleControllerNotifications).toBe(notifications.toggleControllerNotifications);
     expect(current.actions.wakeOnLan).toBe(window.bridge);
   });
