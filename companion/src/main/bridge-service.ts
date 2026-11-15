@@ -836,6 +836,94 @@ function virtualKeyCodeFor(key: string): number | null {
   return VIRTUAL_KEY_CODES[normalized] ?? null;
 }
 
+const SHIFTED_DIGIT_SYMBOLS: Record<string, string> = {
+  '!': '1',
+  '@': '2',
+  '#': '3',
+  $: '4',
+  '%': '5',
+  '^': '6',
+  '&': '7',
+  '*': '8',
+  '(': '9',
+  ')': '0'
+};
+
+/** Resolves a Kitsune Bar keyboard cell into Windows virtual-key codes (optional Shift). */
+export function virtualKeyCodesForTypeKey(key: string, shift = false): number[] | null {
+  const trimmed = key.trim();
+  if (!trimmed) return null;
+  const lower = trimmed.toLowerCase();
+  if (lower === 'space' || trimmed === ' ') {
+    const code = virtualKeyCodeFor('SPACE');
+    return code === null ? null : [code];
+  }
+  if (lower === 'enter' || lower === 'return') {
+    const code = virtualKeyCodeFor('ENTER');
+    return code === null ? null : [code];
+  }
+  if (lower === 'backspace' || lower === 'bksp') {
+    const code = virtualKeyCodeFor('BACKSPACE');
+    return code === null ? null : [code];
+  }
+  if (trimmed.length === 1) {
+    const ch = trimmed;
+    if (/[a-zA-Z]/.test(ch)) {
+      const letter = virtualKeyCodeFor(ch.toUpperCase());
+      if (letter === null) return null;
+      const needShift = shift || ch === ch.toUpperCase() && ch !== ch.toLowerCase();
+      return needShift ? [VIRTUAL_KEY_CODES.SHIFT, letter] : [letter];
+    }
+    if (/[0-9]/.test(ch)) {
+      const digit = virtualKeyCodeFor(ch);
+      if (digit === null) return null;
+      return shift ? [VIRTUAL_KEY_CODES.SHIFT, digit] : [digit];
+    }
+    const digitForSymbol = SHIFTED_DIGIT_SYMBOLS[ch];
+    if (digitForSymbol) {
+      const digit = virtualKeyCodeFor(digitForSymbol);
+      if (digit === null) return null;
+      return [VIRTUAL_KEY_CODES.SHIFT, digit];
+    }
+    if (ch === '-' || ch === '_') {
+      // VK_OEM_MINUS 0xBD; underscore needs Shift
+      return ch === '_' || shift ? [VIRTUAL_KEY_CODES.SHIFT, 0xbd] : [0xbd];
+    }
+    if (ch === '=' || ch === '+') {
+      return ch === '+' || shift ? [VIRTUAL_KEY_CODES.SHIFT, 0xbb] : [0xbb];
+    }
+    if (ch === ',' || ch === '<') {
+      return ch === '<' || shift ? [VIRTUAL_KEY_CODES.SHIFT, 0xbc] : [0xbc];
+    }
+    if (ch === '.' || ch === '>') {
+      return ch === '>' || shift ? [VIRTUAL_KEY_CODES.SHIFT, 0xbe] : [0xbe];
+    }
+    if (ch === '/' || ch === '?') {
+      return ch === '?' || shift ? [VIRTUAL_KEY_CODES.SHIFT, 0xbf] : [0xbf];
+    }
+    if (ch === ';' || ch === ':') {
+      return ch === ':' || shift ? [VIRTUAL_KEY_CODES.SHIFT, 0xba] : [0xba];
+    }
+    if (ch === "'" || ch === '"') {
+      return ch === '"' || shift ? [VIRTUAL_KEY_CODES.SHIFT, 0xde] : [0xde];
+    }
+    if (ch === '[' || ch === '{') {
+      return ch === '{' || shift ? [VIRTUAL_KEY_CODES.SHIFT, 0xdb] : [0xdb];
+    }
+    if (ch === ']' || ch === '}') {
+      return ch === '}' || shift ? [VIRTUAL_KEY_CODES.SHIFT, 0xdd] : [0xdd];
+    }
+    if (ch === '\\' || ch === '|') {
+      return ch === '|' || shift ? [VIRTUAL_KEY_CODES.SHIFT, 0xdc] : [0xdc];
+    }
+    if (ch === '`' || ch === '~') {
+      return ch === '~' || shift ? [VIRTUAL_KEY_CODES.SHIFT, 0xc0] : [0xc0];
+    }
+  }
+  const named = virtualKeyCodeFor(trimmed);
+  return named === null ? null : (shift ? [VIRTUAL_KEY_CODES.SHIFT, named] : [named]);
+}
+
 function formatUsbDebugEvent(prefix: string, args: number[]): string {
   const [type, arg1, arg2, arg3, arg4] = args;
   switch (type) {
@@ -4139,6 +4227,21 @@ export class BridgeService extends EventEmitter {
     } catch (err) {
       console.warn('[BridgeService] Failed to set input suppressed:', err);
       return false;
+    }
+  }
+
+  /** Types one virtual key into the focused OS window (Kitsune Bar gamepad keyboard). */
+  async typeVirtualKey(key: string, shift = false): Promise<{ ok: boolean; message: string }> {
+    const codes = virtualKeyCodesForTypeKey(key, shift);
+    if (!codes || codes.length === 0) {
+      return { ok: false, message: `Unsupported key: ${key}` };
+    }
+    try {
+      await this.keyboardInput.tap(codes);
+      return { ok: true, message: 'ok' };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return { ok: false, message };
     }
   }
 

@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import {
   IconHome,
   IconCopy,
@@ -27,6 +27,13 @@ import { type BridgeSnapshot, type KitsuneBarItemConfig, DEFAULT_KITSUNE_BAR_MOD
 import kitsuneInputLogoUrl from '../../assets/kitsune-input-logo.svg';
 import psHomeGlyphUrl from '../../../../../assets/glyphs/ps5-buttons-outline-white/svg/Home.svg';
 import { batteryLabel, isChargingPowerState } from '../../utils/controller-status';
+import {
+  KITSUNE_KEYBOARD_ROWS,
+  cellLabel,
+  isKeyboardFlyout,
+  moveKeyboardFocus,
+  type KeyboardCell
+} from './kitsune-bar-keyboard';
 
 export function KitsuneBarOverlay() {
   const [snapshot, setSnapshot] = useState<BridgeSnapshot | null>(null);
@@ -36,6 +43,28 @@ export function KitsuneBarOverlay() {
   const [activeFlyout, setActiveFlyout] = useState<string | null>(null);
   const [virtualText, setVirtualText] = useState('');
   const [focusedIndex, setFocusedIndex] = useState(0);
+  const [keyRow, setKeyRow] = useState(0);
+  const [keyCol, setKeyCol] = useState(0);
+  const [shiftLatch, setShiftLatch] = useState(false);
+  const [stickVolumeActive, setStickVolumeActive] = useState(false);
+
+  const volumeRef = useRef(volume);
+  const virtualTextRef = useRef(virtualText);
+  const shiftLatchRef = useRef(shiftLatch);
+  const keyRowRef = useRef(keyRow);
+  const keyColRef = useRef(keyCol);
+  const activeFlyoutRef = useRef(activeFlyout);
+  const focusedIndexRef = useRef(focusedIndex);
+  const layerItemsRef = useRef<KitsuneBarItemConfig[]>([]);
+  const allItemsRef = useRef<KitsuneBarItemConfig[]>([]);
+
+  volumeRef.current = volume;
+  virtualTextRef.current = virtualText;
+  shiftLatchRef.current = shiftLatch;
+  keyRowRef.current = keyRow;
+  keyColRef.current = keyCol;
+  activeFlyoutRef.current = activeFlyout;
+  focusedIndexRef.current = focusedIndex;
 
   useEffect(() => {
     let unmounted = false;
@@ -72,13 +101,23 @@ export function KitsuneBarOverlay() {
   useEffect(() => {
     let height = 64;
     if (activeFlyout) {
-      if (['virtual-keyboard', 'keyboard', 'performance-hud', 'activity', 'spotify-widget', 'spotify'].includes(activeFlyout)) {
+      if (isKeyboardFlyout(activeFlyout)) {
+        height = 420;
+      } else if (['performance-hud', 'activity', 'spotify-widget', 'spotify'].includes(activeFlyout)) {
         height = 300;
       } else {
         height = 250;
       }
     }
     void window.bridge.resizeKitsuneBar(780, height);
+  }, [activeFlyout]);
+
+  useEffect(() => {
+    if (isKeyboardFlyout(activeFlyout)) {
+      setKeyRow(0);
+      setKeyCol(0);
+      setShiftLatch(false);
+    }
   }, [activeFlyout]);
 
   useEffect(() => {
@@ -142,23 +181,108 @@ export function KitsuneBarOverlay() {
     }
   };
 
+  layerItemsRef.current = layerItems;
+  allItemsRef.current = items;
+
+  const applyKeyboardCell = async (cell: KeyboardCell) => {
+    if (cell.kind === 'action') {
+      if (cell.id === 'Shift') {
+        setShiftLatch((prev) => !prev);
+        return;
+      }
+      if (cell.id === 'Space') {
+        setVirtualText((prev) => `${prev} `);
+        await window.bridge.typeVirtualKey?.('Space');
+        return;
+      }
+      if (cell.id === 'Backspace') {
+        setVirtualText((prev) => prev.slice(0, -1));
+        await window.bridge.typeVirtualKey?.('Backspace');
+        return;
+      }
+      if (cell.id === 'Enter') {
+        setVirtualText((prev) => `${prev}\n`);
+        await window.bridge.typeVirtualKey?.('Enter');
+        return;
+      }
+      return;
+    }
+    const ch = shiftLatchRef.current ? cell.upper : cell.lower;
+    setVirtualText((prev) => `${prev}${ch}`);
+    await window.bridge.typeVirtualKey?.(ch, shiftLatchRef.current);
+    if (shiftLatchRef.current && /[a-z]/i.test(cell.lower)) {
+      setShiftLatch(false);
+    }
+  };
+
   useEffect(() => {
     const unsubscribe = window.bridge.onKitsuneNav?.((nav) => {
+      const flyout = activeFlyoutRef.current;
+
+      const flyoutItem = flyout ? allItemsRef.current.find((item) => item.id === flyout) : undefined;
+      if (isKeyboardFlyout(flyout) || flyoutItem?.icon === 'keyboard') {
+        if (nav === 'left' || nav === 'right' || nav === 'up' || nav === 'down') {
+          const next = moveKeyboardFocus(keyRowRef.current, keyColRef.current, nav);
+          setKeyRow(next.row);
+          setKeyCol(next.col);
+          return;
+        }
+        if (nav === 'select') {
+          const cell = KITSUNE_KEYBOARD_ROWS[keyRowRef.current]?.[keyColRef.current];
+          if (cell) void applyKeyboardCell(cell);
+          return;
+        }
+        if (nav === 'cancel') {
+          if (virtualTextRef.current.length > 0) {
+            setVirtualText((prev) => prev.slice(0, -1));
+            void window.bridge.typeVirtualKey?.('Backspace');
+          } else {
+            setActiveFlyout(null);
+          }
+          return;
+        }
+      }
+
+      if (flyout === 'audio') {
+        if (nav === 'left' || nav === 'right') {
+          const delta = nav === 'left' ? -5 : 5;
+          const next = Math.max(0, Math.min(100, volumeRef.current + delta));
+          setVolume(next);
+          setStickVolumeActive(true);
+          void window.bridge.setSpeakerVolume(next);
+          return;
+        }
+        if (nav === 'select') {
+          const next = volumeRef.current > 0 ? 0 : 50;
+          setVolume(next);
+          setStickVolumeActive(true);
+          void window.bridge.setSpeakerVolume(next);
+          return;
+        }
+        if (nav === 'cancel') {
+          setActiveFlyout(null);
+          setStickVolumeActive(false);
+          return;
+        }
+        return;
+      }
+
+      const items = layerItemsRef.current;
       if (nav === 'left') {
-        setFocusedIndex((prev) => (layerItems.length > 0 ? (prev > 0 ? prev - 1 : layerItems.length - 1) : 0));
+        setFocusedIndex((prev) => (items.length > 0 ? (prev > 0 ? prev - 1 : items.length - 1) : 0));
       } else if (nav === 'right') {
-        setFocusedIndex((prev) => (layerItems.length > 0 ? (prev < layerItems.length - 1 ? prev + 1 : 0) : 0));
+        setFocusedIndex((prev) => (items.length > 0 ? (prev < items.length - 1 ? prev + 1 : 0) : 0));
       } else if (nav === 'up') {
         cycleLayer('up');
       } else if (nav === 'down') {
         cycleLayer('down');
       } else if (nav === 'select') {
-        const item = layerItems[focusedIndex];
+        const item = items[focusedIndexRef.current];
         if (item) {
           setActiveFlyout((cur) => (cur === item.id ? null : item.id));
         }
       } else if (nav === 'cancel') {
-        if (activeFlyout) {
+        if (flyout) {
           setActiveFlyout(null);
         } else {
           handleClose();
@@ -169,7 +293,7 @@ export function KitsuneBarOverlay() {
     return () => {
       unsubscribe?.();
     };
-  }, [layerItems, focusedIndex, activeFlyout]);
+  }, [totalLayers]);
 
   const connected = Boolean(snapshot?.status?.controllerConnected);
   const activeProfile = snapshot?.settings.controllerProfiles.find(
@@ -405,7 +529,8 @@ export function KitsuneBarOverlay() {
                 <strong>Audio Volume</strong>
                 <span>{volume}%</span>
               </div>
-              <div className="overlay-slider-row">
+              <p className="overlay-flyout-meta">Left stick / D-pad left-right adjusts volume</p>
+              <div className={`overlay-slider-row ${stickVolumeActive ? 'stick-active' : ''}`}>
                 <IconVolume size={14} />
                 <input
                   type="range"
@@ -413,7 +538,10 @@ export function KitsuneBarOverlay() {
                   max="100"
                   step="5"
                   value={volume}
-                  onChange={(e) => handleVolumeChange(Number(e.target.value))}
+                  onChange={(e) => {
+                    setStickVolumeActive(false);
+                    handleVolumeChange(Number(e.target.value));
+                  }}
                 />
               </div>
             </div>
@@ -504,29 +632,19 @@ export function KitsuneBarOverlay() {
             </div>
           )}
 
-          {(activeFlyout === 'virtual-keyboard' || activeFlyout === 'keyboard' || currentItem?.icon === 'keyboard') && (
-            <div className="overlay-flyout-card">
+          {(isKeyboardFlyout(activeFlyout) || currentItem?.icon === 'keyboard') && (
+            <div className="overlay-flyout-card overlay-keyboard-card">
               <div className="overlay-flyout-header">
                 <strong>Gamepad Keyboard</strong>
-                <span className="overlay-badge">Input</span>
+                <span className="overlay-badge">{shiftLatch ? 'Shift' : 'ABC'}</span>
               </div>
-              <button
-                type="button"
-                className="overlay-quick-btn primary"
-                onClick={async () => {
-                  await window.bridge.openOnScreenKeyboard();
-                }}
-              >
-                <IconKeyboard size={16} />
-                <span>Launch Windows OSK</span>
-              </button>
               <div className="overlay-keyboard-quickbox">
                 <input
                   type="text"
                   className="overlay-keyboard-input"
-                  placeholder="Type with controller or mouse..."
+                  placeholder="Stick moves · Cross types · Circle backspace"
                   value={virtualText}
-                  onChange={(e) => setVirtualText(e.target.value)}
+                  readOnly
                 />
                 <div className="overlay-keyboard-actions">
                   <button
@@ -549,6 +667,42 @@ export function KitsuneBarOverlay() {
                   </button>
                 </div>
               </div>
+              <div className="overlay-keyboard-grid" role="grid" aria-label="Gamepad keyboard">
+                {KITSUNE_KEYBOARD_ROWS.map((row, rowIndex) => (
+                  <div key={`kb-row-${rowIndex}`} className="overlay-keyboard-row" role="row">
+                    {row.map((cell, colIndex) => {
+                      const focused = keyRow === rowIndex && keyCol === colIndex;
+                      const label = cellLabel(cell, shiftLatch);
+                      const wide = cell.kind === 'action' && (cell.id === 'Space' || cell.id === 'Shift');
+                      return (
+                        <button
+                          key={`kb-${rowIndex}-${colIndex}-${label}`}
+                          type="button"
+                          role="gridcell"
+                          className={`overlay-key ${focused ? 'gamepad-focused' : ''} ${wide ? 'wide' : ''} ${cell.kind === 'action' && cell.id === 'Shift' && shiftLatch ? 'active' : ''}`}
+                          onClick={() => {
+                            setKeyRow(rowIndex);
+                            setKeyCol(colIndex);
+                            void applyKeyboardCell(cell);
+                          }}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+              <button
+                type="button"
+                className="overlay-quick-btn"
+                onClick={async () => {
+                  await window.bridge.openOnScreenKeyboard();
+                }}
+              >
+                <IconKeyboard size={16} />
+                <span>Windows OSK</span>
+              </button>
             </div>
           )}
 

@@ -1499,6 +1499,9 @@ function registerIpc(service: BridgeService): void {
   ipcMain.handle('bridge:setInputSuppressed', async (_event, suppressed: boolean) => (
     service.setInputSuppressed(suppressed)
   ));
+  ipcMain.handle('bridge:typeVirtualKey', async (_event, key: string, shift?: boolean) => (
+    service.typeVirtualKey(key, Boolean(shift))
+  ));
   ipcMain.handle('bridge:resizeKitsuneBar', (_event, width: number, height: number) => (
     resizeKitsuneBar(width, height)
   ));

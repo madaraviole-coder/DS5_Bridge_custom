@@ -295,6 +295,7 @@ describe('KitsuneBarOverlay', () => {
         setHapticsGain: async () => undefined,
         setSpeakerVolume: async () => undefined,
         sleepController: async () => undefined,
+        typeVirtualKey: async () => ({ ok: true, message: 'ok' }),
         onKitsuneNav: (cb: (nav: any) => void) => {
           navCallback = cb;
           return () => { navCallback = null; };
@@ -305,9 +306,9 @@ describe('KitsuneBarOverlay', () => {
     };
 
     renderToStaticMarkup(<KitsuneBarOverlay />);
-    // renderToStaticMarkup runs component function; useEffect does not run in static markup
-    // but verifying bridge definition is compatible
     expect(typeof window.bridge.onKitsuneNav).toBe('function');
+    expect(typeof window.bridge.typeVirtualKey).toBe('function');
+    expect(navCallback).toBeNull(); // useEffect does not run under static markup
   });
 
   it('renders Delete Layer button in manager when totalLayers > 1', () => {

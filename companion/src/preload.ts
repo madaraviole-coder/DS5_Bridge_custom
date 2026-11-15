@@ -359,6 +359,9 @@ const api = {
     ipcRenderer.on('kitsune:nav', listener);
     return () => ipcRenderer.removeListener('kitsune:nav', listener);
   },
+  typeVirtualKey: (key: string, shift?: boolean): Promise<{ ok: boolean; message: string }> => (
+    ipcRenderer.invoke('bridge:typeVirtualKey', key, shift)
+  ),
   resizeKitsuneBar: (width: number, height: number): Promise<boolean> => (
     ipcRenderer.invoke('bridge:resizeKitsuneBar', width, height)
   ),

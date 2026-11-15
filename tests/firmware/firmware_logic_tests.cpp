@@ -21,6 +21,7 @@
 #include "dualsense_output.h"
 #include "haptics_test_signal.h"
 #include "kitsune_button_gesture.h"
+#include "kitsune_stick_nav.h"
 #include "output_scheduler.h"
 #include "radial_deadzone.h"
 #include "touchpad_zone.h"
@@ -2278,6 +2279,25 @@ void chord_keyboard_action_decodes_modifiers_and_usage() {
     EXPECT_EQ(action_param & 0x04, 0);
 }
 
+void kitsune_stick_nav_deadzone_and_axes() {
+    EXPECT_EQ(kitsune_stick_nav_direction(128, 128, 40), 0);
+    EXPECT_EQ(kitsune_stick_nav_direction(100, 128, 40), 0);
+    EXPECT_EQ(kitsune_stick_nav_direction(80, 128, 40), 1);
+    EXPECT_EQ(kitsune_stick_nav_direction(180, 128, 40), 2);
+    EXPECT_EQ(kitsune_stick_nav_direction(128, 80, 40), 3);
+    EXPECT_EQ(kitsune_stick_nav_direction(128, 180, 40), 4);
+}
+
+void kitsune_stick_nav_repeat_timing() {
+    bool is_repeat = false;
+    EXPECT_TRUE(kitsune_stick_nav_should_fire(1, 0, 1000, 0, &is_repeat));
+    EXPECT_FALSE(is_repeat);
+    EXPECT_FALSE(kitsune_stick_nav_should_fire(1, 1, 1000, 2000, &is_repeat));
+    EXPECT_TRUE(kitsune_stick_nav_should_fire(1, 1, 2500, 2000, &is_repeat));
+    EXPECT_TRUE(is_repeat);
+    EXPECT_FALSE(kitsune_stick_nav_should_fire(0, 1, 3000, 2000, &is_repeat));
+}
+
 struct TestCase {
     char const *name;
     void (*run)();
@@ -2286,6 +2306,8 @@ struct TestCase {
 std::vector<TestCase> tests{
     {"chord payload validation supports 3byte and 6byte formats", chord_payload_validation_supports_3byte_and_6byte_formats},
     {"chord keyboard action decodes modifiers and usage", chord_keyboard_action_decodes_modifiers_and_usage},
+    {"kitsune stick nav deadzone and axes", kitsune_stick_nav_deadzone_and_axes},
+    {"kitsune stick nav repeat timing", kitsune_stick_nav_repeat_timing},
     {"turbo controller initial config defaults", turbo_controller_initial_config_defaults},
     {"turbo controller set config updates and clamps", turbo_controller_set_config_updates_and_clamps},
     {"turbo controller first hit is immediate and alternates", turbo_controller_first_hit_is_immediate_and_alternates},

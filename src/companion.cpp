@@ -18,6 +18,7 @@
 #include "home_chord_gate.h"
 #include "host_input.h"
 #include "keyboard_tap_sequencer.h"
+#include "kitsune_stick_nav.h"
 #include "persona/host_persona.h"
 #include "radial_deadzone.h"
 #include "trigger_motor_power.h"
@@ -3962,27 +3963,68 @@ void companion_process_controller_report(uint8_t *report, uint16_t len) {
     s_home_button_last_pressed = home_pressed;
 
     // Input suppression & overlay gamepad navigation
-    // ponytail: single rising-edge navigation events; upgrade to auto-repeat if list navigation requires hold-to-scroll.
+    // ponytail: D-pad rising-edge + left-stick threshold with hold-repeat; upgrade to configurable deadzone if needed.
     static uint8_t s_nav_prev_dpad = kDpadNeutral;
     static bool s_nav_prev_cross = false;
     static bool s_nav_prev_circle = false;
+    static uint8_t s_stick_nav_dir = 0; // 0 none, 1 L, 2 R, 3 U, 4 D
+    static uint32_t s_stick_nav_next_us = 0;
+    static bool s_stick_nav_repeating = false;
+    constexpr uint8_t kStickNavDeadzone = 40;
+    constexpr uint32_t kStickNavInitialRepeatUs = 220000;
+    constexpr uint32_t kStickNavRepeatUs = 120000;
 
     if (s_input_suppressed) {
         const uint8_t cur_dpad = report[7] & kDpadMask;
         const bool cur_cross = (report[7] & kCrossButtonBit) != 0;
         const bool cur_circle = (report[7] & kCircleButtonBit) != 0;
 
+        uint8_t dpad_nav_dir = 0;
         if (cur_dpad != s_nav_prev_dpad) {
             if (cur_dpad == kDpadLeft) {
+                dpad_nav_dir = 1;
                 queue_shortcut_event(ShortcutEventNavLeft);
             } else if (cur_dpad == kDpadRight) {
+                dpad_nav_dir = 2;
                 queue_shortcut_event(ShortcutEventNavRight);
             } else if (cur_dpad == kDpadUp) {
+                dpad_nav_dir = 3;
                 queue_shortcut_event(ShortcutEventNavUp);
             } else if (cur_dpad == kDpadDown) {
+                dpad_nav_dir = 4;
                 queue_shortcut_event(ShortcutEventNavDown);
             }
         }
+
+        // Left stick → same nav events (skip if D-pad already fired this frame in same direction)
+        const uint8_t stick_dir = kitsune_stick_nav_direction(report[0], report[1], kStickNavDeadzone);
+        bool stick_is_repeat = false;
+        const bool stick_fire = kitsune_stick_nav_should_fire(
+            stick_dir,
+            s_stick_nav_dir,
+            now,
+            s_stick_nav_next_us,
+            &stick_is_repeat
+        );
+
+        if (stick_dir == 0) {
+            s_stick_nav_dir = 0;
+            s_stick_nav_repeating = false;
+            s_stick_nav_next_us = 0;
+        } else if (stick_fire) {
+            const bool is_new_dir = stick_dir != s_stick_nav_dir;
+            s_stick_nav_dir = stick_dir;
+            s_stick_nav_repeating = stick_is_repeat;
+            s_stick_nav_next_us = now + (is_new_dir ? kStickNavInitialRepeatUs : kStickNavRepeatUs);
+            if (!(is_new_dir && stick_dir == dpad_nav_dir)) {
+                if (stick_dir == 1) queue_shortcut_event(ShortcutEventNavLeft);
+                else if (stick_dir == 2) queue_shortcut_event(ShortcutEventNavRight);
+                else if (stick_dir == 3) queue_shortcut_event(ShortcutEventNavUp);
+                else queue_shortcut_event(ShortcutEventNavDown);
+            }
+        }
+        (void)s_stick_nav_repeating;
+
         if (cur_cross && !s_nav_prev_cross) {
             queue_shortcut_event(ShortcutEventNavSelect);
         }
@@ -4008,6 +4050,9 @@ void companion_process_controller_report(uint8_t *report, uint16_t len) {
         s_nav_prev_dpad = kDpadNeutral;
         s_nav_prev_cross = false;
         s_nav_prev_circle = false;
+        s_stick_nav_dir = 0;
+        s_stick_nav_repeating = false;
+        s_stick_nav_next_us = 0;
     }
 
     // Process Touchpad modes (Laptop Touchpad vs 4-Zone Remapping)

@@ -1004,6 +1004,10 @@ export class WebBridgeAdapter extends WebBridgeTransport implements BridgeApi {
     return () => {};
   }
 
+  async typeVirtualKey(_key: string, _shift?: boolean): Promise<{ ok: boolean; message: string }> {
+    return { ok: false, message: 'Virtual key typing requires desktop companion.' };
+  }
+
   async resizeKitsuneBar(_width: number, _height: number): Promise<boolean> {
     return false;
   }

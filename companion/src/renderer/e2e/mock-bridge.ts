@@ -756,6 +756,11 @@ export class MockBridgeApi implements BridgeApi {
     return () => {};
   }
 
+  async typeVirtualKey(key: string, shift?: boolean): Promise<{ ok: boolean; message: string }> {
+    this.recordCall('typeVirtualKey', key, shift);
+    return { ok: true, message: 'ok' };
+  }
+
   async resizeKitsuneBar(width: number, height: number): Promise<boolean> {
     this.recordCall('resizeKitsuneBar', width, height);
     return true;

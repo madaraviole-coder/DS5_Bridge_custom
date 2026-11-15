@@ -12460,6 +12460,59 @@ input[type="color"]::-webkit-color-swatch {
   gap: 6px;
 }
 
+.overlay-keyboard-card {
+  gap: 8px;
+}
+
+.overlay-keyboard-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.overlay-keyboard-row {
+  display: flex;
+  gap: 3px;
+  justify-content: center;
+}
+
+.overlay-key {
+  min-width: 28px;
+  height: 28px;
+  padding: 0 4px;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: #e2e8f0;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.overlay-key.wide {
+  min-width: 56px;
+  flex: 1;
+}
+
+.overlay-key.active {
+  background: rgba(255, 122, 0, 0.2);
+  border-color: rgba(255, 122, 0, 0.45);
+  color: #ff9d42;
+}
+
+.overlay-key.gamepad-focused {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 122, 0, 0.7);
+  color: #ff9d42;
+  box-shadow: 0 0 8px rgba(255, 122, 0, 0.35);
+}
+
+.overlay-slider-row.stick-active input[type='range'] {
+  outline: 2px solid rgba(255, 122, 0, 0.55);
+  outline-offset: 2px;
+}
+
 .overlay-mini-btn {
   flex: 1;
   background: rgba(255, 255, 255, 0.08);
