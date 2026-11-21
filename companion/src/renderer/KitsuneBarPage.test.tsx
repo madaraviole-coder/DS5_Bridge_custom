@@ -152,6 +152,25 @@ describe('KitsuneBarPage', () => {
     expect(html).toContain('switch switch-orange');
   });
 
+  it('renders Made for the controller showcase with live dock and keyboard', () => {
+    const html = renderToStaticMarkup(
+      <KitsuneBarPage
+        active={true}
+        snapshot={createMockSnapshot()}
+        connected={true}
+        pendingAction={null}
+        runAction={async (_name, fn) => fn()}
+      />
+    );
+
+    expect(html).toContain('Made for the controller');
+    expect(html).toContain('kitsune-made-for-controller');
+    expect(html).toContain('kitsune-dock-bar-preview');
+    expect(html).toContain('MOVE KEYBOARD');
+    expect(html).toContain('Audio, profiles, and shortcuts. Right where you play.');
+    expect(html).toContain('Search and type with your controller in hand.');
+  });
+
   it('renders the Overlay Shortcut trigger selector with PS Home Button default', () => {
     const html = renderToStaticMarkup(
       <KitsuneBarPage

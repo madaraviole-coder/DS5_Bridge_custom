@@ -221,6 +221,17 @@ enum ShortcutEvent : uint8_t {
     ShortcutEventNavDown = 0x0A,
     ShortcutEventNavSelect = 0x0B,
     ShortcutEventNavCancel = 0x0C,
+    ShortcutEventOverlayMoveLeft = 0x0D,
+    ShortcutEventOverlayMoveRight = 0x0E,
+    ShortcutEventOverlayMoveUp = 0x0F,
+    ShortcutEventOverlayMoveDown = 0x10,
+    ShortcutEventNavKbL1 = 0x11,
+    ShortcutEventNavKbR1 = 0x12,
+    ShortcutEventNavKbL2 = 0x13,
+    ShortcutEventNavKbR2 = 0x14,
+    ShortcutEventNavKbSquare = 0x15,
+    ShortcutEventNavKbGyro = 0x16,
+    ShortcutEventNavKbTriangle = 0x17,
 };
 
 enum ShortcutSetting : uint8_t {
@@ -2649,7 +2660,8 @@ void handle_command(uint8_t const *buffer, uint16_t bufsize) {
                 const float next_volume = static_cast<float>(value) / 100.0f;
                 const bool was_enabled = volume[0] > 0.0f;
                 volume[0] = next_volume;
-                if (was_enabled && next_volume > 0.0f) {
+                // Always refresh so 0→on and on→0 mute/unmute reach the controller speaker.
+                if (was_enabled || next_volume > 0.0f) {
                     bt_refresh_speaker_output();
                 }
                 settings_revision++;
@@ -3967,17 +3979,37 @@ void companion_process_controller_report(uint8_t *report, uint16_t len) {
     static uint8_t s_nav_prev_dpad = kDpadNeutral;
     static bool s_nav_prev_cross = false;
     static bool s_nav_prev_circle = false;
+    static bool s_nav_prev_l1 = false;
+    static bool s_nav_prev_r1 = false;
+    static bool s_nav_prev_l2 = false;
+    static bool s_nav_prev_r2 = false;
+    static bool s_nav_prev_square = false;
+    static bool s_nav_prev_triangle = false;
+    static bool s_nav_prev_l3 = false;
+    static bool s_nav_prev_r3 = false;
     static uint8_t s_stick_nav_dir = 0; // 0 none, 1 L, 2 R, 3 U, 4 D
     static uint32_t s_stick_nav_next_us = 0;
     static bool s_stick_nav_repeating = false;
+    static uint8_t s_stick_move_dir = 0;
+    static uint32_t s_stick_move_next_us = 0;
     constexpr uint8_t kStickNavDeadzone = 40;
     constexpr uint32_t kStickNavInitialRepeatUs = 220000;
     constexpr uint32_t kStickNavRepeatUs = 120000;
+    constexpr uint32_t kStickMoveInitialRepeatUs = 60000;
+    constexpr uint32_t kStickMoveRepeatUs = 33000;
 
     if (s_input_suppressed) {
         const uint8_t cur_dpad = report[7] & kDpadMask;
         const bool cur_cross = (report[7] & kCrossButtonBit) != 0;
         const bool cur_circle = (report[7] & kCircleButtonBit) != 0;
+        const bool cur_square = (report[7] & kSquareButtonBit) != 0;
+        const bool cur_triangle = (report[7] & kTriangleButtonBit) != 0;
+        const bool cur_l1 = (report[8] & kL1ButtonBit) != 0;
+        const bool cur_r1 = (report[8] & kR1ButtonBit) != 0;
+        const bool cur_l2 = (report[8] & kL2ButtonBit) != 0 || report[4] > 32;
+        const bool cur_r2 = (report[8] & kR2ButtonBit) != 0 || report[5] > 32;
+        const bool cur_l3 = (report[8] & kL3ButtonBit) != 0;
+        const bool cur_r3 = (report[8] & kR3ButtonBit) != 0;
 
         uint8_t dpad_nav_dir = 0;
         if (cur_dpad != s_nav_prev_dpad) {
@@ -4025,16 +4057,72 @@ void companion_process_controller_report(uint8_t *report, uint16_t len) {
         }
         (void)s_stick_nav_repeating;
 
+        // Right stick → move Kitsune Bar overlay on screen
+        const uint8_t move_dir = kitsune_stick_nav_direction(report[2], report[3], kStickNavDeadzone);
+        bool move_is_repeat = false;
+        const bool move_fire = kitsune_stick_nav_should_fire(
+            move_dir,
+            s_stick_move_dir,
+            now,
+            s_stick_move_next_us,
+            &move_is_repeat
+        );
+        if (move_dir == 0) {
+            s_stick_move_dir = 0;
+            s_stick_move_next_us = 0;
+        } else if (move_fire) {
+            const bool is_new_move = move_dir != s_stick_move_dir;
+            s_stick_move_dir = move_dir;
+            s_stick_move_next_us = now + (is_new_move ? kStickMoveInitialRepeatUs : kStickMoveRepeatUs);
+            if (move_dir == 1) queue_shortcut_event(ShortcutEventOverlayMoveLeft);
+            else if (move_dir == 2) queue_shortcut_event(ShortcutEventOverlayMoveRight);
+            else if (move_dir == 3) queue_shortcut_event(ShortcutEventOverlayMoveUp);
+            else queue_shortcut_event(ShortcutEventOverlayMoveDown);
+        }
+        (void)move_is_repeat;
+
         if (cur_cross && !s_nav_prev_cross) {
             queue_shortcut_event(ShortcutEventNavSelect);
         }
         if (cur_circle && !s_nav_prev_circle) {
             queue_shortcut_event(ShortcutEventNavCancel);
         }
+        if (cur_l1 && !s_nav_prev_l1) {
+            queue_shortcut_event(ShortcutEventNavKbL1);
+        }
+        if (cur_r1 && !s_nav_prev_r1) {
+            queue_shortcut_event(ShortcutEventNavKbR1);
+        }
+        if (cur_l2 && !s_nav_prev_l2) {
+            queue_shortcut_event(ShortcutEventNavKbL2);
+        }
+        if (cur_r2 && !s_nav_prev_r2) {
+            queue_shortcut_event(ShortcutEventNavKbR2);
+        }
+        if (cur_square && !s_nav_prev_square) {
+            queue_shortcut_event(ShortcutEventNavKbSquare);
+        }
+        if (cur_triangle && !s_nav_prev_triangle) {
+            queue_shortcut_event(ShortcutEventNavKbTriangle);
+        }
+        const bool gyro_combo =
+            (cur_l3 && cur_r3) &&
+            ((!s_nav_prev_l3 && cur_l3) || (!s_nav_prev_r3 && cur_r3));
+        if (gyro_combo) {
+            queue_shortcut_event(ShortcutEventNavKbGyro);
+        }
 
         s_nav_prev_dpad = cur_dpad;
         s_nav_prev_cross = cur_cross;
         s_nav_prev_circle = cur_circle;
+        s_nav_prev_square = cur_square;
+        s_nav_prev_triangle = cur_triangle;
+        s_nav_prev_l1 = cur_l1;
+        s_nav_prev_r1 = cur_r1;
+        s_nav_prev_l2 = cur_l2;
+        s_nav_prev_r2 = cur_r2;
+        s_nav_prev_l3 = cur_l3;
+        s_nav_prev_r3 = cur_r3;
 
         // Neutralize report sent to host PC
         report[0] = 128;
@@ -4050,9 +4138,19 @@ void companion_process_controller_report(uint8_t *report, uint16_t len) {
         s_nav_prev_dpad = kDpadNeutral;
         s_nav_prev_cross = false;
         s_nav_prev_circle = false;
+        s_nav_prev_l1 = false;
+        s_nav_prev_r1 = false;
+        s_nav_prev_l2 = false;
+        s_nav_prev_r2 = false;
+        s_nav_prev_square = false;
+        s_nav_prev_triangle = false;
+        s_nav_prev_l3 = false;
+        s_nav_prev_r3 = false;
         s_stick_nav_dir = 0;
         s_stick_nav_repeating = false;
         s_stick_nav_next_us = 0;
+        s_stick_move_dir = 0;
+        s_stick_move_next_us = 0;
     }
 
     // Process Touchpad modes (Laptop Touchpad vs 4-Zone Remapping)

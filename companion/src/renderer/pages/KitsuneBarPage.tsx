@@ -39,6 +39,9 @@ import {
   DEFAULT_KITSUNE_BAR_MODULES
 } from '../../shared/types';
 import { batteryLabel, isChargingPowerState } from '../utils/controller-status';
+import { KitsuneDockBar } from '../components/layout/KitsuneDockBar';
+import { KitsuneKeyboard } from '../components/layout/KitsuneKeyboard';
+import { findCharFocus } from '../components/layout/kitsune-bar-keyboard';
 
 export interface KitsuneBarPageProps {
   active: boolean;
@@ -132,6 +135,7 @@ export function KitsuneBarPage({
   const [activeFlyout, setActiveFlyout] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [notification, setNotification] = useState<string | null>(null);
+  const [systemVolume, setSystemVolume] = useState(50);
 
   const rawSettings = snapshot?.settings.kitsuneBarSettings;
   const isEnabled = rawSettings?.enabled ?? true;
@@ -496,6 +500,47 @@ export function KitsuneBarPage({
             </div>
           </div>
 
+          <section className="kitsune-made-for-controller" aria-label="Made for the controller">
+            <h2>Made for the controller</h2>
+            <div className="kitsune-showcase-grid">
+              <article className="kitsune-showcase-card">
+                <div className="kitsune-showcase-stage">
+                  <KitsuneDockBar
+                    variant="preview"
+                    layerItems={items
+                      .filter((it) => it.layer === 1 && it.enabled)
+                      .sort((a, b) => a.order - b.order)
+                      .map((it) => ({ id: it.id, name: it.name, icon: it.icon }))}
+                    focusedIndex={0}
+                    activeFlyout={null}
+                    activeLayer={1}
+                    totalLayers={totalLayers}
+                    batteryPctText={connected && snapshot ? batteryLabel(snapshot) : '85%'}
+                    isCharging={snapshot ? isChargingPowerState(snapshot.status?.rawPowerState) : false}
+                    renderIcon={renderIcon}
+                  />
+                </div>
+                <h3>Kitsune Bar</h3>
+                <p>Audio, profiles, and shortcuts. Right where you play.</p>
+              </article>
+              <article className="kitsune-showcase-card">
+                <div className="kitsune-showcase-stage">
+                  <KitsuneKeyboard
+                    variant="preview"
+                    virtualText=""
+                    shiftLatch={false}
+                    keyRow={findCharFocus('k').row}
+                    keyCol={findCharFocus('k').col}
+                    moveKeyboardMode={false}
+                    gyroMouseOn={false}
+                  />
+                </div>
+                <h3>Kitsune Keyboard</h3>
+                <p>Search and type with your controller in hand.</p>
+              </article>
+            </div>
+          </section>
+
           {/* Shortcut Trigger Settings Card */}
           <div className="kitsune-bar-card kitsune-trigger-card">
             <div className="kitsune-trigger-row">
@@ -680,16 +725,27 @@ export function KitsuneBarPage({
                 )}
                 {activeFlyout === 'audio' && (
                   <div className="flyout-card">
-                    <h4>Speaker Volume</h4>
-                    <p className="flyout-sub">{snapshot?.settings.speakerVolumePercent ?? 100}%</p>
+                    <h4>System Volume</h4>
+                    <p className="flyout-sub">{systemVolume}% · Windows playback device</p>
                     <div className="flyout-slider-row">
                       <IconVolume size={16} />
                       <input
                         type="range"
                         min="0"
                         max="100"
-                        value={snapshot?.settings.speakerVolumePercent ?? 100}
-                        onChange={(e) => void window.bridge.setSpeakerVolume(Number(e.target.value))}
+                        step={5}
+                        value={systemVolume}
+                        onPointerDown={() => {
+                          void window.bridge.getSystemVolume?.().then(setSystemVolume).catch(() => undefined);
+                        }}
+                        onChange={(e) => setSystemVolume(Number(e.target.value))}
+                        onPointerUp={(e) => {
+                          const next = Number(e.currentTarget.value);
+                          setSystemVolume(next);
+                          void window.bridge.setSystemVolume?.(next)
+                            .then(setSystemVolume)
+                            .catch(() => showNotification('Failed to set system volume'));
+                        }}
                       />
                     </div>
                   </div>

@@ -1000,12 +1000,41 @@ export class WebBridgeAdapter extends WebBridgeTransport implements BridgeApi {
     return true;
   }
 
-  onKitsuneNav(_callback: (nav: 'left' | 'right' | 'up' | 'down' | 'select' | 'cancel') => void): () => void {
+  onKitsuneNav(
+    _callback: (
+      nav:
+        | 'left'
+        | 'right'
+        | 'up'
+        | 'down'
+        | 'select'
+        | 'cancel'
+        | 'kb-l1'
+        | 'kb-r1'
+        | 'kb-l2'
+        | 'kb-r2'
+        | 'kb-square'
+        | 'kb-triangle'
+        | 'kb-gyro'
+    ) => void
+  ): () => void {
     return () => {};
   }
 
   async typeVirtualKey(_key: string, _shift?: boolean): Promise<{ ok: boolean; message: string }> {
     return { ok: false, message: 'Virtual key typing requires desktop companion.' };
+  }
+
+  async getSystemVolume(): Promise<number> {
+    return 50;
+  }
+
+  async setSystemVolume(percent: number): Promise<number> {
+    return Math.max(0, Math.min(100, Math.round(percent)));
+  }
+
+  async moveKitsuneBar(_direction: 'left' | 'right' | 'up' | 'down'): Promise<boolean> {
+    return false;
   }
 
   async resizeKitsuneBar(_width: number, _height: number): Promise<boolean> {

@@ -752,13 +752,45 @@ export class MockBridgeApi implements BridgeApi {
     return true;
   }
 
-  onKitsuneNav(_callback: (nav: 'left' | 'right' | 'up' | 'down' | 'select' | 'cancel') => void): () => void {
+  onKitsuneNav(
+    _callback: (
+      nav:
+        | 'left'
+        | 'right'
+        | 'up'
+        | 'down'
+        | 'select'
+        | 'cancel'
+        | 'kb-l1'
+        | 'kb-r1'
+        | 'kb-l2'
+        | 'kb-r2'
+        | 'kb-square'
+        | 'kb-triangle'
+        | 'kb-gyro'
+    ) => void
+  ): () => void {
     return () => {};
   }
 
   async typeVirtualKey(key: string, shift?: boolean): Promise<{ ok: boolean; message: string }> {
     this.recordCall('typeVirtualKey', key, shift);
     return { ok: true, message: 'ok' };
+  }
+
+  async getSystemVolume(): Promise<number> {
+    this.recordCall('getSystemVolume');
+    return 50;
+  }
+
+  async setSystemVolume(percent: number): Promise<number> {
+    this.recordCall('setSystemVolume', percent);
+    return Math.max(0, Math.min(100, Math.round(percent)));
+  }
+
+  async moveKitsuneBar(direction: 'left' | 'right' | 'up' | 'down'): Promise<boolean> {
+    this.recordCall('moveKitsuneBar', direction);
+    return true;
   }
 
   async resizeKitsuneBar(width: number, height: number): Promise<boolean> {

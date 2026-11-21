@@ -145,6 +145,7 @@ import { WakeOnLanService, wakeOnLanAckError, type WakeOnLanBridgeSession } from
 import { WindowsWakeOnLanTargets, type WakeOnLanTargetsPort } from './wake-on-lan-targets';
 import { WakeOnLanReadinessService } from './wake-on-lan-readiness';
 import { KeyboardInputHelper, type KeyboardInputPort } from './keyboard-input-helper';
+import { getSystemVolumePercent, setSystemVolumePercent } from './system-volume';
 import type {
   WakeOnLanConfigurationInput,
   WakeOnLanMetadata,
@@ -755,6 +756,17 @@ function parseShortcutEvent(event: number): InputShortcutEvent | null {
     case SHORTCUT_EVENT.NAV_DOWN:
     case SHORTCUT_EVENT.NAV_SELECT:
     case SHORTCUT_EVENT.NAV_CANCEL:
+    case SHORTCUT_EVENT.OVERLAY_MOVE_LEFT:
+    case SHORTCUT_EVENT.OVERLAY_MOVE_RIGHT:
+    case SHORTCUT_EVENT.OVERLAY_MOVE_UP:
+    case SHORTCUT_EVENT.OVERLAY_MOVE_DOWN:
+    case SHORTCUT_EVENT.NAV_KB_L1:
+    case SHORTCUT_EVENT.NAV_KB_R1:
+    case SHORTCUT_EVENT.NAV_KB_L2:
+    case SHORTCUT_EVENT.NAV_KB_R2:
+    case SHORTCUT_EVENT.NAV_KB_SQUARE:
+    case SHORTCUT_EVENT.NAV_KB_GYRO:
+    case SHORTCUT_EVENT.NAV_KB_TRIANGLE:
       return { kind: 'shortcut', event };
     default:
       return null;
@@ -1510,7 +1522,18 @@ export class BridgeService extends EventEmitter {
     [SHORTCUT_EVENT.NAV_UP]: () => { this.emit('kitsune-nav', 'up'); return Promise.resolve(); },
     [SHORTCUT_EVENT.NAV_DOWN]: () => { this.emit('kitsune-nav', 'down'); return Promise.resolve(); },
     [SHORTCUT_EVENT.NAV_SELECT]: () => { this.emit('kitsune-nav', 'select'); return Promise.resolve(); },
-    [SHORTCUT_EVENT.NAV_CANCEL]: () => { this.emit('kitsune-nav', 'cancel'); return Promise.resolve(); }
+    [SHORTCUT_EVENT.NAV_CANCEL]: () => { this.emit('kitsune-nav', 'cancel'); return Promise.resolve(); },
+    [SHORTCUT_EVENT.OVERLAY_MOVE_LEFT]: () => { this.emit('kitsune-move', 'left'); return Promise.resolve(); },
+    [SHORTCUT_EVENT.OVERLAY_MOVE_RIGHT]: () => { this.emit('kitsune-move', 'right'); return Promise.resolve(); },
+    [SHORTCUT_EVENT.OVERLAY_MOVE_UP]: () => { this.emit('kitsune-move', 'up'); return Promise.resolve(); },
+    [SHORTCUT_EVENT.OVERLAY_MOVE_DOWN]: () => { this.emit('kitsune-move', 'down'); return Promise.resolve(); },
+    [SHORTCUT_EVENT.NAV_KB_L1]: () => { this.emit('kitsune-nav', 'kb-l1'); return Promise.resolve(); },
+    [SHORTCUT_EVENT.NAV_KB_R1]: () => { this.emit('kitsune-nav', 'kb-r1'); return Promise.resolve(); },
+    [SHORTCUT_EVENT.NAV_KB_L2]: () => { this.emit('kitsune-nav', 'kb-l2'); return Promise.resolve(); },
+    [SHORTCUT_EVENT.NAV_KB_R2]: () => { this.emit('kitsune-nav', 'kb-r2'); return Promise.resolve(); },
+    [SHORTCUT_EVENT.NAV_KB_SQUARE]: () => { this.emit('kitsune-nav', 'kb-square'); return Promise.resolve(); },
+    [SHORTCUT_EVENT.NAV_KB_GYRO]: () => { this.emit('kitsune-nav', 'kb-gyro'); return Promise.resolve(); },
+    [SHORTCUT_EVENT.NAV_KB_TRIANGLE]: () => { this.emit('kitsune-nav', 'kb-triangle'); return Promise.resolve(); }
   };
 
   private async handlePsButtonShortcut(): Promise<void> {
@@ -4243,6 +4266,16 @@ export class BridgeService extends EventEmitter {
       const message = error instanceof Error ? error.message : String(error);
       return { ok: false, message };
     }
+  }
+
+  /** Reads Windows default playback device master volume (0–100). */
+  async getSystemVolume(): Promise<number> {
+    return getSystemVolumePercent();
+  }
+
+  /** Sets Windows default playback device master volume (0–100). */
+  async setSystemVolume(percent: number): Promise<number> {
+    return setSystemVolumePercent(percent);
   }
 
   private async applyChordBindings(settings: CompanionSettings): Promise<void> {

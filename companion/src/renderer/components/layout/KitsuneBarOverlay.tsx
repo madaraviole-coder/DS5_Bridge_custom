@@ -1,7 +1,5 @@
-import { useEffect, useState, useMemo, useRef } from 'react';
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import {
-  IconHome,
-  IconCopy,
   IconDeviceGamepad2,
   IconFlask2,
   IconVolume,
@@ -10,10 +8,6 @@ import {
   IconMicrophoneOff,
   IconMusic,
   IconCamera,
-  IconChevronUp,
-  IconChevronDown,
-  IconPower,
-  IconX,
   IconSparkles,
   IconBrandDiscord,
   IconBrandSpotify,
@@ -23,48 +17,92 @@ import {
   IconBolt,
   IconFolder
 } from '@tabler/icons-react';
-import { type BridgeSnapshot, type KitsuneBarItemConfig, DEFAULT_KITSUNE_BAR_MODULES } from '../../../shared/types';
-import kitsuneInputLogoUrl from '../../assets/kitsune-input-logo.svg';
-import psHomeGlyphUrl from '../../../../../assets/glyphs/ps5-buttons-outline-white/svg/Home.svg';
+import {
+  type BridgeSnapshot,
+  type GyroSettings,
+  type KitsuneBarItemConfig,
+  DEFAULT_KITSUNE_BAR_MODULES
+} from '../../../shared/types';
 import { batteryLabel, isChargingPowerState } from '../../utils/controller-status';
+import { KitsuneDockBar } from './KitsuneDockBar';
+import { KitsuneKeyboard } from './KitsuneKeyboard';
 import {
   KITSUNE_KEYBOARD_ROWS,
-  cellLabel,
+  applyBackspaceAtCaret,
+  applyCaretLeft,
+  applyCaretRight,
+  handleKeyboardNavAction,
   isKeyboardFlyout,
   moveKeyboardFocus,
-  type KeyboardCell
+  type KeyboardCell,
+  type KitsuneNavAction
 } from './kitsune-bar-keyboard';
+import { clampVolumePercent } from './kitsune-bar-volume';
+// speakerVolumePercent must not drive System Volume UI — see kitsune-bar-volume.ts
+
+const DEFAULT_GYRO: GyroSettings = {
+  enabled: false,
+  sensitivityYaw: 1.0,
+  sensitivityPitch: 1.0,
+  deadzone: 2,
+  smoothFilter: 4,
+  activationMode: 'always-on',
+  activationButton: 'l2',
+  triggerThresholdPercent: 10,
+  flickStickEnabled: false,
+  flickStickThresholdPercent: 85,
+  flickStickSnapDegrees: 45,
+  flickStickTurnMode: 'smooth',
+  flickStickSmoothDurationMs: 100,
+  invertPitch: false,
+  invertYaw: false
+};
 
 export function KitsuneBarOverlay() {
   const [snapshot, setSnapshot] = useState<BridgeSnapshot | null>(null);
   const [haptics, setHaptics] = useState(100);
-  const [volume, setVolume] = useState(100);
+  const [volume, setVolume] = useState(50);
+  const [volumeError, setVolumeError] = useState<string | null>(null);
   const [activeLayer, setActiveLayer] = useState(1);
   const [activeFlyout, setActiveFlyout] = useState<string | null>(null);
   const [virtualText, setVirtualText] = useState('');
+  const [textCaret, setTextCaret] = useState(0);
   const [focusedIndex, setFocusedIndex] = useState(0);
   const [keyRow, setKeyRow] = useState(0);
   const [keyCol, setKeyCol] = useState(0);
   const [shiftLatch, setShiftLatch] = useState(false);
+  const [moveKeyboardMode, setMoveKeyboardMode] = useState(false);
+  const [gyroMouseOn, setGyroMouseOn] = useState(false);
+  const [gyroError, setGyroError] = useState<string | null>(null);
   const [stickVolumeActive, setStickVolumeActive] = useState(false);
 
   const volumeRef = useRef(volume);
+  const volumeCommitRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastAudibleVolumeRef = useRef(50);
   const virtualTextRef = useRef(virtualText);
+  const textCaretRef = useRef(textCaret);
   const shiftLatchRef = useRef(shiftLatch);
   const keyRowRef = useRef(keyRow);
   const keyColRef = useRef(keyCol);
   const activeFlyoutRef = useRef(activeFlyout);
   const focusedIndexRef = useRef(focusedIndex);
+  const moveKeyboardModeRef = useRef(moveKeyboardMode);
+  const gyroMouseOnRef = useRef(gyroMouseOn);
+  const snapshotRef = useRef(snapshot);
   const layerItemsRef = useRef<KitsuneBarItemConfig[]>([]);
   const allItemsRef = useRef<KitsuneBarItemConfig[]>([]);
 
   volumeRef.current = volume;
   virtualTextRef.current = virtualText;
+  textCaretRef.current = textCaret;
   shiftLatchRef.current = shiftLatch;
   keyRowRef.current = keyRow;
   keyColRef.current = keyCol;
   activeFlyoutRef.current = activeFlyout;
   focusedIndexRef.current = focusedIndex;
+  moveKeyboardModeRef.current = moveKeyboardMode;
+  gyroMouseOnRef.current = gyroMouseOn;
+  snapshotRef.current = snapshot;
 
   useEffect(() => {
     let unmounted = false;
@@ -72,14 +110,31 @@ export function KitsuneBarOverlay() {
       if (!unmounted && s) {
         setSnapshot(s);
         setHaptics(s.settings.hapticsGainPercent);
-        setVolume(s.settings.speakerVolumePercent);
+        // Volume UI uses Windows system volume (get/setSystemVolume), not speakerVolumePercent.
         if (s.settings.kitsuneBarSettings?.activeLayer) {
           setActiveLayer(s.settings.kitsuneBarSettings.activeLayer);
+        }
+        if (s.settings.gyroSettings) {
+          setGyroMouseOn(Boolean(s.settings.gyroSettings.enabled));
         }
       }
     };
 
+    const applySystemVolume = (current: number) => {
+      if (unmounted) return;
+      const clamped = clampVolumePercent(current);
+      setVolume(clamped);
+      volumeRef.current = clamped;
+      if (clamped > 0) lastAudibleVolumeRef.current = clamped;
+      setVolumeError(null);
+    };
+
     void window.bridge.getStatus().then(applySnapshot);
+    void window.bridge.getSystemVolume?.().then(applySystemVolume).catch((error: unknown) => {
+      if (!unmounted) {
+        setVolumeError(error instanceof Error ? error.message : String(error));
+      }
+    });
     const unsubscribe = window.bridge.onSnapshot(applySnapshot);
     const heartbeat = setInterval(() => {
       void window.bridge.getStatus().then(applySnapshot);
@@ -117,6 +172,7 @@ export function KitsuneBarOverlay() {
       setKeyRow(0);
       setKeyCol(0);
       setShiftLatch(false);
+      setMoveKeyboardMode(false);
     }
   }, [activeFlyout]);
 
@@ -153,10 +209,58 @@ export function KitsuneBarOverlay() {
     void window.bridge.setHapticsGain(val);
   };
 
-  const handleVolumeChange = (val: number) => {
-    setVolume(val);
-    void window.bridge.setSpeakerVolume(val);
+  const commitSystemVolume = async (val: number) => {
+    const clamped = clampVolumePercent(val);
+    setVolume(clamped);
+    volumeRef.current = clamped;
+    if (clamped > 0) {
+      lastAudibleVolumeRef.current = clamped;
+    }
+    try {
+      const applied = clampVolumePercent(await window.bridge.setSystemVolume(clamped));
+      setVolume(applied);
+      volumeRef.current = applied;
+      if (applied > 0) {
+        lastAudibleVolumeRef.current = applied;
+      }
+      setVolumeError(null);
+    } catch (error) {
+      setVolumeError(error instanceof Error ? error.message : String(error));
+    }
   };
+
+  const handleVolumeChange = (val: number) => {
+    const clamped = clampVolumePercent(val);
+    setVolume(clamped);
+    volumeRef.current = clamped;
+    if (volumeCommitRef.current) {
+      clearTimeout(volumeCommitRef.current);
+    }
+    volumeCommitRef.current = setTimeout(() => {
+      volumeCommitRef.current = null;
+      void commitSystemVolume(clamped);
+    }, 120);
+  };
+
+  useEffect(() => {
+    if (activeFlyout !== 'audio') return;
+    let cancelled = false;
+    void window.bridge.getSystemVolume?.().then((current) => {
+      if (cancelled) return;
+      const clamped = clampVolumePercent(current);
+      setVolume(clamped);
+      volumeRef.current = clamped;
+      if (clamped > 0) lastAudibleVolumeRef.current = clamped;
+      setVolumeError(null);
+    }).catch((error: unknown) => {
+      if (!cancelled) {
+        setVolumeError(error instanceof Error ? error.message : String(error));
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeFlyout]);
 
   const rawSettings = snapshot?.settings.kitsuneBarSettings;
   const totalLayers = rawSettings?.totalLayers ?? 2;
@@ -184,31 +288,82 @@ export function KitsuneBarOverlay() {
   layerItemsRef.current = layerItems;
   allItemsRef.current = items;
 
+  const insertAtCaret = (chunk: string) => {
+    const caret = textCaretRef.current;
+    setVirtualText((prev) => `${prev.slice(0, caret)}${chunk}${prev.slice(caret)}`);
+    setTextCaret(caret + chunk.length);
+  };
+
+  const handleKeyboardDone = useCallback(() => {
+    const text = virtualTextRef.current;
+    if (text) {
+      void navigator.clipboard?.writeText(text);
+    }
+    setActiveFlyout(null);
+  }, []);
+
+  const handleToggleGyro = useCallback(async () => {
+    const current = {
+      ...DEFAULT_GYRO,
+      ...(snapshotRef.current?.settings.gyroSettings ?? {})
+    };
+    const nextEnabled = !gyroMouseOnRef.current;
+    setGyroMouseOn(nextEnabled);
+    setGyroError(null);
+    try {
+      await window.bridge.setGyroSettings({ ...current, enabled: nextEnabled });
+    } catch {
+      setGyroError('Gyro unavailable');
+      setGyroMouseOn(!nextEnabled);
+    }
+  }, []);
+
   const applyKeyboardCell = async (cell: KeyboardCell) => {
     if (cell.kind === 'action') {
-      if (cell.id === 'Shift') {
+      if (cell.id === 'Shift' || cell.id === 'Abc') {
         setShiftLatch((prev) => !prev);
         return;
       }
       if (cell.id === 'Space') {
-        setVirtualText((prev) => `${prev} `);
+        insertAtCaret(' ');
         await window.bridge.typeVirtualKey?.('Space');
         return;
       }
       if (cell.id === 'Backspace') {
-        setVirtualText((prev) => prev.slice(0, -1));
+        const next = applyBackspaceAtCaret(virtualTextRef.current, textCaretRef.current);
+        setVirtualText(next.text);
+        setTextCaret(next.caret);
         await window.bridge.typeVirtualKey?.('Backspace');
         return;
       }
       if (cell.id === 'Enter') {
-        setVirtualText((prev) => `${prev}\n`);
+        insertAtCaret('\n');
         await window.bridge.typeVirtualKey?.('Enter');
+        return;
+      }
+      if (cell.id === 'ArrowLeft') {
+        setTextCaret((c) => applyCaretLeft(virtualTextRef.current, c).caret);
+        return;
+      }
+      if (cell.id === 'ArrowRight') {
+        setTextCaret((c) => applyCaretRight(virtualTextRef.current, c).caret);
+        return;
+      }
+      if (cell.id === 'ArrowUp' || cell.id === 'ArrowDown') {
+        return;
+      }
+      if (cell.id === 'GyroMouse') {
+        await handleToggleGyro();
+        return;
+      }
+      if (cell.id === 'Done') {
+        handleKeyboardDone();
         return;
       }
       return;
     }
     const ch = shiftLatchRef.current ? cell.upper : cell.lower;
-    setVirtualText((prev) => `${prev}${ch}`);
+    insertAtCaret(ch);
     await window.bridge.typeVirtualKey?.(ch, shiftLatchRef.current);
     if (shiftLatchRef.current && /[a-z]/i.test(cell.lower)) {
       setShiftLatch(false);
@@ -221,25 +376,76 @@ export function KitsuneBarOverlay() {
 
       const flyoutItem = flyout ? allItemsRef.current.find((item) => item.id === flyout) : undefined;
       if (isKeyboardFlyout(flyout) || flyoutItem?.icon === 'keyboard') {
-        if (nav === 'left' || nav === 'right' || nav === 'up' || nav === 'down') {
-          const next = moveKeyboardFocus(keyRowRef.current, keyColRef.current, nav);
-          setKeyRow(next.row);
-          setKeyCol(next.col);
-          return;
-        }
-        if (nav === 'select') {
-          const cell = KITSUNE_KEYBOARD_ROWS[keyRowRef.current]?.[keyColRef.current];
-          if (cell) void applyKeyboardCell(cell);
-          return;
-        }
-        if (nav === 'cancel') {
-          if (virtualTextRef.current.length > 0) {
-            setVirtualText((prev) => prev.slice(0, -1));
-            void window.bridge.typeVirtualKey?.('Backspace');
-          } else {
-            setActiveFlyout(null);
+        const result = handleKeyboardNavAction(nav as KitsuneNavAction, {
+          moveMode: moveKeyboardModeRef.current
+        });
+        switch (result) {
+          case 'move-focus': {
+            if (nav === 'left' || nav === 'right' || nav === 'up' || nav === 'down') {
+              const next = moveKeyboardFocus(keyRowRef.current, keyColRef.current, nav);
+              setKeyRow(next.row);
+              setKeyCol(next.col);
+            }
+            return;
           }
-          return;
+          case 'move-overlay': {
+            if (nav === 'left' || nav === 'right' || nav === 'up' || nav === 'down') {
+              void window.bridge.moveKitsuneBar?.(nav);
+            }
+            return;
+          }
+          case 'select': {
+            const cell = KITSUNE_KEYBOARD_ROWS[keyRowRef.current]?.[keyColRef.current];
+            if (cell) void applyKeyboardCell(cell);
+            return;
+          }
+          case 'cancel': {
+            // Move mode only — Circle is shift while typing (Steam-like remap).
+            if (moveKeyboardModeRef.current) {
+              setMoveKeyboardMode(false);
+            }
+            return;
+          }
+          case 'caret-left': {
+            setTextCaret((c) => applyCaretLeft(virtualTextRef.current, c).caret);
+            return;
+          }
+          case 'caret-right': {
+            setTextCaret((c) => applyCaretRight(virtualTextRef.current, c).caret);
+            return;
+          }
+          case 'toggle-shift': {
+            setShiftLatch((prev) => !prev);
+            return;
+          }
+          case 'backspace': {
+            const next = applyBackspaceAtCaret(virtualTextRef.current, textCaretRef.current);
+            setVirtualText(next.text);
+            setTextCaret(next.caret);
+            void window.bridge.typeVirtualKey?.('Backspace');
+            return;
+          }
+          case 'space': {
+            insertAtCaret(' ');
+            void window.bridge.typeVirtualKey?.('Space');
+            return;
+          }
+          case 'enter': {
+            insertAtCaret('\n');
+            void window.bridge.typeVirtualKey?.('Enter');
+            return;
+          }
+          case 'done': {
+            handleKeyboardDone();
+            return;
+          }
+          case 'toggle-gyro': {
+            void handleToggleGyro();
+            return;
+          }
+          case 'ignore':
+          default:
+            return;
         }
       }
 
@@ -247,16 +453,14 @@ export function KitsuneBarOverlay() {
         if (nav === 'left' || nav === 'right') {
           const delta = nav === 'left' ? -5 : 5;
           const next = Math.max(0, Math.min(100, volumeRef.current + delta));
-          setVolume(next);
           setStickVolumeActive(true);
-          void window.bridge.setSpeakerVolume(next);
+          void commitSystemVolume(next);
           return;
         }
         if (nav === 'select') {
-          const next = volumeRef.current > 0 ? 0 : 50;
-          setVolume(next);
+          const next = volumeRef.current > 0 ? 0 : lastAudibleVolumeRef.current || 50;
           setStickVolumeActive(true);
-          void window.bridge.setSpeakerVolume(next);
+          void commitSystemVolume(next);
           return;
         }
         if (nav === 'cancel') {
@@ -293,7 +497,7 @@ export function KitsuneBarOverlay() {
     return () => {
       unsubscribe?.();
     };
-  }, [totalLayers]);
+  }, [totalLayers, handleKeyboardDone, handleToggleGyro]);
 
   const connected = Boolean(snapshot?.status?.controllerConnected);
   const activeProfile = snapshot?.settings.controllerProfiles.find(
@@ -338,106 +542,31 @@ export function KitsuneBarOverlay() {
 
   return (
     <div className="kitsune-bar-overlay-root">
-      <div className="kitsune-bar-overlay-bar">
-        {/* Core Fixed Items (Left) */}
-        <div className="kitsune-dock-group fixed-core-left">
-          <button
-            type="button"
-            className="dock-item"
-            title="Open Main Window"
-            onClick={() => {
-              void window.bridge.showMainWindow();
-              handleClose();
-            }}
-          >
-            <IconHome size={18} />
-          </button>
-          <button
-            type="button"
-            className="dock-item"
-            title="Game Profiles"
-            onClick={() => setActiveFlyout(activeFlyout === 'profiles' ? null : 'profiles')}
-          >
-            <IconCopy size={18} />
-          </button>
-          <button
-            type="button"
-            className="dock-item ps-dock-button"
-            title="PlayStation Home"
-            onClick={() => setActiveFlyout(activeFlyout === 'ps' ? null : 'ps')}
-          >
-            <img src={psHomeGlyphUrl} alt="PS" className="dock-ps-icon" />
-          </button>
-          <div
-            className="dock-item battery-dock-item"
-            title={`Battery: ${batteryPctText}${isCharging ? ' (Charging)' : ''}`}
-          >
-            <div className="dock-battery-meter">
-              <span className="battery-bar" />
-              <span className="battery-bar" />
-              <span className="battery-bar" />
-              <span className="battery-bar" />
-            </div>
-          </div>
-        </div>
-
-        {/* Dynamic Layer Modules */}
-        <div className="kitsune-dock-group layer-modules">
-          {layerItems.map((item, index) => (
-            <button
-              key={item.id}
-              type="button"
-              className={`dock-item module-item ${activeFlyout === item.id ? 'active' : ''} ${focusedIndex === index ? 'gamepad-focused' : ''}`}
-              title={`${item.name}`}
-              onClick={() => {
-                setFocusedIndex(index);
-                setActiveFlyout(activeFlyout === item.id ? null : item.id);
-              }}
-            >
-              {renderIcon(item.icon, 18)}
-            </button>
-          ))}
-        </div>
-
-        {/* Core Fixed Items (Right) */}
-        <div className="kitsune-dock-group fixed-core-right">
-          <div className="dock-layer-stepper" title={`Current Layer: ${activeLayer}/${totalLayers}`}>
-            <button
-              type="button"
-              className="stepper-arrow up"
-              aria-label="Previous Layer"
-              onClick={() => cycleLayer('up')}
-            >
-              <IconChevronUp size={11} stroke={3} />
-            </button>
-            <span className="stepper-label">{`${activeLayer}/${totalLayers}`}</span>
-            <button
-              type="button"
-              className="stepper-arrow down"
-              aria-label="Next Layer"
-              onClick={() => cycleLayer('down')}
-            >
-              <IconChevronDown size={11} stroke={3} />
-            </button>
-          </div>
-          <button
-            type="button"
-            className="dock-item sleep-dock-button"
-            title="Sleep Controller"
-            onClick={() => void window.bridge.sleepController()}
-          >
-            <IconPower size={18} />
-          </button>
-          <button
-            type="button"
-            className="dock-item close-dock-button"
-            title="Close Overlay"
-            onClick={handleClose}
-          >
-            <IconX size={15} />
-          </button>
-        </div>
-      </div>
+      <KitsuneDockBar
+        variant="overlay"
+        layerItems={layerItems}
+        focusedIndex={focusedIndex}
+        activeFlyout={activeFlyout}
+        activeLayer={activeLayer}
+        totalLayers={totalLayers}
+        batteryPctText={batteryPctText}
+        isCharging={isCharging}
+        renderIcon={renderIcon}
+        onHome={() => {
+          void window.bridge.showMainWindow();
+          handleClose();
+        }}
+        onProfiles={() => setActiveFlyout(activeFlyout === 'profiles' ? null : 'profiles')}
+        onPs={() => setActiveFlyout(activeFlyout === 'ps' ? null : 'ps')}
+        onModuleClick={(id, index) => {
+          setFocusedIndex(index);
+          setActiveFlyout(activeFlyout === id ? null : id);
+        }}
+        onLayerUp={() => cycleLayer('up')}
+        onLayerDown={() => cycleLayer('down')}
+        onSleep={() => void window.bridge.sleepController()}
+        onClose={handleClose}
+      />
 
       {/* Flyout Quick Menus */}
       {activeFlyout && (
@@ -526,12 +655,13 @@ export function KitsuneBarOverlay() {
           {activeFlyout === 'audio' && (
             <div className="overlay-flyout-card">
               <div className="overlay-flyout-header">
-                <strong>Audio Volume</strong>
+                <strong>System Volume</strong>
                 <span>{volume}%</span>
               </div>
-              <p className="overlay-flyout-meta">Left stick / D-pad left-right adjusts volume</p>
+              <p className="overlay-flyout-meta">Windows playback device · stick left/right adjusts</p>
+              {volumeError ? <p className="overlay-flyout-meta">{volumeError}</p> : null}
               <div className={`overlay-slider-row ${stickVolumeActive ? 'stick-active' : ''}`}>
-                <IconVolume size={14} />
+                {volume > 0 ? <IconVolume size={14} /> : <IconVolumeOff size={14} />}
                 <input
                   type="range"
                   min="0"
@@ -541,6 +671,13 @@ export function KitsuneBarOverlay() {
                   onChange={(e) => {
                     setStickVolumeActive(false);
                     handleVolumeChange(Number(e.target.value));
+                  }}
+                  onPointerUp={(e) => {
+                    if (volumeCommitRef.current) {
+                      clearTimeout(volumeCommitRef.current);
+                      volumeCommitRef.current = null;
+                    }
+                    void commitSystemVolume(Number(e.currentTarget.value));
                   }}
                 />
               </div>
@@ -634,65 +771,36 @@ export function KitsuneBarOverlay() {
 
           {(isKeyboardFlyout(activeFlyout) || currentItem?.icon === 'keyboard') && (
             <div className="overlay-flyout-card overlay-keyboard-card">
-              <div className="overlay-flyout-header">
-                <strong>Gamepad Keyboard</strong>
-                <span className="overlay-badge">{shiftLatch ? 'Shift' : 'ABC'}</span>
-              </div>
-              <div className="overlay-keyboard-quickbox">
-                <input
-                  type="text"
-                  className="overlay-keyboard-input"
-                  placeholder="Stick moves · Cross types · Circle backspace"
-                  value={virtualText}
-                  readOnly
-                />
-                <div className="overlay-keyboard-actions">
-                  <button
-                    type="button"
-                    className="overlay-mini-btn"
-                    onClick={() => {
-                      if (virtualText) {
-                        void navigator.clipboard?.writeText(virtualText);
-                      }
-                    }}
-                  >
-                    Copy
-                  </button>
-                  <button
-                    type="button"
-                    className="overlay-mini-btn"
-                    onClick={() => setVirtualText('')}
-                  >
-                    Clear
-                  </button>
-                </div>
-              </div>
-              <div className="overlay-keyboard-grid" role="grid" aria-label="Gamepad keyboard">
-                {KITSUNE_KEYBOARD_ROWS.map((row, rowIndex) => (
-                  <div key={`kb-row-${rowIndex}`} className="overlay-keyboard-row" role="row">
-                    {row.map((cell, colIndex) => {
-                      const focused = keyRow === rowIndex && keyCol === colIndex;
-                      const label = cellLabel(cell, shiftLatch);
-                      const wide = cell.kind === 'action' && (cell.id === 'Space' || cell.id === 'Shift');
-                      return (
-                        <button
-                          key={`kb-${rowIndex}-${colIndex}-${label}`}
-                          type="button"
-                          role="gridcell"
-                          className={`overlay-key ${focused ? 'gamepad-focused' : ''} ${wide ? 'wide' : ''} ${cell.kind === 'action' && cell.id === 'Shift' && shiftLatch ? 'active' : ''}`}
-                          onClick={() => {
-                            setKeyRow(rowIndex);
-                            setKeyCol(colIndex);
-                            void applyKeyboardCell(cell);
-                          }}
-                        >
-                          {label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                ))}
-              </div>
+              <KitsuneKeyboard
+                variant="overlay"
+                virtualText={virtualText}
+                shiftLatch={shiftLatch}
+                keyRow={keyRow}
+                keyCol={keyCol}
+                moveKeyboardMode={moveKeyboardMode}
+                gyroMouseOn={gyroMouseOn}
+                gyroError={gyroError}
+                onCellActivate={(row, col) => {
+                  setKeyRow(row);
+                  setKeyCol(col);
+                  const cell = KITSUNE_KEYBOARD_ROWS[row]?.[col];
+                  if (cell) void applyKeyboardCell(cell);
+                }}
+                onDone={handleKeyboardDone}
+                onToggleGyro={() => {
+                  void handleToggleGyro();
+                }}
+                onToggleMoveMode={() => setMoveKeyboardMode((prev) => !prev)}
+                onCopy={() => {
+                  if (virtualText) {
+                    void navigator.clipboard?.writeText(virtualText);
+                  }
+                }}
+                onClear={() => {
+                  setVirtualText('');
+                  setTextCaret(0);
+                }}
+              />
               <button
                 type="button"
                 className="overlay-quick-btn"

@@ -354,16 +354,56 @@ const api = {
   setInputSuppressed: (suppressed: boolean): Promise<boolean> => (
     ipcRenderer.invoke('bridge:setInputSuppressed', suppressed)
   ),
-  onKitsuneNav: (callback: (nav: 'left' | 'right' | 'up' | 'down' | 'select' | 'cancel') => void): (() => void) => {
-    const listener = (_event: Electron.IpcRendererEvent, nav: 'left' | 'right' | 'up' | 'down' | 'select' | 'cancel') => callback(nav);
+  onKitsuneNav: (
+    callback: (
+      nav:
+        | 'left'
+        | 'right'
+        | 'up'
+        | 'down'
+        | 'select'
+        | 'cancel'
+        | 'kb-l1'
+        | 'kb-r1'
+        | 'kb-l2'
+        | 'kb-r2'
+        | 'kb-square'
+        | 'kb-triangle'
+        | 'kb-gyro'
+    ) => void
+  ): (() => void) => {
+    const listener = (
+      _event: Electron.IpcRendererEvent,
+      nav:
+        | 'left'
+        | 'right'
+        | 'up'
+        | 'down'
+        | 'select'
+        | 'cancel'
+        | 'kb-l1'
+        | 'kb-r1'
+        | 'kb-l2'
+        | 'kb-r2'
+        | 'kb-square'
+        | 'kb-triangle'
+        | 'kb-gyro'
+    ) => callback(nav);
     ipcRenderer.on('kitsune:nav', listener);
     return () => ipcRenderer.removeListener('kitsune:nav', listener);
   },
   typeVirtualKey: (key: string, shift?: boolean): Promise<{ ok: boolean; message: string }> => (
     ipcRenderer.invoke('bridge:typeVirtualKey', key, shift)
   ),
+  getSystemVolume: (): Promise<number> => ipcRenderer.invoke('bridge:getSystemVolume'),
+  setSystemVolume: (percent: number): Promise<number> => (
+    ipcRenderer.invoke('bridge:setSystemVolume', percent)
+  ),
   resizeKitsuneBar: (width: number, height: number): Promise<boolean> => (
     ipcRenderer.invoke('bridge:resizeKitsuneBar', width, height)
+  ),
+  moveKitsuneBar: (direction: 'left' | 'right' | 'up' | 'down'): Promise<boolean> => (
+    ipcRenderer.invoke('bridge:moveKitsuneBar', direction)
   ),
   showMainWindow: (): Promise<void> => ipcRenderer.invoke('window:show'),
   triggerScreenshot: (): Promise<{ ok: boolean; message: string }> => (

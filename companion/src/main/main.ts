@@ -448,6 +448,7 @@ function createKitsuneBarWindow(): BrowserWindow {
     alwaysOnTop: true,
     skipTaskbar: true,
     resizable: true,
+    movable: true,
     maximizable: false,
     fullscreenable: false,
     focusable: true,
@@ -490,13 +491,38 @@ function resizeKitsuneBar(width: number, height: number): boolean {
   const newWidth = Math.max(780, width || 780);
   const newHeight = Math.max(64, height || 64);
   const currentBounds = kitsuneBarWindow.getBounds();
-  const diffWidth = newWidth - currentBounds.width;
-  const newX = Math.round(currentBounds.x - diffWidth / 2);
+  // Keep the user's dragged/stick-moved position; only grow height downward.
   kitsuneBarWindow.setBounds({
-    x: newX,
+    x: currentBounds.x,
     y: currentBounds.y,
     width: newWidth,
     height: newHeight
+  });
+  return true;
+}
+
+const KITSUNE_MOVE_STEP_PX = 14;
+
+function moveKitsuneBar(direction: 'left' | 'right' | 'up' | 'down'): boolean {
+  if (!kitsuneBarWindow || kitsuneBarWindow.isDestroyed() || !kitsuneBarWindow.isVisible()) {
+    return false;
+  }
+  const bounds = kitsuneBarWindow.getBounds();
+  const display = screen.getDisplayMatching(bounds);
+  const area = display.workArea;
+  let nextX = bounds.x;
+  let nextY = bounds.y;
+  if (direction === 'left') nextX -= KITSUNE_MOVE_STEP_PX;
+  if (direction === 'right') nextX += KITSUNE_MOVE_STEP_PX;
+  if (direction === 'up') nextY -= KITSUNE_MOVE_STEP_PX;
+  if (direction === 'down') nextY += KITSUNE_MOVE_STEP_PX;
+  nextX = Math.max(area.x, Math.min(nextX, area.x + area.width - bounds.width));
+  nextY = Math.max(area.y, Math.min(nextY, area.y + area.height - Math.min(bounds.height, 64)));
+  kitsuneBarWindow.setBounds({
+    x: Math.round(nextX),
+    y: Math.round(nextY),
+    width: bounds.width,
+    height: bounds.height
   });
   return true;
 }
@@ -1502,8 +1528,15 @@ function registerIpc(service: BridgeService): void {
   ipcMain.handle('bridge:typeVirtualKey', async (_event, key: string, shift?: boolean) => (
     service.typeVirtualKey(key, Boolean(shift))
   ));
+  ipcMain.handle('bridge:getSystemVolume', async () => service.getSystemVolume());
+  ipcMain.handle('bridge:setSystemVolume', async (_event, percent: number) => (
+    service.setSystemVolume(percent)
+  ));
   ipcMain.handle('bridge:resizeKitsuneBar', (_event, width: number, height: number) => (
     resizeKitsuneBar(width, height)
+  ));
+  ipcMain.handle('bridge:moveKitsuneBar', (_event, direction: 'left' | 'right' | 'up' | 'down') => (
+    moveKitsuneBar(direction)
   ));
   ipcMain.handle('bridge:triggerScreenshot', async () => {
     try {
@@ -1717,6 +1750,10 @@ app.whenReady().then(async () => {
     if (kitsuneBarWindow && !kitsuneBarWindow.isDestroyed() && kitsuneBarWindow.isVisible()) {
       kitsuneBarWindow.webContents.send('kitsune:nav', nav);
     }
+  });
+
+  bridgeService.on('kitsune-move', (direction: 'left' | 'right' | 'up' | 'down') => {
+    moveKitsuneBar(direction);
   });
 
   bridgeService.on('snapshot', (snapshot) => {
